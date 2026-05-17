@@ -1,0 +1,207 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem 4rem;
+  z-index: 10;
+}
+
+.logoText {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #0f172a;
+}
+
+.navActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.langSelector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 12px;
+  color: #4b5563;
+  height: 44px;
+}
+
+.signInButton {
+  height: 44px;
+  padding: 0 1.5rem;
+  font-size: 0.95rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.2);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  z-index: 5;
+  margin-top: -2rem;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.title {
+  font-size: 3.2rem;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+  line-height: 1.1;
+}
+
+.title span {
+  color: #1e293b;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: #64748b;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.centralCard {
+  width: 100%;
+  max-width: 360px;
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 3rem;
+  border-radius: 32px;
+}
+
+.iconWrapper {
+  width: 80px;
+  height: 80px;
+  background: #eef2ff;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.centralIcon {
+  color: #5d5dff;
+}
+
+.cardTitle {
+  font-size: 1.75rem;
+  margin-bottom: 0.75rem;
+  color: #1a1a2e;
+}
+
+.cardSubtitle {
+  color: #64748b;
+  line-height: 1.5;
+  font-size: 1.1rem;
+}
+
+.shopkeeperSection {
+  width: 100%;
+  max-width: 800px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.divider span {
+  padding: 0 1.5rem;
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.shopkeeperCards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.actionCard {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.actionCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.05);
+}
+
+.actionIconBg {
+  width: 50px;
+  height: 50px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+}
+
+.actionText h3 {
+  font-size: 1.1rem;
+  color: #5d5dff;
+  margin-bottom: 0.25rem;
+}
+
+.actionText p {
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+@media (max-width: 768px) {
+  .nav {
+    padding: 1.5rem 2rem;
+  }
+  .title {
+    font-size: 2.5rem;
+  }
+  .shopkeeperCards {
+    grid-template-columns: 1fr;
+  }
+  .centralCard {
+    padding: 2rem 1.5rem;
+  }
+}
