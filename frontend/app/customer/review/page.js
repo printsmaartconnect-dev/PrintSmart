@@ -35,7 +35,7 @@ export default function ReviewPage() {
   const price = calculatePrice()
   const total = price.toFixed(2)
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     const orderId = `ORD-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
     const newOrder = {
       orderId,
@@ -43,6 +43,50 @@ export default function ReviewPage() {
       config,
       price: total,
       timestamp: new Date().toISOString(),
+    }
+
+    const uploadedFileUrls = JSON.parse(localStorage.getItem('uploadedFileUrls') || '{}')
+    const items = []
+    
+    if (Array.isArray(config)) {
+      config.forEach((itemConfig, index) => {
+        const fName = files[index] || `Document ${index + 1}`
+        items.push({
+          fileName: fName,
+          fileUrl: uploadedFileUrls[fName] || 'http://localhost:5000/uploads/placeholder.pdf',
+          price: calculateItemPrice(itemConfig),
+          variant: 'standard',
+          config: itemConfig
+        })
+      })
+    } else {
+      const fName = files[0] || 'Untitled document'
+      items.push({
+        fileName: fName,
+        fileUrl: uploadedFileUrls[fName] || 'http://localhost:5000/uploads/placeholder.pdf',
+        price: calculateItemPrice(config),
+        variant: 'standard',
+        config: config
+      })
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/orders/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          customerName: 'Anonymous Customer',
+          phone: '',
+          items,
+        }),
+      })
+
+      if (response.ok) {
+        console.log('Order synced to backend successfully')
+      }
+    } catch (err) {
+      console.warn('Backend order placement failed, proceeding in offline/mock mode:', err)
     }
 
     // Persist order exactly once

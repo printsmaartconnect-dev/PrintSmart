@@ -30,13 +30,42 @@ export default function UploadPage() {
     setFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     const name = documentName.trim()
     if (!name) return
 
+    setUploading(true)
     const storedNames = files.length > 0 ? files.map((f) => f.name) : [name]
-    localStorage.setItem('uploadedFiles', JSON.stringify(storedNames))
-    router.push('/customer/configuration')
+    const fileUrls = {}
+
+    try {
+      // Upload each file to the backend
+      for (const file of files) {
+        const formDataPayload = new FormData()
+        formDataPayload.append('file', file)
+
+        const response = await fetch('http://localhost:5000/api/files/upload', {
+          method: 'POST',
+          body: formDataPayload,
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          fileUrls[file.name] = result.fileUrl
+        }
+      }
+      
+      localStorage.setItem('uploadedFiles', JSON.stringify(storedNames))
+      localStorage.setItem('uploadedFileUrls', JSON.stringify(fileUrls))
+      router.push('/customer/configuration')
+    } catch (err) {
+      console.warn('Backend upload failed, continuing with mock upload flow:', err)
+      localStorage.setItem('uploadedFiles', JSON.stringify(storedNames))
+      localStorage.setItem('uploadedFileUrls', JSON.stringify({}))
+      router.push('/customer/configuration')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const formatFileSize = (bytes) => {

@@ -16,7 +16,7 @@ function EmptyState({ activeFilter }) {
   )
 }
 
-export default function RecentOrders({ orders, activeFilter = 'All' }) {
+export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange }) {
   return (
     <section>
       <div className="flex items-center justify-between">
@@ -35,7 +35,7 @@ export default function RecentOrders({ orders, activeFilter = 'All' }) {
         ) : (
           <div className="flex gap-5 overflow-x-auto pb-2 pr-2">
             {orders.map((o) => (
-              <OrderCard key={o.id} order={o} />
+              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} />
             ))}
           </div>
         )}

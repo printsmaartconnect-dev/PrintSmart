@@ -19,17 +19,42 @@ export default function ShopkeeperLoginPage() {
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    const shopkeeper = JSON.parse(localStorage.getItem('shopkeeper') || '{}')
-    if (
-      shopkeeper.email === formData.email &&
-      shopkeeper.password === formData.password
-    ) {
-      localStorage.setItem('loggedInShopkeeper', JSON.stringify(shopkeeper))
-      router.push('/shopkeeper/dashboard')
-    } else {
-      alert('Invalid credentials!')
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem('authToken', data.token)
+        localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+        localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+        router.push('/shopkeeper/dashboard')
+        return
+      }
+      
+      const errorData = await response.json()
+      alert(errorData.message || 'Invalid credentials!')
+    } catch (err) {
+      console.warn('Backend connection failed, trying fallback mockup authentication:', err)
+      // Fallback local storage logic
+      const shopkeeper = JSON.parse(localStorage.getItem('shopkeeper') || '{}')
+      if (
+        shopkeeper.email === formData.email &&
+        shopkeeper.password === formData.password
+      ) {
+        localStorage.setItem('loggedInShopkeeper', JSON.stringify(shopkeeper))
+        router.push('/shopkeeper/dashboard')
+      } else {
+        alert('Invalid credentials! (Fallback mode)')
+      }
     }
   }
 

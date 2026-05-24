@@ -20,10 +20,34 @@ export default function ShopkeeperRegisterPage() {
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    localStorage.setItem('shopkeeper', JSON.stringify(formData))
-    router.push('/shopkeeper/login')
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+        router.push('/shopkeeper/login')
+        return
+      }
+
+      const errorData = await response.json()
+      alert(errorData.message || 'Registration failed')
+    } catch (err) {
+      console.warn('Backend connection failed, trying fallback mockup registration:', err)
+      // Fallback local storage logic
+      localStorage.setItem('shopkeeper', JSON.stringify(formData))
+      router.push('/shopkeeper/login')
+    }
   }
 
   return (

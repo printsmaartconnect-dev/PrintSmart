@@ -3188,12 +3188,335 @@ if (localStorage.getItem('DEBUG')) {
 
 ---
 
+## Backend Architecture
+
+### Tech Stack
+- **Framework**: Express.js with Node.js
+- **Database ORM**: Prisma ORM
+- **Database**: PostgreSQL (hosted on Supabase or Neon in production)
+- **File Storage**: AWS S3 Bucket (with local fallback to Express static file serving for offline/local development)
+
+### Directory Structure
+```
+backend/
+├── server.js               # Application entrypoint
+├── prisma/
+│   └── schema.prisma       # Prisma DB models and relations
+├── config/
+│   └── db.js               # Prisma Client initialization
+├── routes/
+│   ├── auth.routes.js      # Auth-related API routing
+│   ├── file.routes.js      # File-related API routing
+│   ├── order.routes.js     # Order-related API routing
+│   └── queue.routes.js     # Queue-related API routing
+├── controllers/
+│   ├── auth.controller.js  # Shopkeeper credentials & profile management logic
+│   ├── file.controller.js  # AWS S3 file upload handler logic
+│   ├── order.controller.js # Customer/Shopkeeper order creation/updating logic
+│   └── queue.controller.js # Queue position and active status tracking logic
+├── services/
+│   └── storage.service.js  # S3 bucket / local file upload abstraction layer
+├── middleware/
+│   └── auth.middleware.js  # JWT-based token verification middleware
+└── .env                    # System-specific configuration values
+```
+
+---
+
+## Database Architecture
+
+We use **PostgreSQL** as the relational database, managed using the **Prisma ORM**.
+
+### Entity Relationship Diagram (ERD) Schema
+```mermaid
+erDiagram
+    User ||--o{ Order : places
+    Shopkeeper ||--o{ Order : manages
+    Order ||--|| PrintConfiguration : configures
+    Order ||--o| Queue : tracks
+```
+
+### Models & Schema Definition
+
+#### 1. User
+Represents customers placing orders.
+- `id` (UUID, Primary Key)
+- `email` (String, Unique)
+- `name` (String, Optional)
+- `createdAt` / `updatedAt` (DateTime)
+
+#### 2. Shopkeeper
+Represents printing shops.
+- `id` (UUID, Primary Key)
+- `email` (String, Unique)
+- `password` (String, Hashed)
+- `phone` (String)
+- `shopName` (String)
+- `ownerName` (String, Optional)
+- `address` (String, Optional)
+- `category` (String)
+- `subCategory` (String)
+- `languagePref` (String)
+- `gstNumber` (String, Optional)
+- `socials` (JSON)
+- `pricing` (JSON)
+- `logoUrl` (String, Optional)
+
+#### 3. Order
+Represents actual print jobs.
+- `id` (UUID, Primary Key)
+- `orderId` (String, Unique, human-readable e.g. ORD-00145)
+- `userId` (UUID, Foreign Key, Optional)
+- `shopkeeperId` (UUID, Foreign Key)
+- `customerName` (String)
+- `phone` (String, Optional)
+- `fileName` (String)
+- `fileUrl` (String, S3 URL or Local URL path)
+- `price` (Float)
+- `status` (String: Pending, Accepted, Printing, Completed, Cancelled)
+- `printConfigId` (UUID, Foreign Key, Unique)
+- `variant` (String: standard, talk)
+
+#### 4. PrintConfiguration
+Contains specifications for printing a document.
+- `id` (UUID, Primary Key)
+- `printType` (String: bw, color)
+- `copies` (Int)
+- `paperSize` (String: A4, A3, Legal)
+- `pages` (String: all, custom)
+- `sides` (String: single, double)
+- `orientation` (String: portrait, landscape)
+
+#### 5. Queue
+Maintains order positions in the printing queue.
+- `id` (UUID, Primary Key)
+- `orderId` (UUID, Foreign Key, Unique)
+- `position` (Int)
+- `status` (String: Waiting, Printing, Done)
+
+---
+
+## AWS S3 Upload Workflow
+
+To avoid bloating PostgreSQL database size, uploaded documents are stored in an **AWS S3 bucket**, and only the resulting metadata and URL are stored in the database.
+
+### Workflow:
+1. **Selection**: Customer uploads their file via Next.js drag-and-drop file interface.
+2. **Transfer**: On clicking "Continue", the React application performs a POST request carrying a `multipart/form-data` payload containing the file.
+3. **S3 Upload**: The backend S3 client uploads the buffer to the S3 bucket using a uniquely hashed file key to avoid collisions.
+4. **URL Generation**: S3 bucket returns the public access URL of the file.
+5. **DB Saving**: On final order review screen, the client submits the order details along with the S3 URL. The database saves this metadata.
+6. **Dashboard Access**: Shopkeeper accesses the document URL directly from their dashboard via the **Preview**, **Print**, or **Download** actions.
+
+> [!NOTE]
+> If AWS S3 credentials are not configured in `.env`, the system automatically shifts to local filesystem storage, saving files to `backend/uploads/` and serving them at `http://localhost:PORT/uploads/` dynamically.
+
+---
+
+## Queue Management Flow
+
+The queue tracks incoming orders in a first-in-first-out order.
+1. When a new order is saved, the backend queries the maximum position current queue orders have, sets the position to `max + 1`, and sets the status to `Waiting`.
+2. When the shopkeeper changes the status of an order to `Printing`, the queue entry's status is also updated to `Printing`.
+3. Once completed (either by clicking the "Print" button which triggers browser printing and updates status, or manual completion), the queue entry's status becomes `Done`, removing it from the active queue.
+
+---
+
+## API Documentation
+
+### 1. Authentication
+#### `POST /api/auth/register`
+Creates a shopkeeper login profile.
+- **Request Body**:
+  ```json
+  {
+    "email": "shop@gmail.com",
+    "phone": "+919876543210",
+    "password": "securepassword"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "token": "JWT_TOKEN_HERE",
+    "shopkeeper": {
+      "id": "shopkeeper-uuid",
+      "email": "shop@gmail.com",
+      "phone": "+919876543210",
+      "shopName": "My Printing Shop"
+    }
+  }
+  ```
+
+#### `POST /api/auth/login`
+Logs in a shopkeeper and provides a JWT session token.
+- **Request Body**:
+  ```json
+  {
+    "email": "shop@gmail.com",
+    "password": "securepassword"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "token": "JWT_TOKEN_HERE",
+    "shopkeeper": {
+      "id": "shopkeeper-uuid",
+      "email": "shop@gmail.com",
+      "phone": "+919876543210",
+      "shopName": "My Printing Shop",
+      "pricing": { ... }
+    }
+  }
+  ```
+
+### 2. Files
+#### `POST /api/files/upload`
+Uploads a document to file storage.
+- **Request Body**: `multipart/form-data` with `file` key containing the uploaded document.
+- **Response**:
+  ```json
+  {
+    "message": "File uploaded successfully",
+    "fileName": "document.pdf",
+    "fileUrl": "https://bucket-name.s3.amazonaws.com/17165849-unique.pdf",
+    "fileKey": "17165849-unique.pdf",
+    "sizeBytes": 240050,
+    "mimeType": "application/pdf"
+  }
+  ```
+
+### 3. Orders
+#### `POST /api/orders/create`
+Creates a new order containing one or multiple files.
+- **Request Body**:
+  ```json
+  {
+    "orderId": "ORD-08420",
+    "customerName": "John Doe",
+    "phone": "+919988776655",
+    "shopkeeperId": "shopkeeper-uuid",
+    "items": [
+      {
+        "fileName": "Resume.pdf",
+        "fileUrl": "https://bucket-name.s3.amazonaws.com/17165849-unique.pdf",
+        "price": 6.00,
+        "variant": "standard",
+        "config": {
+          "printType": "color",
+          "copies": 2,
+          "paperSize": "A4",
+          "pages": "all",
+          "sides": "single",
+          "orientation": "portrait"
+        }
+      }
+    ]
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Order(s) placed successfully",
+    "orders": [
+      {
+        "id": "order-uuid",
+        "orderId": "ORD-08420",
+        "fileName": "Resume.pdf",
+        "fileUrl": "https://bucket-name.s3.amazonaws.com/17165849-unique.pdf",
+        "price": 6,
+        "status": "Pending",
+        "printConfiguration": {
+          "printType": "color",
+          "copies": 2,
+          "paperSize": "A4"
+        }
+      }
+    ]
+  }
+  ```
+
+#### `GET /api/orders/shopkeeper/all`
+Retrieves all orders for the authenticated shopkeeper. Securable using standard JWT.
+- **Headers**: `Authorization: Bearer JWT_TOKEN`
+- **Response**:
+  ```json
+  [
+    {
+      "id": "order-uuid",
+      "orderId": "ORD-08420",
+      "customerName": "John Doe",
+      "phone": "+919988776655",
+      "fileName": "Resume.pdf",
+      "fileUrl": "https://bucket-name.s3.amazonaws.com/17165849-unique.pdf",
+      "price": 6,
+      "status": "Pending",
+      "printConfiguration": {
+        "printType": "color",
+        "copies": 2,
+        "paperSize": "A4",
+        "pages": "all",
+        "sides": "single",
+        "orientation": "portrait"
+      },
+      "queue": {
+        "position": 1,
+        "status": "Waiting"
+      }
+    }
+  ]
+  ```
+
+#### `PUT /api/orders/:id/status`
+Updates status of a single order. Securable using JWT.
+- **Headers**: `Authorization: Bearer JWT_TOKEN`
+- **Request Body**:
+  ```json
+  {
+    "status": "Completed"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Order status updated successfully",
+    "order": {
+      "id": "order-uuid",
+      "status": "Completed",
+      "queue": {
+        "status": "Done"
+      }
+    }
+  }
+  ```
+
+---
+
+## Frontend -> Backend Integration Explanation
+
+We have integrated backend endpoints behind the existing Next.js frontend screens without changing their look and feel:
+
+1. **Authentication**:
+   - `login/page.js` and `register/page.js` fetch backend register/login endpoints, storing the session JSON and JSON token in `localStorage`.
+   - If the backend server is offline, they gracefully log errors and fallback to local storage mock values.
+2. **File Upload**:
+   - `upload/page.js` handles file uploads on click, uploading to `/api/files/upload` and saving the returned URL in `localStorage` under `uploadedFileUrls`.
+3. **Ordering**:
+   - `review/page.js` retrieves file configuration, maps S3 URLs, and calls `/api/orders/create` to register order configurations in PostgreSQL.
+4. **Shopkeeper Actions**:
+   - `dashboard/page.js` pulls real-time shopkeeper orders from `/api/orders/shopkeeper/all`.
+   - `OrderCard.js` calls `/api/orders/:id/status` dynamically when status transitions occur (e.g. printing or completion).
+   - "Print" opens the S3 file URL in a new tab to trigger browser printing and changes the order status to `Completed`.
+
+---
+
 ## Document Version
 
-- **Version:** 1.0.0
-- **Last Updated:** January 24, 2026
-- **Author:** GitHub Copilot
-- **Status:** Complete
+- **Version:** 1.1.0
+- **Last Updated:** May 24, 2026
+- **Author:** Antigravity AI
+- **Status:** Complete (Backend Architecture Added)
 
 ---
 

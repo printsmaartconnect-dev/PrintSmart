@@ -80,7 +80,7 @@ function CustomerWantsToTalk() {
   )
 }
 
-function ActionButton({ tone, icon: Icon, label }) {
+function ActionButton({ tone, icon: Icon, label, onClick }) {
   const map = {
     purple: 'bg-violet-50 text-violet-700 border-violet-100',
     blue: 'bg-sky-50 text-sky-700 border-sky-100',
@@ -90,6 +90,7 @@ function ActionButton({ tone, icon: Icon, label }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold shadow-sm hover:bg-white ${
         map[tone]
       }`}
@@ -100,7 +101,45 @@ function ActionButton({ tone, icon: Icon, label }) {
   )
 }
 
-export default function OrderCard({ order }) {
+export default function OrderCard({ order, onStatusChange }) {
+  const handlePreview = () => {
+    if (order.fileUrl) {
+      window.open(order.fileUrl, '_blank')
+    } else {
+      alert('No file URL associated with this order.')
+    }
+  }
+
+  const handlePrint = async () => {
+    if (order.fileUrl) {
+      window.open(order.fileUrl, '_blank')
+      if (onStatusChange && order.dbId) {
+        await onStatusChange(order.dbId, 'Completed')
+      }
+    } else {
+      alert('No file URL associated with this order.')
+    }
+  }
+
+  const handleDownload = async () => {
+    if (order.fileUrl) {
+      window.open(order.fileUrl, '_blank')
+      if (onStatusChange && order.dbId) {
+        await onStatusChange(order.dbId, 'Downloaded')
+      }
+    } else {
+      alert('No file URL associated with this order.')
+    }
+  }
+
+  const handleCancel = async () => {
+    if (confirm('Are you sure you want to cancel this order?')) {
+      if (onStatusChange && order.dbId) {
+        await onStatusChange(order.dbId, 'Cancelled')
+      }
+    }
+  }
+
   return (
     <div className="relative rounded-2xl bg-white shadow-sm border border-slate-200 p-5 min-w-[280px]">
       <TopBorder type={order.type} />
@@ -127,10 +166,10 @@ export default function OrderCard({ order }) {
       <div className="mt-4 text-xs font-semibold text-slate-500">{order.timestamp}</div>
 
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <ActionButton tone="purple" icon={Eye} label="Preview" />
-        <ActionButton tone="purple" icon={Printer} label="Print" />
-        <ActionButton tone="blue" icon={Download} label="Download" />
-        <ActionButton tone="red" icon={X} label="Cancel" />
+        <ActionButton tone="purple" icon={Eye} label="Preview" onClick={handlePreview} />
+        <ActionButton tone="purple" icon={Printer} label="Print" onClick={handlePrint} />
+        <ActionButton tone="blue" icon={Download} label="Download" onClick={handleDownload} />
+        <ActionButton tone="red" icon={X} label="Cancel" onClick={handleCancel} />
       </div>
     </div>
   )
