@@ -3197,286 +3197,394 @@ if (localStorage.getItem('DEBUG')) {
 
 ## Backend Architecture
 
+The backend of PrintSmart is built using a modern Node.js and Express.js stack, integrated with PostgreSQL using Prisma ORM.
+
 ### Tech Stack
-- **Framework**: Express.js with Node.js
-- **Database ORM**: Prisma ORM
-- **Database**: PostgreSQL (hosted on Supabase or Neon in production)
-- **File Storage**: AWS S3 Bucket (with local fallback to Express static file serving for offline/local development)
+- **Server Framework**: Node.js & Express.js
+- **Database Engine**: PostgreSQL
+- **Object-Relational Mapping (ORM)**: Prisma ORM (Prisma Client JS client generator)
+- **File Storage**: AWS S3 Bucket (cloud service) with a robust local fallback mechanism using `Express.static` to serve files from the local directory (`/uploads/`) during offline or local development.
+- **Document Generation**: PDFKit for server-side generation of professional, itemized PDF invoices.
+- **Utilities**: `qrcode` (for QR code generation), `bcryptjs` (for password hashing), `jsonwebtoken` (for authentication), and `multer` (for handling multipart file uploads).
+
+### Programmatic DB Push and Generation
+On server startup (`server.js`), the application programmatically synchronizes the database schema and builds the Prisma client:
+```javascript
+const { execSync } = require("child_process");
+console.log("Syncing database schema and generating Prisma client...");
+execSync("npx prisma db push --accept-data-loss", { stdio: "inherit" });
+execSync("npx prisma generate", { stdio: "inherit" });
+```
+Additionally, a startup seed script auto-registers a default shopkeeper if the database is empty:
+- **Default Email**: `defaultshop@printsmart.com`
+- **Default Password**: `password123`
+- **Default Shop Slug / ID**: `smart-print-hub`
 
 ### Directory Structure
 ```
 backend/
-├── server.js               # Application entrypoint
-├── prisma/
-│   └── schema.prisma       # Prisma DB models and relations
+├── server.js                 # Express server initialization, DB syncing, and startup seeding
 ├── config/
-│   └── db.js               # Prisma Client initialization
-├── routes/
-│   ├── auth.routes.js      # Auth-related API routing
-│   ├── file.routes.js      # File-related API routing
-│   ├── order.routes.js     # Order-related API routing
-│   └── queue.routes.js     # Queue-related API routing
-├── controllers/
-│   ├── auth.controller.js  # Shopkeeper credentials & profile management logic
-│   ├── file.controller.js  # AWS S3 file upload handler logic
-│   ├── order.controller.js # Customer/Shopkeeper order creation/updating logic
-│   └── queue.controller.js # Queue position and active status tracking logic
-├── services/
-│   └── storage.service.js  # S3 bucket / local file upload abstraction layer
+│   └── db.js                 # Prisma Client instance instantiation
+├── prisma/
+│   └── schema.prisma         # Prisma Schema containing PostgreSQL models, relations, and enums
 ├── middleware/
-│   └── auth.middleware.js  # JWT-based token verification middleware
-└── .env                    # System-specific configuration values
+│   └── auth.middleware.js    # JWT verification middleware protecting shopkeeper operations
+├── services/
+│   ├── storage.service.js    # Cloud S3 or Local disk file upload/delete abstraction layer
+│   ├── qr.service.js         # Shopkeeper UUID QR code generator (`/take-a-print?shopId=UUID`)
+│   ├── qrcode.service.js     # Shopkeeper slug QR code and base64 Data URL generators
+│   ├── order.service.js      # Custom Order ID sequencer, wait-time estimator, and statistics updater
+│   ├── invoice.service.js    # PDFKit-based PDF invoice layout generator
+│   └── seed.service.js       # Default shopkeeper database seeding service
+├── controllers/
+│   ├── auth.controller.js    # Shopkeeper registration, login, profile adjustments, and QR endpoints
+│   ├── file.controller.js    # Multer-to-Storage upload broker
+│   ├── user.controller.js    # Customer user onboarding and profile fetches
+│   ├── order.controller.js   # Order placements, fetching, status modifications, and invoice downloads
+│   ├── queue.controller.js   # Active queue tracking and status updates
+│   ├── statistics.controller.js # Daily, weekly, monthly, and overall shopkeeper statistics analytics
+│   └── feedback.controller.js   # Feedback submissions, query listing, and status updates
+└── routes/
+    ├── auth.routes.js        # Auth-related routing endpoints
+    ├── file.routes.js        # File uploading route broker
+    ├── order.routes.js       # Customer and shopkeeper order endpoints
+    ├── queue.routes.js       # Client and provider queue endpoints
+    ├── feedback.routes.js    # Customer issues and feedback endpoints
+    ├── statistics.routes.js  # Analytics endpoints for shop statistics
+    ├── user.routes.js        # Customer creation/update routing
+    └── shopkeeper.routes.js  # Public slug routing and protected shopkeeper utilities
 ```
 
 ---
 
 ## Database Architecture
 
-We use **PostgreSQL** as the relational database, managed using the **Prisma ORM**.
+We utilize a PostgreSQL database managed via **Prisma ORM**. It handles multi-user relational structures with indexes, data integrity rules, and cascades.
 
-### Entity Relationship Diagram (ERD) Schema
+### Entity Relationship Diagram (ERD)
 ```mermaid
 erDiagram
-    User ||--o{ Order : places
-    Shopkeeper ||--o{ Order : manages
-    Order ||--|| PrintConfiguration : configures
-    Order ||--o| Queue : tracks
+    User ||--o{ Order : "places"
+    User ||--o{ Feedback : "submits"
+    Shopkeeper ||--o{ Order : "receives"
+    Shopkeeper ||--o| ShopkeeperStatistics : "has"
+    Order ||--|{ OrderFile : "contains"
+    Order ||--|| PrintConfiguration : "defines"
+    Order ||--o| Queue : "tracks"
+    Order ||--o| Invoice : "issues"
 ```
 
 ### Models & Schema Definition
 
-#### 1. User
-Represents customers placing orders.
-- `id` (UUID, Primary Key)
+#### 1. Enums
+- **`OrderStatus`**: `PENDING`, `ACCEPTED`, `PRINTING`, `COMPLETED`, `CANCELLED` (Triggers status updates across related order queues).
+- **`QueueStatus`**: `WAITING`, `PRINTING`, `DONE` (Controls queue positions and active lists).
+- **`PrintType`**: `BW`, `COLOR` (Used for custom pricing configurations).
+- **`PaperSize`**: `A4`, `A3`, `A5`, `LEGAL`, `LETTER`, `EXECUTIVE`, `LEDGER`, `TABLOID` (Valid print sizing options).
+- **`PrintQuality`**: `DRAFT`, `NORMAL`, `HIGH` (Influences printing durations and costs).
+- **`Orientation`**: `PORTRAIT`, `LANDSCAPE`
+- **`PrintSide`**: `SINGLE`, `DOUBLE` (Influences print duration calculations).
+- **`Language`**: `ENGLISH`, `HINDI`, `MARATHI`, `GUJARATI`, `OTHER` (User preferred language interface preference).
+
+#### 2. User (Customers)
+Tracks customers placing orders.
+- `id` (String - UUID, Primary Key)
 - `email` (String, Unique)
 - `name` (String, Optional)
+- `phone` (String, Optional)
+- `language` (Language, Default: `ENGLISH`)
 - `createdAt` / `updatedAt` (DateTime)
+- *Indexes*: `@@index([email])`
 
-#### 2. Shopkeeper
-Represents printing shops.
-- `id` (UUID, Primary Key)
+#### 3. Shopkeeper (Printers)
+Tracks printing shops.
+- `id` (String - UUID, Primary Key)
 - `email` (String, Unique)
 - `password` (String, Hashed)
 - `phone` (String)
+- `shopkeeperIdCode` (String, Unique, Optional) - Standard identifier slug (e.g. `smart-print-hub`)
 - `shopName` (String)
 - `ownerName` (String, Optional)
+- `shopSlug` (String, Unique) - Human-readable URL identifier slug
 - `address` (String, Optional)
-- `category` (String)
-- `subCategory` (String)
-- `languagePref` (String)
+- `category` (String, Default: "Printing & Photocopy")
+- `subCategory` (String, Default: "Xerox & Digital Prints")
+- `languagePref` (String, Default: "English")
 - `gstNumber` (String, Optional)
-- `socials` (JSON)
-- `pricing` (JSON)
+- `socials` (Json) - Handles dynamic social networks
+- `pricing` (Json) - Holds printing rates (e.g., `bwA4`, `colorA4`, `bwDoubleSide`)
 - `logoUrl` (String, Optional)
+- `qrCode` (String, Unique, Optional)
+- `qrCodeUrl` (String, Optional)
+- `qrValue` (String, Optional)
+- `qrGeneratedAt` (DateTime, Optional)
+- `totalOrders` (Int, Default: `0`)
+- `totalEarnings` (Float, Default: `0.0`)
+- `activeSubscribers` (Int, Default: `0`)
+- `createdAt` / `updatedAt` (DateTime)
+- *Indexes*: `@@index([email])`, `@@index([shopSlug])`
 
-#### 3. Order
-Represents actual print jobs.
-- `id` (UUID, Primary Key)
-- `orderId` (String, Unique, human-readable e.g. ORD-00145)
-- `userId` (UUID, Foreign Key, Optional)
-- `shopkeeperId` (UUID, Foreign Key)
-- `customerName` (String)
+#### 4. Order
+Combines user items, pricing math, configuration link, and statuses.
+- `id` (String - UUID, Primary Key)
+- `orderId` (String, Unique) - Sequential alphanumeric custom ID: `MMYYP[BW|C][sequence]`
+- `userId` (String - UUID, Foreign Key, Optional) - Links to `User.id` (on delete `SetNull`)
+- `shopkeeperId` (String - UUID, Foreign Key) - Links to `Shopkeeper.id` (on delete `Cascade`)
+- `customerName` (String, Default: "Anonymous")
 - `phone` (String, Optional)
-- `fileName` (String)
-- `fileUrl` (String, S3 URL or Local URL path)
-- `price` (Float)
-- `status` (String: Pending, Accepted, Printing, Completed, Cancelled)
-- `printConfigId` (UUID, Foreign Key, Unique)
-- `variant` (String: standard, talk)
+- `price` (Float, Default: `0`) - Subtotal + Tax - Discount
+- `subtotal` (Float, Default: `0`)
+- `tax` (Float, Default: `0`) - Calculated 18% GST amount
+- `discount` (Float, Default: `0`)
+- `totalAmount` (Float, Default: `0`)
+- `status` (OrderStatus, Default: `PENDING`)
+- `estimatedTime` (Int, Default: `5`) - Print wait duration in minutes
+- `createdAt` / `updatedAt` (DateTime)
+- *Indexes*: `@@index([shopkeeperId])`, `@@index([userId])`, `@@index([status])`, `@@index([createdAt])`
 
-#### 4. PrintConfiguration
-Contains specifications for printing a document.
-- `id` (UUID, Primary Key)
-- `printType` (String: bw, color)
-- `copies` (Int)
-- `paperSize` (String: A4, A3, Legal)
-- `pages` (String: all, custom)
-- `sides` (String: single, double)
-- `orientation` (String: portrait, landscape)
+#### 5. OrderFile
+Holds records for individual document files uploaded as part of an order.
+- `id` (String - UUID, Primary Key)
+- `orderId` (String - UUID, Foreign Key) - Links to `Order.id` (on delete `Cascade`)
+- `originalFileName` (String)
+- `customFileName` (String, Optional)
+- `fileUrl` (String) - Direct download path or S3 bucket URL
+- `thumbnailUrl` (String, Optional) - Base64 thumbnail string or URL path
+- `fileSize` (Int) - Bytes size
+- `createdAt` (DateTime)
+- *Indexes*: `@@index([orderId])`
 
-#### 5. Queue
-Maintains order positions in the printing queue.
-- `id` (UUID, Primary Key)
-- `orderId` (UUID, Foreign Key, Unique)
-- `position` (Int)
-- `status` (String: Waiting, Printing, Done)
+#### 6. PrintConfiguration
+Describes specific configurations of print layout, sizing, side, and quality.
+- `id` (String - UUID, Primary Key)
+- `orderId` (String - UUID, Unique Foreign Key) - Links to `Order.id` (on delete `Cascade`)
+- `printType` (PrintType, Default: `BW`)
+- `copies` (Int, Default: `1`)
+- `paperSize` (PaperSize, Default: `A4`)
+- `sides` (PrintSide, Default: `SINGLE`)
+- `orientation` (Orientation, Default: `PORTRAIT`)
+- `quality` (PrintQuality, Default: `NORMAL`)
+- `pageRange` (String, Optional, Default: `"all"`)
+- `createdAt` / `updatedAt` (DateTime)
+
+#### 7. Queue
+Manages real-time positions for active orders.
+- `id` (String - UUID, Primary Key)
+- `orderId` (String - UUID, Unique Foreign Key) - Links to `Order.id` (on delete `Cascade`)
+- `position` (Int) - Position number in line
+- `status` (QueueStatus, Default: `WAITING`)
+- `estimatedWaitTime` (Int, Default: `5`)
+- `createdAt` / `updatedAt` (DateTime)
+- *Indexes*: `@@index([status])`, `@@index([position])`
+
+#### 8. Invoice
+Contains generated financial layout reference numbers and PDF paths.
+- `id` (String - UUID, Primary Key)
+- `orderId` (String - UUID, Unique Foreign Key) - Links to `Order.id` (on delete `Cascade`)
+- `invoiceNumber` (String, Unique) - Alphanumeric format `INV-MMDDYY[sequence]`
+- `pdfUrl` (String, Optional) - Static download directory relative path
+- `subtotal` / `tax` / `discount` / `totalAmount` (Float)
+- `createdAt` / `updatedAt` (DateTime)
+- *Indexes*: `@@index([invoiceNumber])`
+
+#### 9. Feedback
+Tracks client complaints and feedback forms.
+- `id` (String - UUID, Primary Key)
+- `userId` (String - UUID, Foreign Key) - Links to `User.id` (on delete `Cascade`)
+- `subject` (String)
+- `message` (String)
+- `rating` (Int, Optional) - 1 to 5 numeric stars
+- `attachmentUrl` (String, Optional)
+- `status` (String, Default: `"OPEN"`) - `OPEN`, `IN_PROGRESS`, `RESOLVED`
+- `createdAt` / `updatedAt` (DateTime)
+- *Indexes*: `@@index([userId])`, `@@index([status])`
+
+#### 10. ShopkeeperStatistics
+Tracks ongoing performance metrics for a specific shop.
+- `id` (String - UUID, Primary Key)
+- `shopkeeperId` (String - UUID, Unique Foreign Key) - Links to `Shopkeeper.id` (on delete `Cascade`)
+- `todayOrders` (Int, Default: `0`)
+- `todayEarnings` (Float, Default: `0`)
+- `todayBWPrints` (Int, Default: `0`)
+- `todayColorPrints` (Int, Default: `0`)
+- `weeklyGrowth` (Float, Default: `0`)
+- `monthlyRevenue` (Float, Default: `0`)
+- `topPaperSize` (String, Default: `"A4"`)
+- `printTypeDistribution` (Json, Optional) - e.g. `{ "BW": 10, "COLOR": 5 }`
+- `totalOrders` (Int, Default: `0`)
+- `totalCopies` (Int, Default: `0`)
+- `totalEarnings` (Float, Default: `0`)
+- `avgOrderValue` (Float, Default: `0`)
+- `lastUpdated` / `updatedAt` (DateTime)
+- *Indexes*: `@@index([shopkeeperId])`
 
 ---
 
-## AWS S3 Upload Workflow
+## Core System Workflows
 
-To avoid bloating PostgreSQL database size, uploaded documents are stored in an **AWS S3 bucket**, and only the resulting metadata and URL are stored in the database.
+### 1. QR Code Generation & Entry Flow
+- **Generation**: On shopkeeper registration or manual request via `/api/shopkeeper/regenerate-qr`, the backend creates a QR code image pointing to `${FRONTEND_URL}/take-a-print?shopId=${shopSlug}`.
+- **Service Implementation**:
+  - `qrcode.service.js` generates a local PNG file under `/uploads/qrcodes/` and a base64 Data URL using the `qrcode` library.
+  - `qr.service.js` creates a QR file under `/uploads/qrs/` containing the UUID of the shop.
+- **Entry Flow**: The customer scans the code, landing on `/take-a-print?shopId=slug`. If the QR scan fails, a manual entry field is provided.
+- **Testing Shortcut**: Entering code `0000` automatically maps to the default seeded shop `smart-print-hub`, bypasses scanning, and fetches database configuration parameters instantly.
 
-### Workflow:
-1. **Selection**: Customer uploads their file via Next.js drag-and-drop file interface.
-2. **Transfer**: On clicking "Continue", the React application performs a POST request carrying a `multipart/form-data` payload containing the file.
-3. **S3 Upload**: The backend S3 client uploads the buffer to the S3 bucket using a uniquely hashed file key to avoid collisions.
-4. **URL Generation**: S3 bucket returns the public access URL of the file.
-5. **DB Saving**: On final order review screen, the client submits the order details along with the S3 URL. The database saves this metadata.
-6. **Dashboard Access**: Shopkeeper accesses the document URL directly from their dashboard via the **Preview**, **Print**, or **Download** actions.
+### 2. Custom Order ID Generation
+To ensure shopkeepers have short, human-readable IDs to track orders, the backend generates IDs using the format `MMYYP[BW|C][sequence]` in `order.service.js`:
+1. `MM` (Month) and `YY` (Year) are extracted from the current date.
+2. `P` represents "Print".
+3. `BW` or `C` signifies Black & White or Color print types respectively.
+4. `sequence` is calculated by querying the database for all orders placed in the current calendar month matching that print type, adding `1`, and zero-padding it to 2 digits (e.g., `0526PBW01`, `0526PC02`).
 
-> [!NOTE]
-> If AWS S3 credentials are not configured in `.env`, the system automatically shifts to local filesystem storage, saving files to `backend/uploads/` and serving them at `http://localhost:PORT/uploads/` dynamically.
+### 3. Estimated Wait Time Algorithm
+Upon order creation, the system calculates estimated queue waiting times dynamically:
+- **Base Duration Calculation**:
+  - Quality coefficient: `DRAFT` (3 seconds/copy), `NORMAL` (5 seconds/copy), `HIGH` (8 seconds/copy).
+  - Print Side coefficient: `DOUBLE` (multiplies base time by `1.5` to account for duplex feeding delays), `SINGLE` (`1.0`).
+  - Order Duration = `(Copies count * Base Time) / 60` (in minutes).
+- **Queue Buffering**:
+  - Active queue counts are checked by querying the `Queue` table for items matching the shopkeeper where status is not `Done`.
+  - Queue Wait Buffer = `Queue size * 2.5 minutes` (capped at a maximum of `30` minutes to prevent overflow displays).
+- **Final Formula**: `Estimated Wait Time = Math.max(Math.ceil(Order Duration + Queue Wait Buffer), 2)` (Minimum default of 2 minutes).
+
+### 4. Professional Invoice Generation
+When an order is created, the backend triggers the `invoice.service.js` using `pdfkit`:
+1. Generates a unique invoice number: `INV-MMDDYY[random sequence]`.
+2. Draws a clean PDF layout on an A4 canvas:
+   - Centered header indicating "INVOICE" with number and date.
+   - **FROM** block detailing shopkeeper name, address, phone.
+   - **BILL TO** block showing customer name and phone.
+   - **ORDER DETAILS** block specifying order ID, quality, copies, paper size, and print sides.
+   - **FILES** list displaying custom names of uploaded documents.
+   - **FINANCIAL SUMMARY** showing subtotal, 18% GST (Tax), and total amount.
+3. Streams the PDF buffer into `/uploads/invoices/invoice-[orderId]-[timestamp].pdf`.
+4. Saves metadata (invoice number, pdfUrl, totals) to the `Invoice` table, making it available for client-side download via `/api/orders/:id/invoice`.
+
+### 5. Statistics Engine
+Analytics are updated immediately upon order completion or status updates:
+1. `order.service.js` triggers `updateShopkeeperStats()` on status changes.
+2. Statistics table records (for the specific `shopkeeperId`) increment:
+   - Overall totals (`totalOrders`, `totalEarnings`, `totalCopies`).
+   - Daily totals (`todayOrders`, `todayEarnings`, `todayBWPrints` vs `todayColorPrints`).
+   - Monthly revenue.
+3. The `statistics.controller.js` compiles this data:
+   - Daily distributions, paper sizes, and status breakdowns.
+   - Weekly chart metrics over the past 7 days, calculating growth rate percentages compared to the prior week's volume.
+   - Monthly aggregates detailing average order value, top paper sizes, and color-to-B&W ratios.
 
 ---
 
-## Queue Management Flow
+## API Endpoint Reference
 
-The queue tracks incoming orders in a first-in-first-out order.
-1. When a new order is saved, the backend queries the maximum position current queue orders have, sets the position to `max + 1`, and sets the status to `Waiting`.
-2. When the shopkeeper changes the status of an order to `Printing`, the queue entry's status is also updated to `Printing`.
-3. Once completed (either by clicking the "Print" button which triggers browser printing and updates status, or manual completion), the queue entry's status becomes `Done`, removing it from the active queue.
+### 1. Authentication & Shopkeepers
+All shopkeeper-specific dashboards and settings endpoints require a valid JSON Web Token passed via headers: `Authorization: Bearer <token>`.
+
+| Route | Method | Headers/Auth | Request Body | Success Response (200/201) |
+|---|---|---|---|---|
+| `/api/auth/register` | `POST` | None | `{ email, phone, password, shopName, shopSlug }` | `{ token, shopkeeper: { id, email, ... } }` |
+| `/api/auth/login` | `POST` | None | `{ email, password }` | `{ token, shopkeeper: { id, email, ... } }` |
+| `/api/auth/profile` | `GET` | JWT token | None | `{ id, email, phone, shopName, pricing, ... }` |
+| `/api/auth/profile` | `PUT` | JWT token | `{ shopName, address, phone, gstNumber, pricing, ... }` | `{ message: "Profile updated", shopkeeper }` |
+| `/api/shopkeeper/by-slug/:slug` | `GET` | None | None | `{ id, shopName, address, phone, pricing, ... }` |
+| `/api/shopkeeper/me/qr` | `GET` | JWT token | None | `{ qrCodeUrl, qrValue }` |
+| `/api/shopkeeper/regenerate-qr` | `POST` | JWT token | None | `{ message: "QR updated", qrCodeUrl }` |
+
+### 2. Users (Customers)
+Used by clients to sync identities and preferences.
+
+| Route | Method | Request Body | Success Response |
+|---|---|---|---|
+| `/api/users/create` | `POST` | `{ name, phone, email, language }` | `{ message: "User created/updated", user: { id, name, ... } }` |
+| `/api/users/:userId` | `GET` | None | `{ user: { id, name, orders: [...], feedback: [...] } }` |
+
+### 3. File Management
+Used to handle physical document transfers.
+
+| Route | Method | Content-Type | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/files/upload` | `POST` | `multipart/form-data` | Form field `file` containing PDF/Image | `{ message: "File uploaded", fileName, fileUrl, fileKey, sizeBytes, mimeType }` |
+
+### 4. Orders
+Manages the ordering workflow.
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/orders/create` | `POST` | None | `{ userId, shopkeeperId, customerName, phone, items: [{ fileName, fileUrl, price, config: { copies, paperSize, printType, sides, orientation, quality, pageRange }, fileSize }] }` | `{ message: "Order(s) created successfully", orders: [...] }` |
+| `/api/orders/user/:userId` | `GET` | None | None | `[ { id, orderId, totalAmount, status, printConfiguration, orderFiles, invoice, shopkeeper }, ... ]` (Ordered by date desc) |
+| `/api/orders/:id` | `GET` | None | None | `{ id, orderId, printConfiguration, orderFiles, queue, invoice, shopkeeper }` (id can be UUID or orderId) |
+| `/api/orders/:id` | `DELETE` | None | None | `{ message: "Order deleted successfully" }` (Only if status is `PENDING`) |
+| `/api/orders/:id/invoice` | `GET` | None | None | Binary PDF File Stream |
+| `/api/orders/shopkeeper/all` | `GET` | JWT token | Query param `?status=All` or `Printing` | `[ { id, orderId, totalAmount, status, printConfiguration, orderFiles, queue, invoice }, ... ]` (Ordered by date desc) |
+| `/api/orders/:id/status` | `PUT` | JWT token | `{ status: "PRINTING" }` | `{ message: "Order status updated successfully", order: { ... } }` (Updates queue status to PRINTING/DONE accordingly) |
+
+### 5. Queue Management
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/queue` | `GET` | None | Query param `?shopkeeperId=UUID` | `[ { id, position, status, estimatedWaitTime, order: { orderId, customerName, fileName, status } }, ... ]` (Ordered by position asc, status not DONE) |
+| `/api/queue/:id` | `PUT` | JWT token | `{ position, status }` | `{ message: "Queue item updated", queueItem }` |
+
+### 6. Feedback & Support
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/feedback/submit` | `POST` | None | `{ userId, subject, message, rating }` | `{ message: "Feedback submitted successfully", feedback: { id, subject, status } }` |
+| `/api/feedback/user/:userId` | `GET` | None | Query params `?status=OPEN&limit=10` | `{ feedback: [...], total, limit, offset, hasMore }` |
+| `/api/feedback/all` | `GET` | None (Admin) | Query params `?status=OPEN&limit=20` | `{ feedback: [...], total }` |
+| `/api/feedback/:feedbackId/status` | `PUT` | None (Admin) | `{ status: "RESOLVED" }` | `{ message: "Feedback status updated", feedback }` |
+| `/api/feedback/:feedbackId` | `DELETE` | None (Admin) | None | `{ message: "Feedback deleted successfully" }` |
+
+### 7. Statistics & Analytics
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/statistics/:shopkeeperId` | `GET` | None | None | `{ statistics: { daily, weekly, monthly, overall }, recentOrders: [...] }` |
+| `/api/statistics/:shopkeeperId/daily/:date?` | `GET` | None | None | `{ date, totalOrders, totalEarnings, totalCopies, bwOrders, colorOrders, colorToBlackAndWhiteRatio, paperSizeDistribution, statusDistribution, orders: [...] }` |
+| `/api/statistics/:shopkeeperId/weekly` | `GET` | None | None | `{ weekStart, weekEnd, totalOrders, totalEarnings, growthPercentage, dailyBreakdown: [...] }` |
+| `/api/statistics/:shopkeeperId/monthly/:month/:year?` | `GET` | None | None | `{ month, year, totalRevenue, totalOrders, totalCopies, avgOrderValue, topPaperSize, paperSizeDistribution, printTypeDistribution: { BW, COLOR } }` |
 
 ---
 
-## API Documentation
+## Frontend-Backend Integration Walkthrough
 
-### 1. Authentication
-#### `POST /api/auth/register`
-Creates a shopkeeper login profile.
-- **Request Body**:
-  ```json
-  {
-    "email": "shop@gmail.com",
-    "phone": "+919876543210",
-    "password": "securepassword"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "token": "JWT_TOKEN_HERE",
-    "shopkeeper": {
-      "id": "shopkeeper-uuid",
-      "email": "shop@gmail.com",
-      "phone": "+919876543210",
-      "shopName": "My Printing Shop"
-    }
-  }
-  ```
+### 1. Customer Workflow
+1. **Landing & Scan**: Customer visits the homepage `/`, scans the shopkeeper's QR code (or types slug/ID manually, using `0000` for test routing), redirecting to `/take-a-print?shopId=slug`.
+2. **Shop Fetching**: `/take-a-print` queries `/api/shopkeeper/by-slug/:shopId`. On success, details are cached in `localStorage` and routing shifts to `/customer/language`.
+3. **Language Selection**: Browser language is auto-detected. Customer selects their preferred language, inputs their details (Name, Phone, Email), which posts to `/api/users/create`, caching the returned `userId` in `localStorage`.
+4. **File Upload**: Customer uploads one or multiple documents on `/customer/upload`.
+   - Each file generates a base64 thumbnail (rendering PDF pages using PDF.js CDN, or Canvas for images) cached locally to prevent blank images.
+   - Submitting routes files to `/api/files/upload`, returning file storage URLs.
+5. **Print Configuration**: On `/customer/configuration`, options (Color/BW, copies, paper size, quality, orientation, duplex sides, custom pages) are set.
+   - Previews render grayscale CSS dynamically on selecting the BW option.
+   - Pricing is computed locally using the shopkeeper's pricing rates.
+6. **Order Review**: Summarizes shop details, configurations, and pricing. Continuing creates orders via `/api/orders/create`.
+7. **Order Placed**: Customer views the backend-generated order ID, estimated wait time, and print details. History is accessible via `/customer/orders` with options to cancel pending orders or download invoices from `/api/orders/:id/invoice`.
 
-#### `POST /api/auth/login`
-Logs in a shopkeeper and provides a JWT session token.
-- **Request Body**:
-  ```json
-  {
-    "email": "shop@gmail.com",
-    "password": "securepassword"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "token": "JWT_TOKEN_HERE",
-    "shopkeeper": {
-      "id": "shopkeeper-uuid",
-      "email": "shop@gmail.com",
-      "phone": "+919876543210",
-      "shopName": "My Printing Shop",
-      "pricing": { ... }
-    }
-  }
-  ```
+### 2. Shopkeeper Dashboard Actions
+1. **Onboarding & Authentication**: Shopkeepers log in or register via `/api/auth/login` or `/api/auth/register`, receiving a JWT. They customize profile details and pricing parameters synced via `PUT /api/auth/profile`.
+2. **Order Management**: Shopkeeper dashboard fetches `/api/orders/shopkeeper/all` to render order grids. Changing order statuses to `Printing` or `Completed` updates the backend and active queues instantly.
+3. **Real-time Queue & Print**: Shopkeeper updates items to `Completed` which calls the browser's printing service, downloads the invoice, and updates statistics.
+4. **Analytics**: The statistics dashboard pulls details from `/api/statistics/:shopkeeperId` to render charts and summaries.
 
-### 2. Files
-#### `POST /api/files/upload`
-Uploads a document to file storage.
-- **Request Body**: `multipart/form-data` with `file` key containing the uploaded document.
-- **Response**:
-  ```json
-  {
-    "message": "File uploaded successfully",
-    "fileName": "document.pdf",
-    "fileUrl": "https://bucket-name.s3.amazonaws.com/17165849-unique.pdf",
-    "fileKey": "17165849-unique.pdf",
-    "sizeBytes": 240050,
-    "mimeType": "application/pdf"
-  }
-  ```
+---
 
-### 3. Orders
-#### `POST /api/orders/create`
-Creates a new order containing one or multiple files.
-- **Request Body**:
-  ```json
-  {
-    "orderId": "ORD-08420",
-    "customerName": "John Doe",
-    "phone": "+919988776655",
-    "shopkeeperId": "shopkeeper-uuid",
-    "items": [
-      {
-        "fileName": "Resume.pdf",
-        "fileUrl": "https://bucket-name.s3.amazonaws.com/17165849-unique.pdf",
-        "price": 6.00,
-        "variant": "standard",
-        "config": {
-          "printType": "color",
-          "copies": 2,
-          "paperSize": "A4",
-          "pages": "all",
-          "sides": "single",
-          "orientation": "portrait"
-        }
-      }
-    ]
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "message": "Order(s) placed successfully",
-    "orders": [
-      {
-        "id": "order-uuid",
-        "orderId": "ORD-08420",
-        "fileName": "Resume.pdf",
-        "fileUrl": "https://bucket-name.s3.amazonaws.com/17165849-unique.pdf",
-        "price": 6,
-        "status": "Pending",
-        "printConfiguration": {
-          "printType": "color",
-          "copies": 2,
-          "paperSize": "A4"
-        }
-      }
-    ]
-  }
-  ```
+## Document Version
 
-#### `GET /api/orders/shopkeeper/all`
-Retrieves all orders for the authenticated shopkeeper. Securable using standard JWT.
-- **Headers**: `Authorization: Bearer JWT_TOKEN`
-- **Response**:
-  ```json
-  [
-    {
-      "id": "order-uuid",
-      "orderId": "ORD-08420",
-      "customerName": "John Doe",
-      "phone": "+919988776655",
-      "fileName": "Resume.pdf",
-      "fileUrl": "https://bucket-name.s3.amazonaws.com/17165849-unique.pdf",
-      "price": 6,
-      "status": "Pending",
-      "printConfiguration": {
-        "printType": "color",
-        "copies": 2,
-        "paperSize": "A4",
-        "pages": "all",
-        "sides": "single",
-        "orientation": "portrait"
-      },
-      "queue": {
-        "position": 1,
-        "status": "Waiting"
-      }
-    }
-  ]
-  ```
+- **Version:** 2.0.0
+- **Last Updated:** May 26, 2026
+- **Author:** Antigravity AI
+- **Status:** Complete (Fully synchronized with backend models, API routes, controller logic, PDF invoice generation, queue wait time algorithms, analytics statistics, and user workflow paths)
 
-#### `PUT /api/orders/:id/status`
-Updates status of a single order. Securable using JWT.
+---
+
+**End of Documentation**
+
+For questions or updates, please contact the development team or create a GitHub issue.
+
+---
+ single order. Securable using JWT.
 - **Headers**: `Authorization: Bearer JWT_TOKEN`
 - **Request Body**:
   ```json
