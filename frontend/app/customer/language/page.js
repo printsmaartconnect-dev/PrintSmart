@@ -71,10 +71,17 @@ export default function CustomerLanguagePage() {
   useEffect(() => {
     const validateShop = async () => {
       if (!shopId) {
-        // Check if there is already an active shop stored in localStorage
-        const storedShopId = localStorage.getItem('activeShopId')
-        if (!storedShopId) {
-          setShopError(t('No printing shop selected. Please scan a QR code or enter a shop ID.'))
+        // If they are on language selection with no shopId, clear any stale shop in localStorage
+        if (step === 'language') {
+          localStorage.removeItem('activeShopId')
+          localStorage.removeItem('activeShopSlug')
+          localStorage.removeItem('selectedShop')
+          setShopError(null)
+        } else if (step === 'details') {
+          const storedShopId = localStorage.getItem('activeShopId')
+          if (!storedShopId) {
+            setShopError(t('No printing shop selected. Please scan a QR code or enter a shop ID.'))
+          }
         }
         return
       }
@@ -100,7 +107,7 @@ export default function CustomerLanguagePage() {
     }
 
     validateShop()
-  }, [shopId, t])
+  }, [shopId, step, t])
 
   const handleLanguageSelect = (code) => {
     setSelectedLanguage(code)
@@ -120,8 +127,7 @@ export default function CustomerLanguagePage() {
     const finalLanguage = selectedOther || selectedLanguage
     if (finalLanguage) {
       localStorage.setItem('customerLanguage', finalLanguage)
-      const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
-      if (resolvedShopId) {
+      if (shopId) {
         setStep('details')
       } else {
         router.push('/take-a-print')
