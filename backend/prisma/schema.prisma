@@ -1,0 +1,161 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PRINTING
+  COMPLETED
+  CANCELLED
+}
+
+enum QueueStatus {
+  WAITING
+  PRINTING
+  DONE
+}
+
+enum PrintType {
+  BW
+  COLOR
+}
+
+enum PaperSize {
+  A4
+  A3
+  LEGAL
+}
+
+enum Orientation {
+  PORTRAIT
+  LANDSCAPE
+}
+
+enum PrintSide {
+  SINGLE
+  DOUBLE
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  name        String?
+  phone       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+
+  @@index([email])
+}
+
+model Shopkeeper {
+  id              String   @id @default(uuid())
+
+  email           String   @unique
+  password        String
+  phone           String
+
+  shopName        String
+  ownerName       String?
+
+  address         String?
+
+  category        String?  @default("Printing & Photocopy")
+  subCategory     String?  @default("Xerox & Digital Prints")
+
+  languagePref    String?  @default("English")
+
+  gstNumber       String?
+
+  socials         Json?
+  pricing         Json?
+
+  logoUrl         String?
+
+  orders          Order[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Order {
+  id                   String   @id @default(uuid())
+
+  orderId              String   @unique
+
+  userId               String?
+  user                 User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  shopkeeperId         String
+  shopkeeper           Shopkeeper @relation(fields: [shopkeeperId], references: [id], onDelete: Cascade)
+
+  customerName         String   @default("Anonymous")
+  phone                String?
+
+  fileName             String
+  fileUrl              String
+
+  price                Float    @default(0)
+
+  status               OrderStatus @default(PENDING)
+
+  variant              String   @default("standard")
+
+  printConfiguration   PrintConfiguration?
+  queue                Queue?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([shopkeeperId])
+  @@index([status])
+}
+
+model PrintConfiguration {
+  id             String   @id @default(uuid())
+
+  orderId         String   @unique
+  order           Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  printType       PrintType   @default(BW)
+
+  copies          Int         @default(1)
+
+  paperSize       PaperSize   @default(A4)
+
+  pages           String      @default("all")
+
+  sides           PrintSide   @default(SINGLE)
+
+  orientation     Orientation @default(PORTRAIT)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Queue {
+  id            String   @id @default(uuid())
+
+  orderId       String   @unique
+  order         Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  position      Int
+
+  status        QueueStatus @default(WAITING)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([position])
+}
