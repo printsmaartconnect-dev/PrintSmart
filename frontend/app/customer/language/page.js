@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { Shield, AlertCircle, Loader } from 'lucide-react'
+import { Shield, AlertCircle, Loader, ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
@@ -26,7 +26,8 @@ export default function CustomerLanguagePage() {
   const shopId = searchParams.get('shopId')
   const { t, i18n } = useTranslation()
 
-  const [step, setStep] = useState('language') // 'language' or 'details'
+  const initialStep = searchParams.get('step') || 'language'
+  const [step, setStep] = useState(initialStep) // 'language' or 'details'
   const [selectedLanguage, setSelectedLanguage] = useState(null)
   const [showOthers, setShowOthers] = useState(false)
   const [selectedOther, setSelectedOther] = useState(null)
@@ -119,7 +120,12 @@ export default function CustomerLanguagePage() {
     const finalLanguage = selectedOther || selectedLanguage
     if (finalLanguage) {
       localStorage.setItem('customerLanguage', finalLanguage)
-      setStep('details')
+      const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
+      if (resolvedShopId) {
+        setStep('details')
+      } else {
+        router.push('/take-a-print')
+      }
     }
   }
 
@@ -184,8 +190,21 @@ export default function CustomerLanguagePage() {
     <div className="wave-bg min-h-screen flex flex-col">
       {/* Header */}
       <header className="px-6 py-4 flex items-center justify-between">
-        <BackButton />
-        <span className="text-sm text-gray-600">{t('Step 1 of 3')}</span>
+        {step === 'details' ? (
+          <button
+            onClick={() => setStep('language')}
+            className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors font-medium"
+            aria-label="Go back to language selection"
+          >
+            <ArrowLeft size={18} />
+            <span>{t('Go Back')}</span>
+          </button>
+        ) : (
+          <BackButton />
+        )}
+        <span className="text-sm text-gray-600">
+          {step === 'language' ? t('Step 1 of 6') : t('Step 3 of 6')}
+        </span>
       </header>
 
       {/* Main Content */}
@@ -230,7 +249,7 @@ export default function CustomerLanguagePage() {
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-semibold text-gray-900">{lang.name}</p>
+                            <p className="font-semibold text-gray-900">{t(lang.name)}</p>
                             <p className="text-sm text-gray-500">{lang.native}</p>
                           </div>
                           <span className="text-2xl">{lang.flag}</span>
@@ -250,10 +269,10 @@ export default function CustomerLanguagePage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-semibold text-gray-900">
-                            {selectedOther ? selectedOther : t('Other Languages')}
+                            {selectedOther ? t(selectedOther) : t('Other Languages')}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {selectedOther ? selectedOther : t('More options')}
+                            {selectedOther ? t(selectedOther) : t('More options')}
                           </p>
                         </div>
                         <span>{showOthers ? '▼' : '▶'}</span>
@@ -273,7 +292,7 @@ export default function CustomerLanguagePage() {
                                 : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
                             }`}
                           >
-                            {lang}
+                            {t(lang)}
                           </button>
                         ))}
                       </div>
@@ -289,14 +308,16 @@ export default function CustomerLanguagePage() {
                           : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       }`}
                     >
-                      {t('Continue to Details →')}
+                      {shopId || (typeof window !== 'undefined' && (localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')))
+                        ? t('Continue to Details →')
+                        : t('Continue to Scan QR →')}
                     </button>
                     <FeedbackLink />
                   </div>
                 </>
               ) : (
                 <>
-                  {/* User Details Form */}
+                  {/* Your Details */}
                   <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('Your Details')}</h1>
                     <p className="text-gray-600">{t('Help us personalize your experience')}</p>
@@ -365,7 +386,7 @@ export default function CustomerLanguagePage() {
                           {t('Processing...')}
                         </>
                       ) : (
-                        t('Continue to Configuration →')
+                        t('Continue to Upload →')
                       )}
                     </button>
                     <FeedbackLink />

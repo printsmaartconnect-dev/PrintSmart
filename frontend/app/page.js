@@ -73,7 +73,7 @@ export default function Home() {
         </div>
 
         {/* Center Card */}
-        <Link href="/take-a-print">
+        <Link href="/customer/language">
           <div className="glassmorphism w-80 p-8 text-center hover:shadow-glass transition transform hover:-translate-y-1 cursor-pointer">
             <div className="w-16 h-16 bg-gradient-brand rounded-2xl flex items-center justify-center mx-auto mb-4">
               <FileText size={32} className="text-white" />

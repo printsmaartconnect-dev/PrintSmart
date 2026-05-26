@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import { Cloud, X, FileText, ArrowLeft, Image as ImageIcon, AlertCircle, CheckCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
@@ -94,6 +95,7 @@ const generateThumbnail = async (file) => {
 };
 
 export default function UploadPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const shopId = searchParams.get('shopId')
@@ -183,7 +185,7 @@ export default function UploadPage() {
 
   const handleContinue = async () => {
     if (files.length === 0) {
-      setError('Please upload at least one document to proceed.')
+      setError(t('Please upload at least one document to proceed.'))
       return
     }
 
@@ -240,7 +242,7 @@ export default function UploadPage() {
       router.push(nextUrl)
     } catch (err) {
       console.error('File upload failed:', err)
-      setError(err.message || 'Failed to upload files. Please try again.')
+      setError(err.message || t('Failed to upload files. Please try again.'))
     } finally {
       setUploading(false)
     }
@@ -257,10 +259,10 @@ export default function UploadPage() {
       {/* Step Header */}
       <div className="w-full max-w-5xl mb-8">
         <div className="step-header">
-          <div className="step-number">3</div>
+          <div className="step-number">4</div>
           <div>
-            <h1 className="text-3xl font-bold text-black font-brand">Upload Documents</h1>
-            <p className="text-gray-600">Please upload files to print (PDF, JPG, PNG, Word)</p>
+            <h1 className="text-3xl font-bold text-black font-brand">{t('Upload Documents')}</h1>
+            <p className="text-gray-600">{t('Please upload files to print (PDF, JPG, PNG, Word)')}</p>
           </div>
         </div>
       </div>
@@ -271,7 +273,7 @@ export default function UploadPage() {
           <div className="flex items-center gap-3">
             <BackButton />
           </div>
-          <span className="text-sm font-semibold text-gray-600">Step 3 of 5</span>
+          <span className="text-sm font-semibold text-gray-600">{t('Step 4 of 6')}</span>
         </div>
 
         {error && (
@@ -292,10 +294,10 @@ export default function UploadPage() {
         >
           <input {...getInputProps()} />
           <Cloud size={48} className="mx-auto mb-4 text-indigo-500" />
-          <p className="text-gray-700 font-medium mb-1">Drag & Drop files here</p>
-          <p className="text-gray-500 text-sm mb-4">or</p>
+          <p className="text-gray-700 font-medium mb-1">{t('Drag & Drop files here')}</p>
+          <p className="text-gray-500 text-sm mb-4">{t('or')}</p>
           <button type="button" className="gradient-button py-2 px-6 text-sm text-white font-semibold">
-            Choose Files
+            {t('Choose Files')}
           </button>
         </div>
 
@@ -320,7 +322,7 @@ export default function UploadPage() {
         {/* File List */}
         {files.length > 0 && (
           <div className="mt-8 space-y-4">
-            <p className="text-sm font-bold text-gray-700">Uploaded Files & Rename Options:</p>
+            <p className="text-sm font-bold text-gray-700">{t('Uploaded Files & Rename Options:')}</p>
             {files.map((item, index) => {
               const fileBaseName = item.file.name.substring(0, item.file.name.lastIndexOf('.'))
               return (
@@ -350,11 +352,11 @@ export default function UploadPage() {
                         type="text"
                         value={renames[index] !== undefined ? renames[index] : fileBaseName}
                         onChange={(e) => handleRenameChange(index, e.target.value)}
-                        placeholder="Enter custom filename"
+                        placeholder={t('Enter custom filename')}
                         className="w-full bg-white border border-gray-300 rounded px-2.5 py-1 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       />
                       <span className="text-xs text-gray-500 mt-1 block">
-                        Original: {item.file.name} • {formatFileSize(item.file.size)}
+                        {t('Original:')} {item.file.name} • {formatFileSize(item.file.size)}
                       </span>
                     </div>
                   </div>
@@ -376,7 +378,7 @@ export default function UploadPage() {
         {/* Security Message */}
         <p className="text-center text-gray-600 text-sm mt-6 flex items-center justify-center gap-1.5 font-medium">
           <CheckCircle size={16} className="text-green-600" />
-          Your files are encrypted and automatically deleted after printing.
+          {t('Your files are encrypted and automatically deleted after printing.')}
         </p>
 
         {/* Continue Button */}
@@ -389,7 +391,7 @@ export default function UploadPage() {
               : 'bg-gray-200 text-gray-500 cursor-not-allowed'
           }`}
         >
-          {uploading ? 'Uploading Files...' : 'Continue to Print Settings'}
+          {uploading ? t('Uploading Files...') : t('Continue to Print Settings')}
         </button>
 
         {/* Reusable FeedbackLink */}

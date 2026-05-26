@@ -3,11 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Inbox, Upload, RotateCcw, Download, Trash2, Home, Clock, AlertCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 
 export default function OrdersPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const shopId = searchParams.get('shopId')
@@ -44,7 +46,7 @@ export default function OrdersPage() {
     }
 
     if (!resolvedUserId) {
-      setError('Please go through the language page to register your user details first.')
+      setError(t('Please go through the language page to register your user details first.'))
       setLoading(false)
       return
     }
@@ -59,7 +61,7 @@ export default function OrdersPage() {
       setOrders(data)
     } catch (err) {
       console.error('Fetch orders error:', err)
-      setError('Failed to fetch your print orders. Please try again.')
+      setError(t('Failed to fetch your print orders. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -98,7 +100,7 @@ export default function OrdersPage() {
       closeDeleteModal()
     } catch (err) {
       console.error('Delete order error:', err)
-      alert(err.message || 'Could not cancel the order.')
+      alert(err.message || t('Could not cancel the order.'))
     } finally {
       setDeleting(false)
     }
@@ -136,8 +138,8 @@ export default function OrdersPage() {
         <div className="step-header">
           <div className="step-number">7</div>
           <div>
-            <h1 className="text-3xl font-bold text-black font-brand">My Orders</h1>
-            <p className="text-gray-600">Track printing queues and download invoices</p>
+            <h1 className="text-3xl font-bold text-black font-brand">{t('My Orders')}</h1>
+            <p className="text-gray-600">{t('Track printing queues and download invoices')}</p>
           </div>
         </div>
       </div>
@@ -146,14 +148,14 @@ export default function OrdersPage() {
       <div className="glassmorphism w-full max-w-md sm:max-w-xl lg:max-w-4xl p-6 sm:p-8 lg:p-10">
         <div className="flex items-center justify-between mb-6">
           <BackButton />
-          <span className="text-sm font-semibold text-gray-600">Step 7 of 7</span>
+          <span className="text-sm font-semibold text-gray-600">{t('Step 7 of 7')}</span>
         </div>
 
         {/* Scratch Coupon Section */}
         {orders.length > 0 && (
           <div className="mb-8 p-4 bg-white/70 border border-purple-200 rounded-xl">
             <p className="text-center text-gray-700 text-sm font-bold mb-3">
-              🎉 Scratch below to reveal your coupon discount!
+              {t('🎉 Scratch below to reveal your coupon discount!')}
             </p>
             <div
               className="relative w-full h-32 rounded-lg border-2 border-purple-300 border-dashed bg-purple-50 flex items-center justify-center overflow-hidden cursor-crosshair"
@@ -165,13 +167,13 @@ export default function OrdersPage() {
               {!scratchRevealed && (
                 <div className="text-center z-10 pointer-events-none select-none">
                   <RotateCcw size={28} className="mx-auto text-purple-600 mb-2 animate-spin-slow" />
-                  <p className="text-purple-700 font-bold text-sm">SCRATCH SURFACE HERE</p>
+                  <p className="text-purple-700 font-bold text-sm">{t('SCRATCH SURFACE HERE')}</p>
                 </div>
               )}
               {scratchRevealed && (
                 <div className="text-center z-10 animate-fade-in">
-                  <p className="text-2xl font-bold text-purple-700">Flat 15% OFF on Next Print!</p>
-                  <p className="text-xs text-purple-500 font-semibold mt-1">Code: SMARTPRINT15</p>
+                  <p className="text-2xl font-bold text-purple-700">{t('Flat 15% OFF on Next Print!')}</p>
+                  <p className="text-xs text-purple-500 font-semibold mt-1">{t('Code: SMARTPRINT15')}</p>
                 </div>
               )}
             </div>
@@ -181,7 +183,7 @@ export default function OrdersPage() {
         {/* Error/Loading */}
         {loading ? (
           <div className="text-center py-12">
-            <p className="text-gray-600 font-semibold animate-pulse text-base">Loading order database history...</p>
+            <p className="text-gray-600 font-semibold animate-pulse text-base">{t('Loading order database history...')}</p>
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex gap-3">
@@ -199,7 +201,7 @@ export default function OrdersPage() {
                     <p className="text-xs text-gray-500 font-semibold mt-0.5">{formatTimestamp(order.createdAt)}</p>
                   </div>
                   <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${statusColors[order.status] || statusColors['PENDING']}`}>
-                    {order.status}
+                    {t(order.status)}
                   </span>
                 </div>
 
@@ -209,7 +211,7 @@ export default function OrdersPage() {
                     <div key={file.id || fileIdx} className="flex items-center justify-between text-sm">
                       <p className="text-gray-800 font-bold truncate flex-1">{file.customFileName}</p>
                       <span className="text-xs text-gray-500 font-semibold flex-shrink-0 ml-3">
-                        {order.printConfiguration?.copies} copies • {order.printConfiguration?.paperSize}
+                        {order.printConfiguration?.copies} {t('copies')} • {t(order.printConfiguration?.paperSize)}
                       </span>
                     </div>
                   ))}
@@ -217,10 +219,10 @@ export default function OrdersPage() {
 
                 {/* Print Configuration Details */}
                 <div className="text-xs text-gray-500 font-semibold flex flex-wrap gap-x-4 gap-y-1 bg-gray-50 p-2.5 rounded-lg">
-                  <span>Type: {order.printConfiguration?.printType === 'COLOR' ? 'Color' : 'B&W'}</span>
-                  <span>Sides: {order.printConfiguration?.sides === 'DOUBLE' ? 'Double' : 'Single'}</span>
-                  <span>Orientation: {order.printConfiguration?.orientation}</span>
-                  <span>Quality: {order.printConfiguration?.quality}</span>
+                  <span>{t('Type')}: {order.printConfiguration?.printType === 'COLOR' ? t('Color') : t('B&W')}</span>
+                  <span>{t('Sides')}: {order.printConfiguration?.sides === 'DOUBLE' ? t('Double') : t('Single')}</span>
+                  <span>{t('Orientation')}: {t(order.printConfiguration?.orientation)}</span>
+                  <span>{t('Quality')}: {t(order.printConfiguration?.quality)}</span>
                 </div>
 
                 {/* Footer details & Action buttons */}
@@ -229,7 +231,7 @@ export default function OrdersPage() {
                     <span className="font-bold text-gray-900 text-base">₹{order.totalAmount.toFixed(2)}</span>
                     <span className="text-gray-500 text-xs font-semibold flex items-center gap-1">
                       <Clock size={14} className="text-indigo-500" />
-                      Queue Position: {order.queue ? (order.queue.status === 'DONE' ? 'Done' : `#${order.queue.position}`) : 'Pending'}
+                      {t('Queue Position')}: {order.queue ? (order.queue.status === 'DONE' ? t('Done') : `#${order.queue.position}`) : t('Pending')}
                     </span>
                   </div>
                   
@@ -243,7 +245,7 @@ export default function OrdersPage() {
                         className="px-3 py-2 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition flex items-center gap-1.5"
                       >
                         <Download size={14} />
-                        Invoice PDF
+                        {t('Invoice PDF')}
                       </button>
                     )}
                     
@@ -255,7 +257,7 @@ export default function OrdersPage() {
                         className="px-3 py-2 rounded-lg text-xs font-bold text-red-700 bg-red-50 border border-red-100 hover:bg-red-100 transition flex items-center gap-1.5"
                       >
                         <Trash2 size={14} />
-                        Delete Order
+                        {t('Delete Order')}
                       </button>
                     )}
                   </div>
@@ -266,12 +268,12 @@ export default function OrdersPage() {
         ) : (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
             <Inbox size={48} className="mx-auto text-gray-400 mb-4 animate-bounce" />
-            <p className="text-gray-600 font-bold">No order details found in the database.</p>
+            <p className="text-gray-600 font-bold">{t('No order details found in the database.')}</p>
             <button
               onClick={() => router.push(`/customer/upload?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
               className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition"
             >
-              Upload and Print Now
+              {t('Upload and Print Now')}
             </button>
           </div>
         )}
@@ -280,9 +282,9 @@ export default function OrdersPage() {
         {showDeleteModal && orderToDelete && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4 animate-fade-in border border-gray-150">
-              <h3 className="text-lg font-bold text-gray-900">Confirm Order Deletion</h3>
+              <h3 className="text-lg font-bold text-gray-900">{t('Confirm Order Deletion')}</h3>
               <p className="text-sm text-gray-600 font-medium">
-                Are you sure you want to delete order <strong className="text-indigo-700">{orderToDelete.orderId}</strong>? This action cannot be undone.
+                {t('Are you sure you want to delete order')} <strong className="text-indigo-700">{orderToDelete.orderId}</strong>? {t('This action cannot be undone.')}
               </p>
               <div className="flex gap-3 pt-2">
                 <button
@@ -291,7 +293,7 @@ export default function OrdersPage() {
                   disabled={deleting}
                   className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition"
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button
                   type="button"
@@ -299,7 +301,7 @@ export default function OrdersPage() {
                   disabled={deleting}
                   className="flex-1 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition"
                 >
-                  {deleting ? 'Deleting...' : 'Delete Order'}
+                  {deleting ? t('Deleting...') : t('Delete Order')}
                 </button>
               </div>
             </div>
@@ -313,14 +315,14 @@ export default function OrdersPage() {
             className="flex-1 py-3 px-4 rounded-xl text-indigo-600 font-bold hover:bg-indigo-50 transition flex items-center justify-center gap-2 border border-indigo-100 text-sm"
           >
             <Home size={18} />
-            Home
+            {t('Home')}
           </button>
           <button
             onClick={() => router.push(`/customer/upload?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
             className="flex-1 py-3 px-4 rounded-xl text-indigo-600 font-bold hover:bg-indigo-50 transition flex items-center justify-center gap-2 border border-indigo-100 text-sm"
           >
             <Upload size={18} />
-            Upload File
+            {t('Upload File')}
           </button>
         </div>
 

@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { QrCode, AlertCircle, Loader } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import BackButton from '../components/BackButton'
 import FeedbackButton from '../components/FeedbackButton'
 import FeedbackLink from '../components/FeedbackLink'
 
 export default function TakeAPrintPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const shopId = searchParams.get('shopId')
@@ -28,7 +30,7 @@ export default function TakeAPrintPage() {
       )
       
       if (!response.ok) {
-        throw new Error('Shop not found')
+        throw new Error(t('Shop not found'))
       }
 
       const data = await response.json()
@@ -37,7 +39,7 @@ export default function TakeAPrintPage() {
       // Store shop details in session
       localStorage.setItem('selectedShop', JSON.stringify(data.shopkeeper))
     } catch (err) {
-      setError(err.message || 'Failed to load shop details')
+      setError(err.message || t('Failed to load shop details'))
       setShopDetails(null)
     } finally {
       setLoading(false)
@@ -55,7 +57,12 @@ export default function TakeAPrintPage() {
     if (shopDetails) {
       // Redirect to customer language page with shop info
       const shopIdToUse = shopDetails.shopkeeperIdCode || shopDetails.shopSlug || shopDetails.id
-      router.push(`/customer/language?shopId=${shopIdToUse}`)
+      const hasLanguage = localStorage.getItem('customerLanguage')
+      if (hasLanguage) {
+        router.push(`/customer/language?shopId=${shopIdToUse}&step=details`)
+      } else {
+        router.push(`/customer/language?shopId=${shopIdToUse}`)
+      }
     }
   }
 
@@ -70,8 +77,9 @@ export default function TakeAPrintPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex flex-col">
       {/* Header */}
-      <header className="px-6 py-4">
+      <header className="px-6 py-4 flex items-center justify-between">
         <BackButton className="text-lg" />
+        <span className="text-sm font-semibold text-gray-600">{t('Step 2 of 6')}</span>
       </header>
 
       {/* Main Content */}
@@ -84,8 +92,8 @@ export default function TakeAPrintPage() {
                 <QrCode size={40} className="text-indigo-600" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Take a Print</h1>
-            <p className="text-gray-600">Scan a shop QR code or enter shop ID</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('Take a Print')}</h1>
+            <p className="text-gray-600">{t('Scan a shop QR code or enter shop ID')}</p>
           </div>
 
           {/* Shop Details Display */}
@@ -119,7 +127,7 @@ export default function TakeAPrintPage() {
                 onClick={handleContinue}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors"
               >
-                Continue to Shop →
+                {t('Continue to Shop →')}
               </button>
             </div>
           )}
@@ -129,7 +137,7 @@ export default function TakeAPrintPage() {
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex gap-3">
               <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
               <div>
-                <p className="font-semibold text-red-900">Shop Not Found</p>
+                <p className="font-semibold text-red-900">{t('Shop Not Found')}</p>
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             </div>
@@ -150,25 +158,25 @@ export default function TakeAPrintPage() {
                 onClick={() => fetchShopDetails('0000')}
                 className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3.5 px-4 rounded-lg shadow-md transition flex items-center justify-center gap-2 mb-2"
               >
-                📷 Click to Scan QR Code
+                {t('📷 Click to Scan QR Code')}
               </button>
 
               <div className="flex items-center my-4">
                 <div className="flex-grow border-t border-gray-300"></div>
-                <span className="flex-shrink mx-4 text-gray-500 font-semibold text-sm">OR</span>
+                <span className="flex-shrink mx-4 text-gray-500 font-semibold text-sm">{t('OR')}</span>
                 <div className="flex-grow border-t border-gray-300"></div>
               </div>
 
               <form onSubmit={handleManualEntry} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Shop ID or Code
+                    {t('Shop ID or Code')}
                   </label>
                   <input
                     type="text"
                     value={manualShopId}
                     onChange={(e) => setManualShopId(e.target.value)}
-                    placeholder="Enter shop ID (e.g., abc-shop-123)"
+                    placeholder={t('Enter shop ID (e.g., abc-shop-123)')}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-400 font-semibold"
                     required
                   />
@@ -178,7 +186,7 @@ export default function TakeAPrintPage() {
                   type="submit"
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors"
                 >
-                  Find Shop
+                  {t('Find Shop')}
                 </button>
               </form>
             </div>
@@ -189,7 +197,7 @@ export default function TakeAPrintPage() {
           {/* Info Box */}
           <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-900">
-              <strong>💡 Tip:</strong> Ask your shopkeeper for their shop QR code or ID to get started with your print order.
+              <strong>{t('💡 Tip:')}</strong> {t('Ask your shopkeeper for their shop QR code or ID to get started with your print order.')}
             </p>
           </div>
         </div>

@@ -1,8 +1,11 @@
 'use client'
 
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 
 export default function FeedbackLink() {
+  const { t } = useTranslation()
+
   return (
     <div className="flex justify-center mt-4 pb-2">
       <a
@@ -11,7 +14,7 @@ export default function FeedbackLink() {
         rel="noopener noreferrer"
         className="text-indigo-600 hover:text-indigo-800 hover:underline text-sm font-semibold transition flex items-center gap-1"
       >
-        Need Help? Contact Support & Feedback →
+        {t('Need Help? Contact Support & Feedback →')}
       </a>
     </div>
   )

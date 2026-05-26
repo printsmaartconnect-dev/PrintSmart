@@ -3,12 +3,14 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { FileText, MapPin, Phone, Clock, Store, AlertCircle, ShieldCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import DocumentPreview from '../../components/customer/DocumentPreview'
 
 export default function ReviewPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const shopId = searchParams.get('shopId')
@@ -45,7 +47,7 @@ export default function ReviewPage() {
     // Fetch shop details by slug
     const fetchShop = async () => {
       if (!shopId) {
-        setError('No shop selected.')
+        setError(t('No shop selected.'))
         setFetchingShop(false)
         return
       }
@@ -54,13 +56,13 @@ export default function ReviewPage() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
         const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${shopId}`)
         if (!response.ok) {
-          throw new Error('Could not find shop keeper details.')
+          throw new Error(t('Could not find shop keeper details.'))
         }
         const data = await response.json()
         setShopDetails(data.shopkeeper)
       } catch (err) {
         console.error('Error fetching shop keeper:', err)
-        setError('Failed to fetch shop keeper details.')
+        setError(t('Failed to fetch shop keeper details.'))
       } finally {
         setFetchingShop(false)
       }
@@ -114,7 +116,7 @@ export default function ReviewPage() {
 
   const handlePlaceOrder = async () => {
     if (filesWithConfig.length === 0) {
-      alert('No files available for placing an order.')
+      alert(t('No files available for placing an order.'))
       return
     }
 
@@ -146,7 +148,7 @@ export default function ReviewPage() {
 
       if (!response.ok) {
         const errData = await response.json()
-        throw new Error(errData.message || 'Failed to place print order')
+        throw new Error(errData.message || t('Failed to place print order'))
       }
 
       const result = await response.json()
@@ -163,7 +165,7 @@ export default function ReviewPage() {
       router.push(`/customer/order-placed?shopId=${shopId}&userId=${userId}`)
     } catch (err) {
       console.error('Order creation error:', err)
-      setError(err.message || 'Error occurred while submitting order details.')
+      setError(err.message || t('Error occurred while submitting order details.'))
     } finally {
       setLoading(false)
     }
@@ -172,7 +174,7 @@ export default function ReviewPage() {
   if (fetchingShop) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <p className="text-gray-600 font-semibold animate-pulse text-lg">Fetching shop information...</p>
+        <p className="text-gray-600 font-semibold animate-pulse text-lg">{t('Fetching shop information...')}</p>
       </div>
     )
   }
@@ -182,10 +184,10 @@ export default function ReviewPage() {
       {/* Step Header */}
       <div className="w-full max-w-5xl mb-8">
         <div className="step-header">
-          <div className="step-number">5</div>
+          <div className="step-number">6</div>
           <div>
-            <h1 className="text-3xl font-bold text-black font-brand">Order Review</h1>
-            <p className="text-gray-600">Review details, billing, and place order</p>
+            <h1 className="text-3xl font-bold text-black font-brand">{t('Order Review')}</h1>
+            <p className="text-gray-600">{t('Review details, billing, and place order')}</p>
           </div>
         </div>
       </div>
@@ -196,7 +198,7 @@ export default function ReviewPage() {
           <div className="flex items-center gap-3">
             <BackButton />
           </div>
-          <span className="text-sm font-semibold text-gray-600">Step 5 of 5</span>
+          <span className="text-sm font-semibold text-gray-600">{t('Step 6 of 6')}</span>
         </div>
 
         {error && (
@@ -211,20 +213,20 @@ export default function ReviewPage() {
           <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 mb-6">
             <h3 className="font-bold text-indigo-950 flex items-center gap-2 mb-3">
               <Store size={20} className="text-indigo-600" />
-              Printing Shop Details
+              {t('Printing Shop Details')}
             </h3>
             <div className="space-y-2 text-sm text-indigo-900">
               <p className="font-bold text-base text-gray-900">{shopDetails.shopName}</p>
-              <p className="flex items-center gap-1.5 font-medium"><MapPin size={16} className="text-indigo-500" /> {shopDetails.address || 'Address not listed'}</p>
-              <p className="flex items-center gap-1.5 font-medium"><Phone size={16} className="text-indigo-500" /> {shopDetails.phone || 'N/A'}</p>
-              <p className="flex items-center gap-1.5 font-medium"><Clock size={16} className="text-indigo-500" /> Estimated Time: 2–7 mins (based on queue)</p>
+              <p className="flex items-center gap-1.5 font-medium"><MapPin size={16} className="text-indigo-500" /> {shopDetails.address || t('Address not listed')}</p>
+              <p className="flex items-center gap-1.5 font-medium"><Phone size={16} className="text-indigo-500" /> {shopDetails.phone || t('N/A')}</p>
+              <p className="flex items-center gap-1.5 font-medium"><Clock size={16} className="text-indigo-500" /> {t('Estimated Time: 2–7 mins (based on queue)')}</p>
             </div>
           </div>
         )}
 
         {/* File Config Summary */}
         <div className="space-y-4 mb-6 pb-6 border-b border-gray-200">
-          <h4 className="font-bold text-gray-800 mb-2">Print Configuration Summary:</h4>
+          <h4 className="font-bold text-gray-800 mb-2">{t('Print Configuration Summary:')}</h4>
           {filesWithConfig.map((item, index) => (
             <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col md:flex-row justify-between md:items-center gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -240,12 +242,12 @@ export default function ReviewPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-gray-900 truncate">{item.customFileName}</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 font-semibold mt-1">
-                    <span>Type: {item.config?.printType === 'COLOR' ? 'Color' : 'B&W'}</span>
-                    <span>Copies: {item.config?.copies || 1}</span>
-                    <span>Size: {item.config?.paperSize || 'A4'}</span>
-                    <span>Sides: {item.config?.sides === 'DOUBLE' ? 'Double-sided' : 'Single-sided'}</span>
-                    <span>Orientation: {item.config?.orientation || 'PORTRAIT'}</span>
-                    <span>Quality: {item.config?.quality || 'NORMAL'}</span>
+                    <span>{t('Type')}: {item.config?.printType === 'COLOR' ? t('Color') : t('B&W')}</span>
+                    <span>{t('Copies')}: {item.config?.copies || 1}</span>
+                    <span>{t('Size')}: {t(item.config?.paperSize || 'A4')}</span>
+                    <span>{t('Sides')}: {item.config?.sides === 'DOUBLE' ? t('Double-sided') : t('Single-sided')}</span>
+                    <span>{t('Orientation')}: {t(item.config?.orientation || 'PORTRAIT')}</span>
+                    <span>{t('Quality')}: {t(item.config?.quality || 'NORMAL')}</span>
                   </div>
                 </div>
               </div>
@@ -259,15 +261,15 @@ export default function ReviewPage() {
         {/* Pricing Summary */}
         <div className="bg-slate-50 p-5 rounded-xl border border-gray-200 mb-8 space-y-3 text-sm">
           <div className="flex justify-between items-center text-gray-700 font-medium">
-            <span>Subtotal</span>
+            <span>{t('Subtotal')}</span>
             <span>₹{subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between items-center text-gray-700 font-medium">
-            <span>GST (18%)</span>
+            <span>{t('GST (18%)')}</span>
             <span>₹{tax.toFixed(2)}</span>
           </div>
           <div className="flex justify-between items-center pt-3 border-t border-gray-200 font-bold text-lg text-gray-900">
-            <span>Total Cost</span>
+            <span>{t('Total Cost')}</span>
             <span>₹{total.toFixed(2)}</span>
           </div>
         </div>
@@ -279,12 +281,12 @@ export default function ReviewPage() {
             disabled={loading || !shopDetails}
             className="w-full gradient-button py-3.5 px-4 rounded-xl font-bold transition text-white shadow-md text-base"
           >
-            {loading ? 'Placing Order...' : 'Place Order & Print'}
+            {loading ? t('Placing Order...') : t('Place Order & Print')}
           </button>
 
           <p className="text-center text-gray-600 text-xs flex items-center justify-center gap-1 font-semibold">
             <ShieldCheck size={16} className="text-indigo-600" />
-            Secure payment & order processing.
+            {t('Secure payment & order processing.')}
           </p>
 
           <div className="text-center pt-2">

@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
@@ -16,6 +17,7 @@ const QUALITY_OPTIONS = [
 ]
 
 export default function ConfigurationPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const shopId = searchParams.get('shopId')
@@ -59,7 +61,7 @@ export default function ConfigurationPage() {
 
   const handleContinue = async () => {
     if (uploadedFiles.length === 0) {
-      alert('No files uploaded. Please upload files first.')
+      alert(t('No files uploaded. Please upload files first.'))
       router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)
       return
     }
@@ -79,7 +81,7 @@ export default function ConfigurationPage() {
       router.push(nextUrl)
     } catch (err) {
       console.error('Error saving configuration:', err)
-      alert('Error saving configuration')
+      alert(t('Error saving configuration'))
     } finally {
       setLoading(false)
     }
@@ -90,7 +92,7 @@ export default function ConfigurationPage() {
       {/* Header */}
       <header className="px-6 py-4 flex items-center justify-between">
         <BackButton />
-        <span className="text-sm font-semibold text-gray-600">Step 4 of 5</span>
+        <span className="text-sm font-semibold text-gray-600">{t('Step 5 of 6')}</span>
       </header>
 
       {/* Main Content */}
@@ -98,18 +100,18 @@ export default function ConfigurationPage() {
         <div className="w-full max-w-5xl mx-auto">
           {/* Title */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 font-brand">Print Configuration</h1>
-            <p className="text-gray-600">Customize print settings for your files</p>
+            <h1 className="text-3xl font-bold text-gray-900 font-brand">{t('Print Configuration')}</h1>
+            <p className="text-gray-600">{t('Customize print settings for your files')}</p>
           </div>
 
           {uploadedFiles.length === 0 ? (
             <div className="bg-white rounded-xl shadow-lg p-8 text-center border border-gray-100">
-              <p className="text-gray-600 mb-4 font-semibold">No files uploaded yet</p>
+              <p className="text-gray-600 mb-4 font-semibold">{t('No files uploaded yet')}</p>
               <button
                 onClick={() => router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)}
                 className="gradient-button text-white font-semibold py-2.5 px-6 rounded-lg transition"
               >
-                Go to Upload Page
+                {t('Go to Upload Page')}
               </button>
             </div>
           ) : (
@@ -129,7 +131,7 @@ export default function ConfigurationPage() {
                   <div className="mb-6 pb-4 border-b border-gray-200 flex items-center justify-between">
                     <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
                       <Settings size={20} className="text-indigo-600 animate-spin-slow" />
-                      Document {idx + 1} Settings
+                      {t('Document {{num}} Settings', { num: idx + 1 })}
                     </h3>
                   </div>
 
@@ -138,7 +140,7 @@ export default function ConfigurationPage() {
                     {/* Print Type */}
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Print Type
+                        {t('Print Type')}
                       </label>
                       <div className="grid grid-cols-2 gap-3">
                         <button
@@ -150,7 +152,7 @@ export default function ConfigurationPage() {
                               : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                           }`}
                         >
-                          Black & White
+                          {t('Black & White')}
                         </button>
                         <button
                           type="button"
@@ -161,7 +163,7 @@ export default function ConfigurationPage() {
                               : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                           }`}
                         >
-                          🎨 Color
+                          {t('🎨 Color')}
                         </button>
                       </div>
                     </div>
@@ -169,7 +171,7 @@ export default function ConfigurationPage() {
                     {/* Number of Copies */}
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Copies
+                        {t('Copies')}
                       </label>
                       <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg w-fit border border-gray-200">
                         <button
@@ -204,7 +206,7 @@ export default function ConfigurationPage() {
                     {/* Paper Size */}
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Paper Size
+                        {t('Paper Size')}
                       </label>
                       <select
                         value={configs[idx]?.paperSize || 'A4'}
@@ -212,7 +214,7 @@ export default function ConfigurationPage() {
                         className="w-full py-3 px-4 rounded-lg border border-gray-300 text-gray-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       >
                         {PAPER_SIZES.map(size => (
-                          <option key={size} value={size}>{size}</option>
+                          <option key={size} value={size}>{t(size)}</option>
                         ))}
                       </select>
                     </div>
@@ -220,7 +222,7 @@ export default function ConfigurationPage() {
                     {/* Print Sides */}
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Print Sides
+                        {t('Print Sides')}
                       </label>
                       <div className="grid grid-cols-2 gap-3">
                         <button
@@ -232,7 +234,7 @@ export default function ConfigurationPage() {
                               : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                           }`}
                         >
-                          Single-sided
+                          {t('Single-sided')}
                         </button>
                         <button
                           type="button"
@@ -243,7 +245,7 @@ export default function ConfigurationPage() {
                               : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                           }`}
                         >
-                          Double-sided
+                          {t('Double-sided')}
                         </button>
                       </div>
                     </div>
@@ -251,7 +253,7 @@ export default function ConfigurationPage() {
                     {/* Orientation */}
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Orientation
+                        {t('Orientation')}
                       </label>
                       <div className="grid grid-cols-2 gap-3">
                         <button
@@ -264,7 +266,7 @@ export default function ConfigurationPage() {
                           }`}
                         >
                           <Maximize2 size={18} />
-                          Portrait
+                          {t('Portrait')}
                         </button>
                         <button
                           type="button"
@@ -276,7 +278,7 @@ export default function ConfigurationPage() {
                           }`}
                         >
                           <Rotate3d size={18} />
-                          Landscape
+                          {t('Landscape')}
                         </button>
                       </div>
                     </div>
@@ -284,7 +286,7 @@ export default function ConfigurationPage() {
                     {/* Print Quality */}
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Print Quality
+                        {t('Print Quality')}
                       </label>
                       <div className="grid grid-cols-3 gap-2">
                         {QUALITY_OPTIONS.map(qual => (
@@ -298,7 +300,7 @@ export default function ConfigurationPage() {
                                 : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                             }`}
                           >
-                            <div>{qual.label}</div>
+                            <div>{t(qual.label)}</div>
                           </button>
                         ))}
                       </div>
@@ -307,16 +309,16 @@ export default function ConfigurationPage() {
                     {/* Page Range */}
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Pages to Print
+                        {t('Pages to Print')}
                       </label>
                       <select
                         value={configs[idx]?.pageRange || 'all'}
                         onChange={(e) => handleConfigChange(idx, 'pageRange', e.target.value)}
                         className="w-full py-3 px-4 rounded-lg border border-gray-300 text-gray-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       >
-                        <option value="all">All Pages</option>
-                        <option value="odd">Odd Pages Only</option>
-                        <option value="even">Even Pages Only</option>
+                        <option value="all">{t('All Pages')}</option>
+                        <option value="odd">{t('Odd Pages Only')}</option>
+                        <option value="even">{t('Even Pages Only')}</option>
                       </select>
                     </div>
                   </div>
@@ -330,14 +332,14 @@ export default function ConfigurationPage() {
                   disabled={loading}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl transition shadow-md"
                 >
-                  {loading ? 'Saving Settings...' : 'Continue to Review →'}
+                  {loading ? t('Saving Settings...') : t('Continue to Review →')}
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)}
                   className="w-full bg-white border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-bold py-3 rounded-xl transition"
                 >
-                  Back to Upload
+                  {t('Back to Upload')}
                 </button>
               </div>
 
