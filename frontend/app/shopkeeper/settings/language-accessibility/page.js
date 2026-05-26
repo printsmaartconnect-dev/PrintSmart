@@ -7,7 +7,7 @@ import {
   Bell,
   Globe2,
   Languages,
-  LayoutGrid,
+  Headphones,
   FileText,
   Palette,
   Printer,
@@ -46,7 +46,7 @@ const sidebarItems = [
   {
     label: 'Support & Feedback',
     href: '/shopkeeper/settings/support-feedback',
-    icon: LayoutGrid,
+    icon: Headphones,
     description: 'Get help & send feedback',
   },
 ]

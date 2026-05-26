@@ -1,446 +1,356 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { ChevronDown, Plus, Minus, Maximize2, Rotate3D, ArrowLeft } from 'lucide-react'
+import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText } from 'lucide-react'
+import BackButton from '../../components/BackButton'
+import FeedbackButton from '../../components/FeedbackButton'
+import FeedbackLink from '../../components/FeedbackLink'
+import FilePreviewSection from '../../components/customer/FilePreviewSection'
+
+const PAPER_SIZES = ['A4', 'A3', 'A5', 'Legal', 'Letter', 'Executive', 'Ledger', 'Tabloid']
+const QUALITY_OPTIONS = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'NORMAL', label: 'Normal' },
+  { value: 'HIGH', label: 'High' }
+]
 
 export default function ConfigurationPage() {
   const router = useRouter()
-  const [showPrintOptions, setShowPrintOptions] = useState(false)
-  const [documents, setDocuments] = useState([])
-  const [multiConfigs, setMultiConfigs] = useState([])
+  const searchParams = useSearchParams()
+  const shopId = searchParams.get('shopId')
+  const userId = searchParams.get('userId')
+
+  const [uploadedFiles, setUploadedFiles] = useState([])
+  const [configs, setConfigs] = useState([])
+  const [loading, setLoading] = useState(false)
 
   const defaultConfig = {
-    printType: 'bw',
-    copies: 2,
+    printType: 'BW',
+    copies: 1,
     paperSize: 'A4',
-    pages: 'all',
-    sides: 'single',
-    orientation: 'portrait',
+    sides: 'SINGLE',
+    orientation: 'PORTRAIT',
+    quality: 'NORMAL',
+    pageRange: 'all'
   }
-  const [config, setConfig] = useState({
-    ...defaultConfig,
-  })
 
   useEffect(() => {
-    const uploadedFilesRaw = JSON.parse(localStorage.getItem('uploadedFiles') || '[]')
-    const uploadedFiles = Array.isArray(uploadedFilesRaw) ? uploadedFilesRaw : []
-    setDocuments(uploadedFiles)
-
-    if (uploadedFiles.length > 1) {
-      setMultiConfigs(
-        uploadedFiles.map(() => ({ ...defaultConfig, identityName: '' }))
-      )
+    // Load uploaded files from session/localStorage
+    const filesStr = localStorage.getItem('uploadedFiles')
+    if (filesStr) {
+      try {
+        const files = JSON.parse(filesStr)
+        setUploadedFiles(files)
+        setConfigs(files.map(() => ({ ...defaultConfig })))
+      } catch (err) {
+        console.error('Error loading files:', err)
+      }
     }
   }, [])
 
-  const handleConfigChange = (key, value) => {
-    setConfig((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const handleContinue = () => {
-    if (documents.length > 1) {
-      const payload = multiConfigs.map((c, i) => ({
-        ...defaultConfig,
-        ...c,
-        fileName: documents[i] || `Document ${i + 1}`,
-        identityName: (c?.identityName || '').trim(),
-      }))
-      localStorage.setItem('printConfig', JSON.stringify(payload))
-    } else {
-      localStorage.setItem('printConfig', JSON.stringify(config))
-    }
-    router.push('/customer/review')
-  }
-
-  const handleDirectTalk = () => {
-    // For now always redirect to My Orders & Scratch page.
-    router.push('/customer/orders')
-  }
-
-  const handleMultiConfigChange = (docIndex, key, value) => {
-    setMultiConfigs((prev) =>
-      prev.map((c, i) => (i === docIndex ? { ...c, [key]: value } : c))
+  const handleConfigChange = (docIndex, key, value) => {
+    setConfigs(prev => 
+      prev.map((cfg, idx) => 
+        idx === docIndex ? { ...cfg, [key]: value } : cfg
+      )
     )
   }
 
-  const effectiveDocCount = documents.length > 0 ? documents.length : 1
+  const handleContinue = async () => {
+    if (uploadedFiles.length === 0) {
+      alert('No files uploaded. Please upload files first.')
+      router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Store configuration in localStorage
+      const fileConfigs = uploadedFiles.map((file, idx) => ({
+        ...file,
+        config: configs[idx] || defaultConfig
+      }))
+      
+      localStorage.setItem('printConfigurations', JSON.stringify(fileConfigs))
+
+      // Redirect to review page with shop and user info
+      const nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
+      router.push(nextUrl)
+    } catch (err) {
+      console.error('Error saving configuration:', err)
+      alert('Error saving configuration')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <div className="wave-bg min-h-screen flex flex-col items-center justify-start px-4 sm:px-6 lg:px-10 py-8 lg:py-10">
-      {/* Step Header */}
-      <div className="w-full max-w-md sm:max-w-xl lg:max-w-4xl mb-8">
-        <div className="step-header">
-          <div className="step-number">4</div>
-          <div>
-            <h1 className="text-3xl font-bold text-black">Print Configuration</h1>
-            <p className="text-gray-600">Choose your print options and preferences.</p>
-          </div>
-        </div>
-      </div>
+    <div className="wave-bg min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="px-6 py-4 flex items-center justify-between">
+        <BackButton />
+        <span className="text-sm font-semibold text-gray-600">Step 4 of 5</span>
+      </header>
 
-      {/* Card Container */}
-      <div className="glassmorphism w-full max-w-md sm:max-w-xl lg:max-w-4xl p-6 sm:p-8 lg:p-10">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="mac-dots">
-              <div className="mac-dot red"></div>
-              <div className="mac-dot yellow"></div>
-              <div className="mac-dot green"></div>
+      {/* Main Content */}
+      <main className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-5xl mx-auto">
+          {/* Title */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 font-brand">Print Configuration</h1>
+            <p className="text-gray-600">Customize print settings for your files</p>
+          </div>
+
+          {uploadedFiles.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-lg p-8 text-center border border-gray-100">
+              <p className="text-gray-600 mb-4 font-semibold">No files uploaded yet</p>
+              <button
+                onClick={() => router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)}
+                className="gradient-button text-white font-semibold py-2.5 px-6 rounded-lg transition"
+              >
+                Go to Upload Page
+              </button>
             </div>
-          </div>
-          <button
-            onClick={() => router.back()}
-            className="p-2 hover:bg-gray-200 rounded-lg transition"
-          >
-            <ArrowLeft size={20} className="text-gray-700" />
-          </button>
-        </div>
+          ) : (
+            <div className="space-y-10">
+              {/* File-wise Configuration */}
+              {uploadedFiles.map((file, idx) => (
+                <div key={idx} className="max-w-5xl mx-auto rounded-[36px] bg-white shadow-xl border border-purple-100 p-8 md:p-10 backdrop-blur-sm mb-8">
+                  {/* Reusable File Preview Section */}
+                  <FilePreviewSection
+                    file={file}
+                    thumbnailUrl={file.thumbnailUrl}
+                    isBW={configs[idx]?.printType === 'BW'}
+                    isLoading={false}
+                  />
 
-        <button
-          type="button"
-          onClick={handleDirectTalk}
-          className="w-full py-3 px-4 rounded-xl font-semibold transition text-blue-600 border-2 border-blue-600 hover:bg-blue-50"
-        >
-          Directly Talk with Shopkeeper
-        </button>
+                  {/* Settings Title Header */}
+                  <div className="mb-6 pb-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                      <Settings size={20} className="text-indigo-600 animate-spin-slow" />
+                      Document {idx + 1} Settings
+                    </h3>
+                  </div>
 
-        <button
-          type="button"
-          onClick={() => setShowPrintOptions(true)}
-          className={`w-full mt-4 py-3 px-4 rounded-xl font-semibold transition border-2 ${
-            showPrintOptions
-              ? 'border-blue-600 bg-blue-600 text-white'
-              : 'bg-gray-50 text-gray-900 border-gray-200 hover:bg-gray-100'
-          }`}
-        >
-          Print Options
-        </button>
-
-        {showPrintOptions && (
-          <>
-            <h3 className="text-2xl font-bold text-black text-center mt-8 mb-8">Print Options</h3>
-
-            {effectiveDocCount > 1 ? (
-              <div className="space-y-6">
-                {(documents.length > 0 ? documents : Array.from({ length: effectiveDocCount })).map(
-                  (fileName, index) => {
-                    const docConfig = multiConfigs[index] || { ...defaultConfig, identityName: '' }
-                    return (
-                      <div key={index} className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-                        <div className="mb-4">
-                          <p className="text-gray-900 font-bold truncate">
-                            {typeof fileName === 'string' && fileName.trim().length > 0
-                              ? fileName
-                              : `Document ${index + 1}`}
-                          </p>
-                          <p className="text-gray-500 text-xs">Configure this document separately</p>
-                        </div>
-
-                        <div className="mb-5">
-                          <label className="block text-gray-700 font-semibold mb-2">
-                            Identity name (optional)
-                          </label>
-                          <input
-                            value={docConfig.identityName || ''}
-                            onChange={(e) =>
-                              handleMultiConfigChange(index, 'identityName', e.target.value)
-                            }
-                            placeholder="e.g., Kid notes, Old receipt, Office file"
-                            autoCorrect="on"
-                            spellCheck={true}
-                            autoCapitalize="words"
-                            className="w-full py-3 px-4 rounded-lg border-2 border-gray-300 bg-white text-gray-700 font-medium cursor-text hover:border-gray-400 transition outline-none focus:border-blue-500"
-                          />
-                        </div>
-
-                        <div className="space-y-6">
-                          {/* Print Type */}
-                          <div>
-                            <label className="block text-gray-700 font-semibold mb-3">Print Type</label>
-                            <div className="flex gap-3">
-                              <button
-                                type="button"
-                                onClick={() => handleMultiConfigChange(index, 'printType', 'bw')}
-                                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition border-2 ${
-                                  docConfig.printType === 'bw'
-                                    ? 'border-blue-500 bg-blue-50 text-blue-600'
-                                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                                }`}
-                              >
-                                Black & White
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleMultiConfigChange(index, 'printType', 'color')}
-                                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition border-2 ${
-                                  docConfig.printType === 'color'
-                                    ? 'border-blue-500 bg-blue-50 text-blue-600'
-                                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                                }`}
-                              >
-                                Color
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Copies */}
-                          <div>
-                            <label className="block text-gray-700 font-semibold mb-3">Copies</label>
-                            <div className="flex items-center gap-4 bg-white p-4 rounded-lg w-fit border border-gray-200">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleMultiConfigChange(
-                                    index,
-                                    'copies',
-                                    Math.max(1, (docConfig.copies || 2) - 1)
-                                  )
-                                }
-                                className="p-2 hover:bg-gray-50 rounded transition"
-                              >
-                                <Minus size={20} className="text-gray-700" />
-                              </button>
-                              <span className="text-2xl font-bold text-gray-700 min-w-8 text-center">
-                                {docConfig.copies || 2}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleMultiConfigChange(
-                                    index,
-                                    'copies',
-                                    Math.min(99, (docConfig.copies || 2) + 1)
-                                  )
-                                }
-                                className="p-2 hover:bg-gray-50 rounded transition"
-                              >
-                                <Plus size={20} className="text-gray-700" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Paper Size */}
-                          <div>
-                            <label className="block text-gray-700 font-semibold mb-3">Paper Size</label>
-                            <select
-                              value={docConfig.paperSize}
-                              onChange={(e) =>
-                                handleMultiConfigChange(index, 'paperSize', e.target.value)
-                              }
-                              className="w-full py-3 px-4 rounded-lg border-2 border-gray-300 bg-white text-gray-700 font-medium cursor-pointer hover:border-gray-400 transition appearance-none"
-                            >
-                              <option>A4</option>
-                              <option>A3</option>
-                              <option>Legal</option>
-                            </select>
-                          </div>
-
-                          {/* Pages */}
-                          <div>
-                            <label className="block text-gray-700 font-semibold mb-3">Pages to Print</label>
-                            <select
-                              value={docConfig.pages}
-                              onChange={(e) => handleMultiConfigChange(index, 'pages', e.target.value)}
-                              className="w-full py-3 px-4 rounded-lg border-2 border-gray-300 bg-white text-gray-700 font-medium cursor-pointer hover:border-gray-400 transition appearance-none"
-                            >
-                              <option value="all">All Pages</option>
-                              <option value="custom">Custom pages</option>
-                            </select>
-                          </div>
-
-                          {/* Print Sides */}
-                          <div>
-                            <label className="block text-gray-700 font-semibold mb-3">Print Sides</label>
-                            <select
-                              value={docConfig.sides}
-                              onChange={(e) => handleMultiConfigChange(index, 'sides', e.target.value)}
-                              className="w-full py-3 px-4 rounded-lg border-2 border-gray-300 bg-white text-gray-700 font-medium cursor-pointer hover:border-gray-400 transition appearance-none"
-                            >
-                              <option value="single">Single Side</option>
-                              <option value="double">Double Side</option>
-                            </select>
-                          </div>
-
-                          {/* Orientation */}
-                          <div>
-                            <label className="block text-gray-700 font-semibold mb-3">Orientation</label>
-                            <div className="flex gap-3">
-                              <button
-                                type="button"
-                                onClick={() => handleMultiConfigChange(index, 'orientation', 'portrait')}
-                                className={`flex-1 py-4 px-4 rounded-lg font-semibold transition border-2 flex items-center justify-center gap-2 ${
-                                  docConfig.orientation === 'portrait'
-                                    ? 'border-blue-500 bg-blue-50 text-blue-600'
-                                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                                }`}
-                              >
-                                <Maximize2 size={20} />
-                                Portrait
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleMultiConfigChange(index, 'orientation', 'landscape')}
-                                className={`flex-1 py-4 px-4 rounded-lg font-semibold transition border-2 flex items-center justify-center gap-2 ${
-                                  docConfig.orientation === 'landscape'
-                                    ? 'border-blue-500 bg-blue-50 text-blue-600'
-                                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                                }`}
-                              >
-                                <Rotate3D size={20} />
-                                Landscape
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                  {/* Configuration Options */}
+                  <div className="space-y-5">
+                    {/* Print Type */}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Print Type
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleConfigChange(idx, 'printType', 'BW')}
+                          className={`py-3 px-4 rounded-lg font-bold transition border-2 ${
+                            configs[idx]?.printType === 'BW'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          Black & White
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleConfigChange(idx, 'printType', 'COLOR')}
+                          className={`py-3 px-4 rounded-lg font-bold transition border-2 ${
+                            configs[idx]?.printType === 'COLOR'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          🎨 Color
+                        </button>
                       </div>
-                    )
-                  }
-                )}
+                    </div>
+
+                    {/* Number of Copies */}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Copies
+                      </label>
+                      <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg w-fit border border-gray-200">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleConfigChange(idx, 'copies', Math.max(1, (configs[idx]?.copies || 1) - 1))
+                          }
+                          className="p-2 hover:bg-gray-200 rounded transition"
+                        >
+                          <Minus size={20} className="text-gray-700" />
+                        </button>
+                        <input
+                          type="number"
+                          value={configs[idx]?.copies || 1}
+                          onChange={(e) => handleConfigChange(idx, 'copies', Math.max(1, parseInt(e.target.value) || 1))}
+                          min="1"
+                          max="999"
+                          className="w-16 text-center text-2xl font-bold text-gray-900 bg-transparent outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleConfigChange(idx, 'copies', Math.min(999, (configs[idx]?.copies || 1) + 1))
+                          }
+                          className="p-2 hover:bg-gray-200 rounded transition"
+                        >
+                          <Plus size={20} className="text-gray-700" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Paper Size */}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Paper Size
+                      </label>
+                      <select
+                        value={configs[idx]?.paperSize || 'A4'}
+                        onChange={(e) => handleConfigChange(idx, 'paperSize', e.target.value)}
+                        className="w-full py-3 px-4 rounded-lg border border-gray-300 text-gray-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {PAPER_SIZES.map(size => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Print Sides */}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Print Sides
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleConfigChange(idx, 'sides', 'SINGLE')}
+                          className={`py-3 px-4 rounded-lg font-bold transition border-2 ${
+                            configs[idx]?.sides === 'SINGLE'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          Single-sided
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleConfigChange(idx, 'sides', 'DOUBLE')}
+                          className={`py-3 px-4 rounded-lg font-bold transition border-2 ${
+                            configs[idx]?.sides === 'DOUBLE'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          Double-sided
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Orientation */}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Orientation
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleConfigChange(idx, 'orientation', 'PORTRAIT')}
+                          className={`py-3 px-4 rounded-lg font-bold transition border-2 flex items-center justify-center gap-2 ${
+                            configs[idx]?.orientation === 'PORTRAIT'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <Maximize2 size={18} />
+                          Portrait
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleConfigChange(idx, 'orientation', 'LANDSCAPE')}
+                          className={`py-3 px-4 rounded-lg font-bold transition border-2 flex items-center justify-center gap-2 ${
+                            configs[idx]?.orientation === 'LANDSCAPE'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <Rotate3d size={18} />
+                          Landscape
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Print Quality */}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Print Quality
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {QUALITY_OPTIONS.map(qual => (
+                          <button
+                            type="button"
+                            key={qual.value}
+                            onClick={() => handleConfigChange(idx, 'quality', qual.value)}
+                            className={`py-3 px-3 rounded-lg font-bold transition border-2 text-sm ${
+                              configs[idx]?.quality === qual.value
+                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                            }`}
+                          >
+                            <div>{qual.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Page Range */}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Pages to Print
+                      </label>
+                      <select
+                        value={configs[idx]?.pageRange || 'all'}
+                        onChange={(e) => handleConfigChange(idx, 'pageRange', e.target.value)}
+                        className="w-full py-3 px-4 rounded-lg border border-gray-300 text-gray-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="all">All Pages</option>
+                        <option value="odd">Odd Pages Only</option>
+                        <option value="even">Even Pages Only</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Action Buttons */}
+              <div className="max-w-md mx-auto space-y-3 pt-4">
+                <button
+                  onClick={handleContinue}
+                  disabled={loading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl transition shadow-md"
+                >
+                  {loading ? 'Saving Settings...' : 'Continue to Review →'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)}
+                  className="w-full bg-white border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-bold py-3 rounded-xl transition"
+                >
+                  Back to Upload
+                </button>
               </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Print Type */}
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-3">Print Type</label>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleConfigChange('printType', 'bw')}
-                      className={`flex-1 py-3 px-4 rounded-lg font-semibold transition border-2 ${
-                        config.printType === 'bw'
-                          ? 'border-blue-500 bg-blue-50 text-blue-600'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                      }`}
-                    >
-                      Black & White
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleConfigChange('printType', 'color')}
-                      className={`flex-1 py-3 px-4 rounded-lg font-semibold transition border-2 ${
-                        config.printType === 'color'
-                          ? 'border-blue-500 bg-blue-50 text-blue-600'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                      }`}
-                    >
-                      Color
-                    </button>
-                  </div>
-                </div>
 
-                {/* Copies */}
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-3">Copies</label>
-                  <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg w-fit">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleConfigChange('copies', Math.max(1, config.copies - 1))
-                      }
-                      className="p-2 hover:bg-white rounded transition"
-                    >
-                      <Minus size={20} className="text-gray-700" />
-                    </button>
-                    <span className="text-2xl font-bold text-gray-700 min-w-8 text-center">
-                      {config.copies}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleConfigChange('copies', Math.min(99, config.copies + 1))
-                      }
-                      className="p-2 hover:bg-white rounded transition"
-                    >
-                      <Plus size={20} className="text-gray-700" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Paper Size */}
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-3">Paper Size</label>
-                  <select
-                    value={config.paperSize}
-                    onChange={(e) => handleConfigChange('paperSize', e.target.value)}
-                    className="w-full py-3 px-4 rounded-lg border-2 border-gray-300 bg-white text-gray-700 font-medium cursor-pointer hover:border-gray-400 transition appearance-none"
-                  >
-                    <option>A4</option>
-                    <option>A3</option>
-                    <option>Legal</option>
-                  </select>
-                </div>
-
-                {/* Pages */}
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-3">Pages to Print</label>
-                  <select
-                    value={config.pages}
-                    onChange={(e) => handleConfigChange('pages', e.target.value)}
-                    className="w-full py-3 px-4 rounded-lg border-2 border-gray-300 bg-white text-gray-700 font-medium cursor-pointer hover:border-gray-400 transition appearance-none"
-                  >
-                    <option value="all">All Pages</option>
-                    <option value="custom">Custom pages</option>
-                  </select>
-                </div>
-
-                {/* Print Sides */}
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-3">Print Sides</label>
-                  <select
-                    value={config.sides}
-                    onChange={(e) => handleConfigChange('sides', e.target.value)}
-                    className="w-full py-3 px-4 rounded-lg border-2 border-gray-300 bg-white text-gray-700 font-medium cursor-pointer hover:border-gray-400 transition appearance-none"
-                  >
-                    <option value="single">Single Side</option>
-                    <option value="double">Double Side</option>
-                  </select>
-                </div>
-
-                {/* Orientation */}
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-3">Orientation</label>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleConfigChange('orientation', 'portrait')}
-                      className={`flex-1 py-4 px-4 rounded-lg font-semibold transition border-2 flex items-center justify-center gap-2 ${
-                        config.orientation === 'portrait'
-                          ? 'border-blue-500 bg-blue-50 text-blue-600'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                      }`}
-                    >
-                      <Maximize2 size={20} />
-                      Portrait
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleConfigChange('orientation', 'landscape')}
-                      className={`flex-1 py-4 px-4 rounded-lg font-semibold transition border-2 flex items-center justify-center gap-2 ${
-                        config.orientation === 'landscape'
-                          ? 'border-blue-500 bg-blue-50 text-blue-600'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                      }`}
-                    >
-                      <Rotate3D size={20} />
-                      Landscape
-                    </button>
-                  </div>
-                </div>
+              {/* Reusable FeedbackLink */}
+              <div className="max-w-md mx-auto text-center mt-4">
+                <FeedbackLink />
               </div>
-            )}
-          </>
-        )}
+            </div>
+          )}
+        </div>
+      </main>
 
-        {showPrintOptions && (
-          <button
-            onClick={handleContinue}
-            className="w-full gradient-button py-3 px-4 rounded-xl font-semibold transition mt-8 text-white"
-          >
-            Continue
-          </button>
-        )}
-      </div>
+      <FeedbackButton />
     </div>
   )
 }

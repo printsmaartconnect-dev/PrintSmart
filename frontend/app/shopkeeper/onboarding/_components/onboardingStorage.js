@@ -190,4 +190,45 @@ export function clearOnboardingData() {
   window.localStorage.removeItem(KEYS.setupCompleted)
 }
 
+export function syncLocalStorageFromDb(account) {
+  if (typeof window === 'undefined' || !account) return
+
+  // Only sync if address exists (indicating they have completed profile setup in DB)
+  if (account.address) {
+    const profile = {
+      shopName: account.shopName || '',
+      businessCategory: account.category || 'Printing & Photocopy',
+      subCategory: account.subCategory || 'Xerox & Digital Prints',
+      languagePreference: account.languagePref || 'English',
+      shopOwnerName: account.ownerName || '',
+      businessDescription: account.businessDescription || 'We offer high-quality digital printing services.',
+      businessEstablishedYear: account.businessEstablishedYear || '',
+      gstNumber: account.gstNumber || '',
+      logoDataUrl: account.logoUrl || '',
+      shopkeeperIdCode: account.shopkeeperIdCode || '',
+      shopSlug: account.shopSlug || '',
+    }
+    window.localStorage.setItem(KEYS.profile, JSON.stringify(profile))
+
+    const contact = {
+      countryCode: '+91',
+      phoneNumber: account.phone || '',
+      alternatePhone: account.alternatePhone || '',
+      emailAddress: account.email || '',
+      website: account.website || '',
+      shopAddress: account.address || '',
+    }
+    window.localStorage.setItem(KEYS.contact, JSON.stringify(contact))
+
+    if (account.socials) {
+      window.localStorage.setItem(KEYS.socials, JSON.stringify(account.socials))
+    }
+
+    if (account.pricing) {
+      window.localStorage.setItem(KEYS.pricing, JSON.stringify(account.pricing))
+      window.localStorage.setItem(KEYS.setupCompleted, 'true')
+    }
+  }
+}
+
 export const STORAGE_KEYS = KEYS

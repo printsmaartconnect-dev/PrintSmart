@@ -1,122 +1,132 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { Inbox, Upload, RotateCcw, Trash2, ArrowLeft, Home } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Inbox, Upload, RotateCcw, Download, Trash2, Home, Clock, AlertCircle } from 'lucide-react'
+import BackButton from '../../components/BackButton'
+import FeedbackButton from '../../components/FeedbackButton'
+import FeedbackLink from '../../components/FeedbackLink'
 
 export default function OrdersPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const shopId = searchParams.get('shopId')
+  const customerUserId = searchParams.get('userId')
+
   const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  
+  // Delete Confirmation Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [orderToDelete, setOrderToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // Scratch Coupon State
   const [scratchRevealed, setScratchRevealed] = useState(false)
-  const canvasRef = useCanvasRef()
+  const canvasRef = useCanvasRef(scratchRevealed, setScratchRevealed)
 
-  useEffect(() => {
-    const currentOrder = JSON.parse(localStorage.getItem('currentOrder') || '{}')
-    const storedOrdersRaw = JSON.parse(localStorage.getItem('orders') || '[]')
-
-    // De-dupe any previously duplicated orders (same orderId)
-    const seen = new Set()
-    const storedOrders = Array.isArray(storedOrdersRaw)
-      ? storedOrdersRaw.filter((o) => {
-          const id = o?.orderId
-          if (!id || seen.has(id)) return false
-          seen.add(id)
-          return true
-        })
-      : []
-
-    if (storedOrders.length !== (Array.isArray(storedOrdersRaw) ? storedOrdersRaw.length : 0)) {
-      localStorage.setItem('orders', JSON.stringify(storedOrders))
+  const fetchOrders = async () => {
+    setLoading(true)
+    setError(null)
+    
+    // Resolve user ID from session/localStorage or searchParams
+    let resolvedUserId = customerUserId
+    if (!resolvedUserId) {
+      const sessionStr = localStorage.getItem('customerSession')
+      if (sessionStr) {
+        try {
+          resolvedUserId = JSON.parse(sessionStr).userId
+        } catch (err) {
+          console.error('Error parsing customer session:', err)
+        }
+      }
     }
 
-    if (currentOrder.orderId) {
-      const exists = storedOrders.some((o) => o?.orderId === currentOrder.orderId)
-      const nextOrders = exists ? storedOrders : [...storedOrders, currentOrder]
-      localStorage.setItem('orders', JSON.stringify(nextOrders))
-      setOrders(nextOrders)
+    if (!resolvedUserId) {
+      setError('Please go through the language page to register your user details first.')
+      setLoading(false)
       return
     }
 
-    setOrders(storedOrders)
-  }, [])
-
-  const deleteOrder = (orderId) => {
-    const storedOrders = JSON.parse(localStorage.getItem('orders') || '[]')
-    const nextOrders = storedOrders.filter((o) => o?.orderId !== orderId)
-    localStorage.setItem('orders', JSON.stringify(nextOrders))
-    setOrders(nextOrders)
-
-    const currentOrder = JSON.parse(localStorage.getItem('currentOrder') || '{}')
-    if (currentOrder?.orderId === orderId) {
-      localStorage.removeItem('currentOrder')
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/orders/user/${resolvedUserId}`)
+      if (!response.ok) {
+        throw new Error('Failed to retrieve order history')
+      }
+      const data = await response.json()
+      setOrders(data)
+    } catch (err) {
+      console.error('Fetch orders error:', err)
+      setError('Failed to fetch your print orders. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const deleteFileFromOrder = (orderId, fileIndex) => {
-    const storedOrders = JSON.parse(localStorage.getItem('orders') || '[]')
-    const nextOrders = storedOrders
-      .map((o) => {
-        if (o?.orderId !== orderId) return o
-        const nextFiles = Array.isArray(o.files) ? o.files.filter((_, i) => i !== fileIndex) : []
-        return { ...o, files: nextFiles }
-      })
-      .filter((o) => {
-        if (o?.orderId !== orderId) return true
-        return Array.isArray(o?.files) ? o.files.length > 0 : true
+  useEffect(() => {
+    fetchOrders()
+  }, [customerUserId])
+
+  const openDeleteModal = (order) => {
+    setOrderToDelete(order)
+    setShowDeleteModal(true)
+  }
+
+  const closeDeleteModal = () => {
+    setOrderToDelete(null)
+    setShowDeleteModal(false)
+  }
+
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete) return
+    setDeleting(true)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/orders/${orderToDelete.id}`, {
+        method: 'DELETE',
       })
 
-    localStorage.setItem('orders', JSON.stringify(nextOrders))
-    setOrders(nextOrders)
-
-    const currentOrder = JSON.parse(localStorage.getItem('currentOrder') || '{}')
-    if (currentOrder?.orderId === orderId) {
-      const nextFiles = Array.isArray(currentOrder.files)
-        ? currentOrder.files.filter((_, i) => i !== fileIndex)
-        : []
-      if (nextFiles.length === 0) {
-        localStorage.removeItem('currentOrder')
-      } else {
-        localStorage.setItem('currentOrder', JSON.stringify({ ...currentOrder, files: nextFiles }))
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || 'Failed to delete order')
       }
+
+      // Re-fetch orders after successful deletion
+      await fetchOrders()
+      closeDeleteModal()
+    } catch (err) {
+      console.error('Delete order error:', err)
+      alert(err.message || 'Could not cancel the order.')
+    } finally {
+      setDeleting(false)
     }
   }
 
-  const handleMouseMove = (e) => {
-    if (!scratchRevealed && canvasRef.current) {
-      if (canvasRef.current.width <= 0 || canvasRef.current.height <= 0) return
-
-      const rect = canvasRef.current.getBoundingClientRect()
-      if (!rect.width || !rect.height) return
-
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-
-      const scaleX = canvasRef.current.width / rect.width
-      const scaleY = canvasRef.current.height / rect.height
-
-      const ctx = canvasRef.current.getContext('2d')
-      ctx.clearRect(x * scaleX - 15 * scaleX, y * scaleY - 15 * scaleY, 30 * scaleX, 30 * scaleY)
-
-      const imageData = ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height)
-      const data = imageData.data
-      let transparentPixels = 0
-
-      for (let i = 3; i < data.length; i += 4) {
-        if (data[i] < 128) transparentPixels++
-      }
-
-      if (transparentPixels > (data.length / 4) * 0.5) {
-        setScratchRevealed(true)
-      }
-    }
+  const handleDownloadInvoice = (orderId) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+    window.open(`${apiUrl}/api/orders/${orderId}/invoice`, '_blank')
   }
 
   const statusColors = {
-    Pending: 'bg-yellow-100 text-yellow-800',
-    Accepted: 'bg-blue-100 text-blue-800',
-    Printing: 'bg-purple-100 text-purple-800',
-    Completed: 'bg-green-100 text-green-800',
+    PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    ACCEPTED: 'bg-blue-100 text-blue-800 border-blue-200',
+    PRINTING: 'bg-purple-100 text-purple-800 border-purple-200',
+    COMPLETED: 'bg-green-100 text-green-800 border-green-200',
+    CANCELLED: 'bg-red-100 text-red-800 border-red-200',
+  }
+
+  const formatTimestamp = (isoString) => {
+    const dateObj = new Date(isoString)
+    return dateObj.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }) + ' at ' + dateObj.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
   return (
@@ -126,161 +136,207 @@ export default function OrdersPage() {
         <div className="step-header">
           <div className="step-number">7</div>
           <div>
-            <h1 className="text-3xl font-bold text-black">My Orders</h1>
-            <p className="text-gray-600">Track all your print orders in real-time.</p>
+            <h1 className="text-3xl font-bold text-black font-brand">My Orders</h1>
+            <p className="text-gray-600">Track printing queues and download invoices</p>
           </div>
         </div>
       </div>
 
       {/* Card Container */}
       <div className="glassmorphism w-full max-w-md sm:max-w-xl lg:max-w-4xl p-6 sm:p-8 lg:p-10">
-        {/* Mac Dots */}
         <div className="flex items-center justify-between mb-6">
-          <div className="mac-dots">
-            <div className="mac-dot red"></div>
-            <div className="mac-dot yellow"></div>
-            <div className="mac-dot green"></div>
-          </div>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="p-2 hover:bg-gray-200 rounded-lg transition"
-            aria-label="Back"
-            title="Back"
-          >
-            <ArrowLeft size={20} className="text-gray-700" />
-          </button>
+          <BackButton />
+          <span className="text-sm font-semibold text-gray-600">Step 7 of 7</span>
         </div>
-
-        <h3 className="text-2xl font-bold text-black text-center mb-8">My Orders</h3>
 
         {/* Scratch Coupon Section */}
         {orders.length > 0 && (
-          <div className="mb-8">
-            <p className="text-center text-gray-600 text-sm font-medium mb-4">
-              Scratch the coupon for amazing rewards
+          <div className="mb-8 p-4 bg-white/70 border border-purple-200 rounded-xl">
+            <p className="text-center text-gray-700 text-sm font-bold mb-3">
+              🎉 Scratch below to reveal your coupon discount!
             </p>
             <div
               className="relative w-full h-32 rounded-lg border-2 border-purple-300 border-dashed bg-purple-50 flex items-center justify-center overflow-hidden cursor-crosshair"
-              onMouseMove={handleMouseMove}
             >
               <canvas
                 ref={canvasRef}
-                width={320}
-                height={128}
-                className="absolute inset-0 scratch-canvas"
+                className="absolute inset-0 w-full h-full scratch-canvas"
               />
               {!scratchRevealed && (
-                <div className="text-center z-10">
-                  <RotateCcw size={32} className="mx-auto text-purple-600 mb-2" />
-                  <p className="text-purple-600 font-bold text-sm">SCRATCH HERE</p>
+                <div className="text-center z-10 pointer-events-none select-none">
+                  <RotateCcw size={28} className="mx-auto text-purple-600 mb-2 animate-spin-slow" />
+                  <p className="text-purple-700 font-bold text-sm">SCRATCH SURFACE HERE</p>
                 </div>
               )}
               {scratchRevealed && (
-                <div className="text-center z-10">
-                  <p className="text-2xl font-bold text-purple-600">Scratch &amp; earn discounts</p>
+                <div className="text-center z-10 animate-fade-in">
+                  <p className="text-2xl font-bold text-purple-700">Flat 15% OFF on Next Print!</p>
+                  <p className="text-xs text-purple-500 font-semibold mt-1">Code: SMARTPRINT15</p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Orders List */}
-        {orders.length > 0 ? (
-          <div className="space-y-4 mb-8">
-            {orders.map((order, index) => (
-              <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between items-start mb-3">
-                  <span className="font-bold text-gray-900">{order.orderId}</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => deleteOrder(order.orderId)}
-                      className="p-2 rounded-lg hover:bg-gray-200 transition"
-                      aria-label="Delete order"
-                      title="Delete"
-                    >
-                      <Trash2 size={18} className="text-gray-600" />
-                    </button>
-                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusColors['Pending']}`}>
-                    Pending
-                  </span>
+        {/* Error/Loading */}
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600 font-semibold animate-pulse text-base">Loading order database history...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex gap-3">
+            <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
+            <p className="text-sm text-red-700 font-semibold">{error}</p>
+          </div>
+        ) : orders.length > 0 ? (
+          <div className="space-y-6 mb-8">
+            {orders.map((order) => (
+              <div key={order.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                {/* Header Row */}
+                <div className="flex justify-between items-start flex-wrap gap-2 pb-3 border-b border-gray-150">
+                  <div>
+                    <span className="font-bold text-indigo-700 text-base">{order.orderId}</span>
+                    <p className="text-xs text-gray-500 font-semibold mt-0.5">{formatTimestamp(order.createdAt)}</p>
                   </div>
+                  <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${statusColors[order.status] || statusColors['PENDING']}`}>
+                    {order.status}
+                  </span>
                 </div>
-                <div className="space-y-2 mb-3">
-                  {(Array.isArray(order.files) && order.files.length > 0 ? order.files : ['Untitled document']).map((file, fileIndex) => (
-                    <div key={fileIndex} className="flex items-center justify-between gap-3">
-                      <p className="text-gray-700 font-medium text-sm truncate flex-1">{file}</p>
-                      {Array.isArray(order.files) && order.files.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => deleteFileFromOrder(order.orderId, fileIndex)}
-                          className="p-2 rounded-lg hover:bg-gray-200 transition"
-                          aria-label="Delete document"
-                          title="Delete document"
-                        >
-                          <Trash2 size={18} className="text-gray-600" />
-                        </button>
-                      )}
+
+                {/* File list */}
+                <div className="space-y-2">
+                  {order.orderFiles && order.orderFiles.map((file, fileIdx) => (
+                    <div key={file.id || fileIdx} className="flex items-center justify-between text-sm">
+                      <p className="text-gray-800 font-bold truncate flex-1">{file.customFileName}</p>
+                      <span className="text-xs text-gray-500 font-semibold flex-shrink-0 ml-3">
+                        {order.printConfiguration?.copies} copies • {order.printConfiguration?.paperSize}
+                      </span>
                     </div>
                   ))}
                 </div>
-                <p className="text-gray-500 text-xs mb-3">
-                  {Array.isArray(order.config) ? (
-                    <>
-                      {Array.isArray(order.files) ? order.files.length : order.config.length} Documents • Multiple configurations
-                    </>
-                  ) : (
-                    <>
-                      12 Pages • {order.config?.copies || 2} Copies • {order.config?.paperSize || 'A4'} •{' '}
-                      {order.config?.printType === 'bw' ? 'B&W' : 'Color'}
-                    </>
-                  )}
-                </p>
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-gray-900">₹{order.price || '10.00'}</span>
-                  <span className="text-gray-600 text-xs">10-15 mins</span>
+
+                {/* Print Configuration Details */}
+                <div className="text-xs text-gray-500 font-semibold flex flex-wrap gap-x-4 gap-y-1 bg-gray-50 p-2.5 rounded-lg">
+                  <span>Type: {order.printConfiguration?.printType === 'COLOR' ? 'Color' : 'B&W'}</span>
+                  <span>Sides: {order.printConfiguration?.sides === 'DOUBLE' ? 'Double' : 'Single'}</span>
+                  <span>Orientation: {order.printConfiguration?.orientation}</span>
+                  <span>Quality: {order.printConfiguration?.quality}</span>
+                </div>
+
+                {/* Footer details & Action buttons */}
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <span className="font-bold text-gray-900 text-base">₹{order.totalAmount.toFixed(2)}</span>
+                    <span className="text-gray-500 text-xs font-semibold flex items-center gap-1">
+                      <Clock size={14} className="text-indigo-500" />
+                      Queue Position: {order.queue ? (order.queue.status === 'DONE' ? 'Done' : `#${order.queue.position}`) : 'Pending'}
+                    </span>
+                  </div>
+                  
+                  {/* Action Group */}
+                  <div className="flex gap-2">
+                    {/* Invoice Download */}
+                    {order.invoice && (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadInvoice(order.id)}
+                        className="px-3 py-2 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition flex items-center gap-1.5"
+                      >
+                        <Download size={14} />
+                        Invoice PDF
+                      </button>
+                    )}
+                    
+                    {/* Delete Order button (Pending orders only) */}
+                    {order.status === 'PENDING' && (
+                      <button
+                        type="button"
+                        onClick={() => openDeleteModal(order)}
+                        className="px-3 py-2 rounded-lg text-xs font-bold text-red-700 bg-red-50 border border-red-100 hover:bg-red-100 transition flex items-center gap-1.5"
+                      >
+                        <Trash2 size={14} />
+                        Delete Order
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8">
-            <Inbox size={48} className="mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-600 font-medium">No orders yet</p>
+          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <Inbox size={48} className="mx-auto text-gray-400 mb-4 animate-bounce" />
+            <p className="text-gray-600 font-bold">No order details found in the database.</p>
+            <button
+              onClick={() => router.push(`/customer/upload?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
+              className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition"
+            >
+              Upload and Print Now
+            </button>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && orderToDelete && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4 animate-fade-in border border-gray-150">
+              <h3 className="text-lg font-bold text-gray-900">Confirm Order Deletion</h3>
+              <p className="text-sm text-gray-600 font-medium">
+                Are you sure you want to delete order <strong className="text-indigo-700">{orderToDelete.orderId}</strong>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  disabled={deleting}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteOrder}
+                  disabled={deleting}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition"
+                >
+                  {deleting ? 'Deleting...' : 'Delete Order'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Bottom Navigation */}
-        <div className="flex gap-4 justify-between">
-          <Link href="/" className="flex-1">
-            <button className="w-full py-3 px-4 rounded-lg text-blue-600 font-semibold hover:bg-blue-50 transition flex items-center justify-center gap-2">
-              <Home size={20} />
-              Home
-            </button>
-          </Link>
-          <Link href="/customer/orders" className="flex-1">
-            <button className="w-full py-3 px-4 rounded-lg text-blue-600 font-semibold hover:bg-blue-50 transition flex items-center justify-center gap-2">
-              <Inbox size={20} />
-              Orders
-            </button>
-          </Link>
-          <Link href="/customer/upload" className="flex-1">
-            <button className="w-full py-3 px-4 rounded-lg text-gray-600 font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-2">
-              <Upload size={20} />
-              Upload
-            </button>
-          </Link>
+        <div className="flex gap-4 justify-between border-t pt-6 border-gray-150">
+          <button
+            onClick={() => router.push('/')}
+            className="flex-1 py-3 px-4 rounded-xl text-indigo-600 font-bold hover:bg-indigo-50 transition flex items-center justify-center gap-2 border border-indigo-100 text-sm"
+          >
+            <Home size={18} />
+            Home
+          </button>
+          <button
+            onClick={() => router.push(`/customer/upload?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
+            className="flex-1 py-3 px-4 rounded-xl text-indigo-600 font-bold hover:bg-indigo-50 transition flex items-center justify-center gap-2 border border-indigo-100 text-sm"
+          >
+            <Upload size={18} />
+            Upload File
+          </button>
         </div>
+
+        {/* Reusable help links */}
+        <FeedbackLink />
       </div>
+
+      <FeedbackButton />
     </div>
   )
 }
 
-function useCanvasRef() {
-  const canvasRef = React.useRef(null)
+function useCanvasRef(scratchRevealed, setScratchRevealed) {
+  const canvasRef = useRef(null)
 
-  React.useEffect(() => {
+  useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -288,39 +344,98 @@ function useCanvasRef() {
       const parent = canvas.parentElement
       if (!parent) return
       const { width, height } = parent.getBoundingClientRect()
-      const nextWidth = Math.round(width)
-      const nextHeight = Math.round(height)
-
-      if (nextWidth > 0) canvas.width = nextWidth
-      if (nextHeight > 0) canvas.height = nextHeight
+      
+      canvas.width = Math.round(width)
+      canvas.height = Math.round(height)
 
       if (canvas.width <= 0 || canvas.height <= 0) return
 
       const ctx = canvas.getContext('2d')
-      ctx.fillStyle = '#d4d4d8'
+      
+      // Draw scratch layer
+      ctx.fillStyle = '#cbd5e1' // slate-300
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      ctx.fillStyle = '#a1a1aa'
-      for (let i = 0; i < 20; i++) {
-        ctx.fillRect(
-          Math.random() * canvas.width,
-          Math.random() * canvas.height,
-          4,
-          4
-        )
+      // Add silver texture lines
+      ctx.strokeStyle = '#94a3b8' // slate-400
+      ctx.lineWidth = 1
+      for (let i = 0; i < canvas.width; i += 8) {
+        ctx.beginPath()
+        ctx.moveTo(i, 0)
+        ctx.lineTo(i + 15, canvas.height)
+        ctx.stroke()
       }
     }
 
     draw()
 
+    // Handle scratch effect
+    let isDrawing = false
+
+    const scratch = (clientX, clientY) => {
+      if (scratchRevealed) return
+      const rect = canvas.getBoundingClientRect()
+      const x = clientX - rect.left
+      const y = clientY - rect.top
+
+      const ctx = canvas.getContext('2d')
+      ctx.globalCompositeOperation = 'destination-out'
+      ctx.beginPath()
+      ctx.arc(x, y, 20, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Calculate how much has been scratched
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const data = imageData.data
+      let transparentPixels = 0
+
+      for (let i = 3; i < data.length; i += 4) {
+        if (data[i] === 0) transparentPixels++
+      }
+
+      const scratchedPercent = transparentPixels / (data.length / 4)
+      if (scratchedPercent > 0.45) {
+        setScratchRevealed(true)
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+    }
+
+    const handleMouseDown = () => { isDrawing = true }
+    const handleMouseUp = () => { isDrawing = false }
+    const handleMouseMove = (e) => {
+      if (!isDrawing) return
+      scratch(e.clientX, e.clientY)
+    }
+
+    const handleTouchStart = () => { isDrawing = true }
+    const handleTouchEnd = () => { isDrawing = false }
+    const handleTouchMove = (e) => {
+      if (!isDrawing || e.touches.length === 0) return
+      scratch(e.touches[0].clientX, e.touches[0].clientY)
+    }
+
+    canvas.addEventListener('mousedown', handleMouseDown)
+    canvas.addEventListener('mouseup', handleMouseUp)
+    canvas.addEventListener('mousemove', handleMouseMove)
+    
+    canvas.addEventListener('touchstart', handleTouchStart)
+    canvas.addEventListener('touchend', handleTouchEnd)
+    canvas.addEventListener('touchmove', handleTouchMove)
+
     const ro = new ResizeObserver(() => draw())
     const parent = canvas.parentElement
     if (parent) ro.observe(parent)
 
-    return () => ro.disconnect()
-  }, [])
+    return () => {
+      ro.disconnect()
+      canvas.removeEventListener('mousedown', handleMouseDown)
+      canvas.removeEventListener('mouseup', handleMouseUp)
+      canvas.removeEventListener('mousemove', handleMouseMove)
+      canvas.removeEventListener('touchstart', handleTouchStart)
+      canvas.removeEventListener('touchend', handleTouchEnd)
+      canvas.removeEventListener('touchmove', handleTouchMove)
+    }
+  }, [scratchRevealed])
 
   return canvasRef
 }
-
-import React from 'react'

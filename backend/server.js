@@ -8,6 +8,10 @@ const authRoutes = require("./routes/auth.routes");
 const fileRoutes = require("./routes/file.routes");
 const orderRoutes = require("./routes/order.routes");
 const queueRoutes = require("./routes/queue.routes");
+const feedbackRoutes = require("./routes/feedback.routes");
+const statisticsRoutes = require("./routes/statistics.routes");
+const userRoutes = require("./routes/user.routes");
+const shopkeeperRoutes = require("./routes/shopkeeper.routes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -32,6 +36,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/files", fileRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/queue", queueRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/statistics", statisticsRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/shopkeeper", shopkeeperRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -54,6 +62,25 @@ app.use((err, req, res, next) => {
 });
 
 // Start listening
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`PrintSmart backend running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`);
+  
+  // Run db push and prisma generate programmatically to keep schema in sync
+  try {
+    const { execSync } = require("child_process");
+    console.log("Syncing database schema and generating Prisma client...");
+    execSync("npx prisma db push --accept-data-loss", { stdio: "inherit" });
+    execSync("npx prisma generate", { stdio: "inherit" });
+    console.log("Prisma client generated and DB synchronized.");
+  } catch (syncErr) {
+    console.warn("Prisma schema sync failed:", syncErr.message);
+  }
+
+  // Seed default shopkeeper details on start
+  try {
+    const seedService = require("./services/seed.service");
+    await seedService.seedDefaultShopkeeper();
+  } catch (seedErr) {
+    console.error("Failed to run seed service on startup:", seedErr);
+  }
 });

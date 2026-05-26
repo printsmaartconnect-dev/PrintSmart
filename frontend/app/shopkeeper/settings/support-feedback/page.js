@@ -27,6 +27,7 @@ import {
   Upload,
   UserRound,
   Youtube,
+  Palette,
 } from 'lucide-react'
 
 const sidebarItems = [
@@ -45,7 +46,7 @@ const sidebarItems = [
   {
     label: 'Appearance',
     href: '/shopkeeper/settings/appearance',
-    icon: Upload,
+    icon: Palette,
     description: 'Customize look & feel',
   },
   {

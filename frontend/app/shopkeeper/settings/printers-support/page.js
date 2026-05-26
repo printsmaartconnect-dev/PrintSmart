@@ -26,23 +26,33 @@ const settingsNavItems = [
   {
     label: 'Print Configuration',
     href: '/shopkeeper/settings/print-configuration',
-    icon: Printer,
+    icon: Settings2,
+    description: 'Manage print prices & preferences',
   },
   {
     label: 'Language & Accessibility',
     href: '/shopkeeper/settings/language-accessibility',
     icon: Languages,
+    description: 'Manage language & accessibility',
   },
   {
     label: 'Appearance',
     href: '/shopkeeper/settings/appearance',
     icon: Palette,
+    description: 'Customize look & feel',
   },
   {
-    label: 'Printers & Support',
+    label: 'Hardware & Printer',
     href: '/shopkeeper/settings/printers-support',
-    icon: Headphones,
+    icon: Printer,
+    description: 'Printers, queue, quality & support',
     active: true,
+  },
+  {
+    label: 'Support & Feedback',
+    href: '/shopkeeper/settings/support-feedback',
+    icon: Headphones,
+    description: 'Get help & send feedback',
   },
 ]
 
@@ -192,27 +202,28 @@ function TopHeader({ shopName }) {
   )
 }
 
-function SidebarNavItem({ href, icon: Icon, children, active }) {
+function SidebarNavItem({ href, icon: Icon, label, description, active }) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition ${
+      aria-current={active ? 'page' : undefined}
+      className={`relative flex items-start gap-3 rounded-2xl border px-4 py-3 transition ${
         active
-          ? 'border-violet-600 bg-violet-50 text-violet-700 shadow-sm ring-1 ring-violet-100'
+          ? 'border-violet-200 bg-violet-50 text-violet-700 shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-1 before:rounded-l-2xl before:bg-violet-600'
           : 'border-transparent bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
       }`}
-      aria-current={active ? 'page' : undefined}
     >
       <span
-        className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
-          active
-            ? 'border-violet-100 bg-white text-violet-700'
-            : 'border-slate-200 bg-slate-50 text-slate-500'
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+          active ? 'border-violet-100 bg-white text-violet-700' : 'border-slate-200 bg-slate-50 text-slate-500'
         }`}
       >
         <Icon size={17} />
       </span>
-      <span className="text-sm font-semibold">{children}</span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold leading-5">{label}</span>
+        <span className="mt-0.5 block text-xs leading-4 text-slate-500">{description}</span>
+      </span>
     </Link>
   )
 }
@@ -353,10 +364,10 @@ export default function PrintersSupportPage() {
                   key={item.label}
                   href={item.href}
                   icon={item.icon}
+                  label={item.label}
+                  description={item.description}
                   active={item.active}
-                >
-                  {item.label}
-                </SidebarNavItem>
+                />
               ))}
             </nav>
 

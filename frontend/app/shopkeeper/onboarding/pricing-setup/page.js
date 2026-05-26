@@ -8,6 +8,7 @@ import {
   getLoggedInShopkeeper,
   getProfile,
   getPricing,
+  getSocials,
   validatePricingRequired,
   validateProfileRequired,
   setPricing,
@@ -61,7 +62,11 @@ export default function PricingSetupPage() {
 
   const handleSave = async () => {
     try {
-      const profileValidation = validateProfileRequired(getProfile(), getContact())
+      const activeProfile = getProfile()
+      const activeContact = getContact()
+      const activeSocials = getSocials()
+
+      const profileValidation = validateProfileRequired(activeProfile, activeContact)
       if (!profileValidation.ok) {
         alert(`Please complete Profile Setup first: ${profileValidation.missing.join(', ')}`)
         router.push('/shopkeeper/onboarding/profile-setup')
@@ -75,6 +80,46 @@ export default function PricingSetupPage() {
       }
 
       setSaving(true)
+
+      // Send update to the backend database
+      const token = localStorage.getItem("authToken")
+      if (token) {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+          const response = await fetch(`${apiUrl}/api/auth/profile`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              shopName: activeProfile.shopName,
+              ownerName: activeProfile.shopOwnerName,
+              address: activeContact.shopAddress,
+              category: activeProfile.businessCategory,
+              subCategory: activeProfile.subCategory,
+              languagePref: activeProfile.languagePreference,
+              gstNumber: activeProfile.gstNumber,
+              socials: activeSocials,
+              pricing: pricing,
+              logoUrl: activeProfile.logoDataUrl || null,
+              phone: activeContact.phoneNumber,
+            })
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            // Update local storage with fresh DB values (including slug and QR url)
+            localStorage.setItem("loggedInShopkeeper", JSON.stringify(data.shopkeeper))
+            localStorage.setItem("shopkeeper", JSON.stringify(data.shopkeeper))
+          } else {
+            console.error("Failed to sync onboarding profile with backend")
+          }
+        } catch (apiErr) {
+          console.error("API error during onboarding save:", apiErr)
+        }
+      }
+
       setPricing({ ...pricing })
       setSetupCompleted(true)
 
@@ -93,6 +138,8 @@ export default function PricingSetupPage() {
       }
 
       router.push('/shopkeeper/dashboard')
+    } catch (err) {
+      console.error("Onboarding pricing-setup save error:", err)
     } finally {
       setSaving(false)
     }

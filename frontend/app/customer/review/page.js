@@ -1,262 +1,300 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { FileText, ArrowLeft } from 'lucide-react'
+import { FileText, MapPin, Phone, Clock, Store, AlertCircle, ShieldCheck } from 'lucide-react'
+import BackButton from '../../components/BackButton'
+import FeedbackButton from '../../components/FeedbackButton'
+import FeedbackLink from '../../components/FeedbackLink'
+import DocumentPreview from '../../components/customer/DocumentPreview'
 
 export default function ReviewPage() {
   const router = useRouter()
-  const [files, setFiles] = useState([])
-  const [config, setConfig] = useState(null)
+  const searchParams = useSearchParams()
+  const shopId = searchParams.get('shopId')
+  const userId = searchParams.get('userId')
+
+  const [filesWithConfig, setFilesWithConfig] = useState([])
+  const [shopDetails, setShopDetails] = useState(null)
+  const [customerInfo, setCustomerInfo] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [fetchingShop, setFetchingShop] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    const uploadedFiles = JSON.parse(localStorage.getItem('uploadedFiles') || '[]')
-    const printConfig = JSON.parse(localStorage.getItem('printConfig') || 'null')
-    setFiles(uploadedFiles)
-    setConfig(printConfig)
-  }, [])
-
-  const calculateItemPrice = (item) => {
-    if (!item) return 0
-    const copies = Number(item.copies || 0)
-    let basePrice = 2 * copies
-    if (item.printType === 'color') basePrice *= 1.5
-    return basePrice
-  }
-
-  const calculatePrice = () => {
-    if (!config) return 0
-    if (Array.isArray(config)) {
-      return config.reduce((sum, item) => sum + calculateItemPrice(item), 0)
+    // Load customer session details
+    const sessionStr = localStorage.getItem('customerSession')
+    if (sessionStr) {
+      try {
+        setCustomerInfo(JSON.parse(sessionStr))
+      } catch (err) {
+        console.error('Error loading customer session:', err)
+      }
     }
-    return calculateItemPrice(config)
+
+    // Load configurations from localStorage
+    const configsStr = localStorage.getItem('printConfigurations')
+    if (configsStr) {
+      try {
+        setFilesWithConfig(JSON.parse(configsStr))
+      } catch (err) {
+        console.error('Error loading configurations:', err)
+      }
+    }
+
+    // Fetch shop details by slug
+    const fetchShop = async () => {
+      if (!shopId) {
+        setError('No shop selected.')
+        setFetchingShop(false)
+        return
+      }
+
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${shopId}`)
+        if (!response.ok) {
+          throw new Error('Could not find shop keeper details.')
+        }
+        const data = await response.json()
+        setShopDetails(data.shopkeeper)
+      } catch (err) {
+        console.error('Error fetching shop keeper:', err)
+        setError('Failed to fetch shop keeper details.')
+      } finally {
+        setFetchingShop(false)
+      }
+    }
+
+    fetchShop()
+  }, [shopId])
+
+  // Calculate pricing based on shop keeper settings or fallbacks
+  const calculateItemPrice = (item) => {
+    if (!item || !item.config) return 0
+    const copies = Number(item.config.copies || 1)
+    
+    // Fallback standard rates
+    let pageRate = 2.0 // standard B&W A4
+    
+    if (shopDetails && shopDetails.pricing) {
+      const pricing = shopDetails.pricing
+      const isColor = item.config.printType === 'COLOR'
+      const isA3 = item.config.paperSize === 'A3'
+      const isDouble = item.config.sides === 'DOUBLE'
+
+      if (isColor) {
+        pageRate = isA3 ? parseFloat(pricing.colorA3 || 8.0) : parseFloat(pricing.colorA4 || 5.0)
+        if (isDouble) pageRate += parseFloat(pricing.colorDoubleSide || 3.0)
+      } else {
+        pageRate = isA3 ? parseFloat(pricing.bwA3 || 2.0) : parseFloat(pricing.bwA4 || 1.0)
+        if (isDouble) pageRate += parseFloat(pricing.bwDoubleSide || 1.0)
+      }
+    } else {
+      // Standard local pricing logic
+      if (item.config.printType === 'COLOR') {
+        pageRate = item.config.paperSize === 'A3' ? 8.0 : 5.0
+        if (item.config.sides === 'DOUBLE') pageRate += 3.0
+      } else {
+        pageRate = item.config.paperSize === 'A3' ? 2.0 : 1.0
+        if (item.config.sides === 'DOUBLE') pageRate += 1.0
+      }
+    }
+
+    return pageRate * copies
   }
 
-  const price = calculatePrice()
-  const total = price.toFixed(2)
+  const calculateSubtotal = () => {
+    return filesWithConfig.reduce((sum, item) => sum + calculateItemPrice(item), 0)
+  }
+
+  const subtotal = calculateSubtotal()
+  const tax = subtotal * 0.18 // GST 18%
+  const total = subtotal + tax
 
   const handlePlaceOrder = async () => {
-    const orderId = `ORD-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
-    const newOrder = {
-      orderId,
-      files,
-      config,
-      price: total,
-      timestamp: new Date().toISOString(),
+    if (filesWithConfig.length === 0) {
+      alert('No files available for placing an order.')
+      return
     }
 
-    const uploadedFileUrls = JSON.parse(localStorage.getItem('uploadedFileUrls') || '{}')
-    const items = []
-    
-    if (Array.isArray(config)) {
-      config.forEach((itemConfig, index) => {
-        const fName = files[index] || `Document ${index + 1}`
-        items.push({
-          fileName: fName,
-          fileUrl: uploadedFileUrls[fName] || 'http://localhost:5000/uploads/placeholder.pdf',
-          price: calculateItemPrice(itemConfig),
-          variant: 'standard',
-          config: itemConfig
-        })
-      })
-    } else {
-      const fName = files[0] || 'Untitled document'
-      items.push({
-        fileName: fName,
-        fileUrl: uploadedFileUrls[fName] || 'http://localhost:5000/uploads/placeholder.pdf',
-        price: calculateItemPrice(config),
-        variant: 'standard',
-        config: config
-      })
-    }
+    setLoading(true)
+    setError(null)
+
+    const items = filesWithConfig.map((item) => ({
+      fileName: item.customFileName || item.originalFileName,
+      fileUrl: item.fileUrl,
+      fileSize: item.fileSize || 0,
+      price: calculateItemPrice(item) * 1.18, // including tax proportion
+      variant: 'standard',
+      config: item.config
+    }))
 
     try {
-      const response = await fetch('http://localhost:5000/api/orders/create', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/orders/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId,
-          customerName: 'Anonymous Customer',
-          phone: '',
+          userId: userId || customerInfo?.userId || null,
+          shopkeeperId: shopDetails?.id || localStorage.getItem('activeShopId') || null,
+          customerName: customerInfo?.name || 'Anonymous Customer',
+          phone: customerInfo?.phone || '',
           items,
         }),
       })
 
-      if (response.ok) {
-        console.log('Order synced to backend successfully')
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || 'Failed to place print order')
       }
+
+      const result = await response.json()
+      
+      // Store the created order details in localStorage for the Order Placed page
+      const primaryOrder = result.orders[0]
+      localStorage.setItem('currentOrder', JSON.stringify({
+        orderId: primaryOrder.orderId,
+        estimatedTime: primaryOrder.estimatedTime,
+        price: total.toFixed(2),
+        shopName: shopDetails?.shopName || 'Shop'
+      }))
+
+      router.push(`/customer/order-placed?shopId=${shopId}&userId=${userId}`)
     } catch (err) {
-      console.warn('Backend order placement failed, proceeding in offline/mock mode:', err)
+      console.error('Order creation error:', err)
+      setError(err.message || 'Error occurred while submitting order details.')
+    } finally {
+      setLoading(false)
     }
-
-    // Persist order exactly once
-    const storedOrders = JSON.parse(localStorage.getItem('orders') || '[]')
-    const exists = storedOrders.some((o) => o?.orderId === orderId)
-    const nextOrders = exists ? storedOrders : [...storedOrders, newOrder]
-    localStorage.setItem('orders', JSON.stringify(nextOrders))
-
-    localStorage.setItem('currentOrder', JSON.stringify(newOrder))
-    router.push('/customer/order-placed')
   }
 
-  if (!config) return null
+  if (fetchingShop) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-gray-600 font-semibold animate-pulse text-lg">Fetching shop information...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="wave-bg min-h-screen flex flex-col items-center justify-start px-4 sm:px-6 lg:px-10 py-8 lg:py-10">
       {/* Step Header */}
-      <div className="w-full max-w-md sm:max-w-xl lg:max-w-4xl mb-8">
+      <div className="w-full max-w-5xl mb-8">
         <div className="step-header">
           <div className="step-number">5</div>
           <div>
-            <h1 className="text-3xl font-bold text-black">Order Review</h1>
-            <p className="text-gray-600">Review your order details and see the final price.</p>
+            <h1 className="text-3xl font-bold text-black font-brand">Order Review</h1>
+            <p className="text-gray-600">Review details, billing, and place order</p>
           </div>
         </div>
       </div>
 
       {/* Card Container */}
-      <div className="glassmorphism w-full max-w-md sm:max-w-xl lg:max-w-4xl p-6 sm:p-8 lg:p-10">
+      <div className="max-w-5xl w-full mx-auto rounded-[36px] bg-white shadow-xl border border-purple-100 p-8 md:p-10 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="mac-dots">
-              <div className="mac-dot red"></div>
-              <div className="mac-dot yellow"></div>
-              <div className="mac-dot green"></div>
-            </div>
+            <BackButton />
           </div>
-          <button
-            onClick={() => router.back()}
-            className="p-2 hover:bg-gray-200 rounded-lg transition"
-          >
-            <ArrowLeft size={20} className="text-gray-700" />
-          </button>
+          <span className="text-sm font-semibold text-gray-600">Step 5 of 5</span>
         </div>
 
-        <h3 className="text-2xl font-bold text-black text-center mb-8">Order Review</h3>
-
-        {/* File Display */}
-        {files.length > 0 && (
-          <div className="bg-gray-50 p-4 rounded-lg mb-6">
-            <FileText size={32} className="text-red-500 mb-2" />
-            {files.length === 1 ? (
-              <>
-                <p className="font-semibold text-gray-700">{files[0]}</p>
-                <p className="text-sm text-gray-500">12 Pages • 2.4 MB</p>
-              </>
-            ) : (
-              <>
-                <p className="font-semibold text-gray-700">{files.length} Documents</p>
-                <div className="mt-2 space-y-1">
-                  {files.map((f, i) => (
-                    <p key={i} className="text-sm text-gray-600 truncate">
-                      {i + 1}. {f}
-                    </p>
-                  ))}
-                </div>
-              </>
-            )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex gap-3">
+            <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
+            <p className="text-sm text-red-700 font-semibold">{error}</p>
           </div>
         )}
 
-        {/* Config Details */}
-        <div className="space-y-4 mb-6 pb-6 border-b border-gray-200">
-          {Array.isArray(config) ? (
-            <div className="space-y-4">
-              {config.map((item, index) => {
-                const title = item?.identityName?.trim() || item?.fileName || files[index] || `Document ${index + 1}`
-                return (
-                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                    <p className="font-bold text-gray-900 mb-3 truncate">{title}</p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700 font-medium">Print Type</span>
-                        <span className="font-semibold text-gray-900">
-                          {item.printType === 'bw' ? 'Black & White' : 'Color'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700 font-medium">Copies</span>
-                        <span className="font-semibold text-gray-900">{item.copies}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700 font-medium">Paper Size</span>
-                        <span className="font-semibold text-gray-900">{item.paperSize}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700 font-medium">Print Sides</span>
-                        <span className="font-semibold text-gray-900">
-                          {item.sides === 'single' ? 'Single Side' : 'Double Side'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700 font-medium">Pages</span>
-                        <span className="font-semibold text-gray-900">
-                          {item.pages === 'all' ? 'All Pages' : 'Custom Pages'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+        {/* Shop details card */}
+        {shopDetails && (
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 mb-6">
+            <h3 className="font-bold text-indigo-950 flex items-center gap-2 mb-3">
+              <Store size={20} className="text-indigo-600" />
+              Printing Shop Details
+            </h3>
+            <div className="space-y-2 text-sm text-indigo-900">
+              <p className="font-bold text-base text-gray-900">{shopDetails.shopName}</p>
+              <p className="flex items-center gap-1.5 font-medium"><MapPin size={16} className="text-indigo-500" /> {shopDetails.address || 'Address not listed'}</p>
+              <p className="flex items-center gap-1.5 font-medium"><Phone size={16} className="text-indigo-500" /> {shopDetails.phone || 'N/A'}</p>
+              <p className="flex items-center gap-1.5 font-medium"><Clock size={16} className="text-indigo-500" /> Estimated Time: 2–7 mins (based on queue)</p>
             </div>
-          ) : (
-            <>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700 font-medium">Print Type</span>
-                <span className="font-semibold text-gray-900">
-                  {config.printType === 'bw' ? 'Black & White' : 'Color'}
-                </span>
+          </div>
+        )}
+
+        {/* File Config Summary */}
+        <div className="space-y-4 mb-6 pb-6 border-b border-gray-200">
+          <h4 className="font-bold text-gray-800 mb-2">Print Configuration Summary:</h4>
+          {filesWithConfig.map((item, index) => (
+            <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col md:flex-row justify-between md:items-center gap-4">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                {/* Small Thumbnail Preview */}
+                <div className="w-12 h-12 bg-white rounded border border-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center relative">
+                  <DocumentPreview
+                    file={item}
+                    thumbnailUrl={item.thumbnailUrl}
+                    isBW={item.config?.printType === 'BW'}
+                  />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-gray-900 truncate">{item.customFileName}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 font-semibold mt-1">
+                    <span>Type: {item.config?.printType === 'COLOR' ? 'Color' : 'B&W'}</span>
+                    <span>Copies: {item.config?.copies || 1}</span>
+                    <span>Size: {item.config?.paperSize || 'A4'}</span>
+                    <span>Sides: {item.config?.sides === 'DOUBLE' ? 'Double-sided' : 'Single-sided'}</span>
+                    <span>Orientation: {item.config?.orientation || 'PORTRAIT'}</span>
+                    <span>Quality: {item.config?.quality || 'NORMAL'}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700 font-medium">Copies</span>
-                <span className="font-semibold text-gray-900">{config.copies}</span>
+              <div className="text-right flex-shrink-0">
+                <span className="font-bold text-gray-900 font-brand">₹{calculateItemPrice(item).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700 font-medium">Paper Size</span>
-                <span className="font-semibold text-gray-900">{config.paperSize}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700 font-medium">Print Sides</span>
-                <span className="font-semibold text-gray-900">
-                  {config.sides === 'single' ? 'Single Side' : 'Double Side'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700 font-medium">Pages</span>
-                <span className="font-semibold text-gray-900">
-                  {config.pages === 'all' ? 'All Pages' : 'Custom Pages'}
-                </span>
-              </div>
-            </>
-          )}
+            </div>
+          ))}
         </div>
 
-        {/* Pricing */}
-        <div className="space-y-3 mb-8">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700 font-medium">Total Price</span>
-            <span className="font-bold text-gray-900">₹{price.toFixed(2)}</span>
+        {/* Pricing Summary */}
+        <div className="bg-slate-50 p-5 rounded-xl border border-gray-200 mb-8 space-y-3 text-sm">
+          <div className="flex justify-between items-center text-gray-700 font-medium">
+            <span>Subtotal</span>
+            <span>₹{subtotal.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-            <span className="text-gray-700 font-bold text-lg">Final Total</span>
-            <span className="font-bold text-gray-900 text-lg">₹{total}</span>
+          <div className="flex justify-between items-center text-gray-700 font-medium">
+            <span>GST (18%)</span>
+            <span>₹{tax.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center pt-3 border-t border-gray-200 font-bold text-lg text-gray-900">
+            <span>Total Cost</span>
+            <span>₹{total.toFixed(2)}</span>
           </div>
         </div>
 
         {/* Place Order Button */}
-        <button
-          onClick={handlePlaceOrder}
-          className="w-full gradient-button py-3 px-4 rounded-xl font-semibold transition text-white mb-4"
-        >
-          Place Order
-        </button>
+        <div className="max-w-md mx-auto space-y-3">
+          <button
+            onClick={handlePlaceOrder}
+            disabled={loading || !shopDetails}
+            className="w-full gradient-button py-3.5 px-4 rounded-xl font-bold transition text-white shadow-md text-base"
+          >
+            {loading ? 'Placing Order...' : 'Place Order & Print'}
+          </button>
 
-        {/* Terms */}
-        <p className="text-center text-gray-600 text-sm">
-          By placing order you agree to our{' '}
-          <span className="text-blue-600 font-semibold cursor-pointer">Terms & Conditions</span>
-        </p>
+          <p className="text-center text-gray-600 text-xs flex items-center justify-center gap-1 font-semibold">
+            <ShieldCheck size={16} className="text-indigo-600" />
+            Secure payment & order processing.
+          </p>
+
+          <div className="text-center pt-2">
+            {/* Reusable Help & Support */}
+            <FeedbackLink />
+          </div>
+        </div>
       </div>
+
+      <FeedbackButton />
     </div>
   )
 }
