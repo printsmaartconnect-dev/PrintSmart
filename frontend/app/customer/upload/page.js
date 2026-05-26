@@ -1,18 +1,144 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useCallback, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
-import { Cloud, X, FileText, ArrowLeft } from 'lucide-react'
+import { Cloud, X, FileText, ArrowLeft, Image as ImageIcon, AlertCircle, CheckCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import BackButton from '../../components/BackButton'
+import FeedbackButton from '../../components/FeedbackButton'
+import FeedbackLink from '../../components/FeedbackLink'
+import FilePreviewSection from '../../components/customer/FilePreviewSection'
+
+const generateThumbnail = async (file) => {
+  try {
+    if (file.type.startsWith('image/')) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 150;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > maxDim) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              }
+            } else {
+              if (height > maxDim) {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.75));
+          };
+          img.onerror = () => resolve(null);
+          img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+    } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async function () {
+          try {
+            const arrayBuffer = this.result;
+            if (!window.pdfjsLib) {
+              const script = document.createElement('script');
+              script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+              document.head.appendChild(script);
+              await new Promise((r) => {
+                script.onload = r;
+              });
+            }
+            
+            const pdfjsLib = window.pdfjsLib;
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+            
+            const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            
+            const viewport = page.getViewport({ scale: 0.3 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            await page.render({
+              canvasContext: context,
+              viewport: viewport
+            }).promise;
+            
+            resolve(canvas.toDataURL('image/jpeg', 0.75));
+          } catch (err) {
+            console.error('Error generating PDF thumbnail:', err);
+            resolve(null);
+          }
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsArrayBuffer(file);
+      });
+    }
+  } catch (err) {
+    console.error('Error in generateThumbnail:', err);
+  }
+  return null;
+};
 
 export default function UploadPage() {
+  const { t } = useTranslation()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const shopId = searchParams.get('shopId')
+  const userId = searchParams.get('userId')
+
   const [files, setFiles] = useState([])
+  const [renames, setRenames] = useState({})
   const [uploading, setUploading] = useState(false)
-  const [documentName, setDocumentName] = useState('')
+  const [error, setError] = useState(null)
 
   const onDrop = useCallback((acceptedFiles) => {
-    setFiles((prev) => [...prev, ...acceptedFiles])
+    const newFiles = acceptedFiles.map(file => ({
+      file,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      thumbnailUrl: null,
+      isLoadingThumbnail: file.type.startsWith('image/') || file.type === 'application/pdf' || file.name.endsWith('.pdf')
+    }))
+    
+    setFiles((prev) => {
+      const updated = [...prev, ...newFiles]
+      
+      newFiles.forEach((item, index) => {
+        const globalIndex = prev.length + index;
+        if (item.isLoadingThumbnail) {
+          generateThumbnail(item.file).then((base64) => {
+            setFiles((current) => 
+              current.map((f, i) => 
+                i === globalIndex 
+                  ? { 
+                      ...f, 
+                      thumbnailUrl: base64, 
+                      previewUrl: base64 || f.previewUrl,
+                      isLoadingThumbnail: false 
+                    } 
+                  : f
+              )
+            )
+          })
+        }
+      })
+      
+      return updated
+    })
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -26,43 +152,97 @@ export default function UploadPage() {
     },
   })
 
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      files.forEach(f => {
+        if (f.previewUrl && f.previewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(f.previewUrl)
+        }
+      })
+    }
+  }, [files])
+
   const removeFile = (index) => {
+    const target = files[index]
+    if (target.previewUrl && target.previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(target.previewUrl)
+    }
     setFiles((prev) => prev.filter((_, i) => i !== index))
+    
+    // Cleanup rename entry
+    const newRenames = { ...renames }
+    delete newRenames[index]
+    setRenames(newRenames)
+  }
+
+  const handleRenameChange = (index, value) => {
+    setRenames(prev => ({
+      ...prev,
+      [index]: value
+    }))
   }
 
   const handleContinue = async () => {
-    const name = documentName.trim()
-    if (!name) return
+    if (files.length === 0) {
+      setError(t('Please upload at least one document to proceed.'))
+      return
+    }
 
     setUploading(true)
-    const storedNames = files.length > 0 ? files.map((f) => f.name) : [name]
-    const fileUrls = {}
+    setError(null)
+    const uploadedFilesData = []
 
     try {
-      // Upload each file to the backend
-      for (const file of files) {
-        const formDataPayload = new FormData()
-        formDataPayload.append('file', file)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      
+      for (let i = 0; i < files.length; i++) {
+        const item = files[i]
+        const originalName = item.file.name
+        const fileExt = originalName.substring(originalName.lastIndexOf('.'))
+        
+        let customName = renames[i] || originalName
+        // Ensure the custom name maintains its file extension
+        if (!customName.endsWith(fileExt)) {
+          customName = customName + fileExt
+        }
 
-        const response = await fetch('http://localhost:5000/api/files/upload', {
+        const formDataPayload = new FormData()
+        formDataPayload.append('file', item.file)
+
+        const response = await fetch(`${apiUrl}/api/files/upload`, {
           method: 'POST',
           body: formDataPayload,
         })
 
-        if (response.ok) {
-          const result = await response.json()
-          fileUrls[file.name] = result.fileUrl
+        if (!response.ok) {
+          throw new Error(`Failed to upload ${originalName}`)
         }
+
+        const result = await response.json()
+        
+        // Save file metadata
+        uploadedFilesData.push({
+          originalFileName: originalName,
+          customFileName: customName,
+          fileUrl: result.fileUrl,
+          fileSize: item.file.size,
+          thumbnailUrl: item.thumbnailUrl || item.previewUrl || result.fileUrl || null,
+          uploadTimestamp: new Date().toISOString()
+        })
       }
       
-      localStorage.setItem('uploadedFiles', JSON.stringify(storedNames))
-      localStorage.setItem('uploadedFileUrls', JSON.stringify(fileUrls))
-      router.push('/customer/configuration')
+      // Store complete file metadata in localStorage
+      localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
+      
+      const nextUrl = shopId 
+        ? `/customer/configuration?shopId=${shopId}&userId=${userId}`
+        : `/customer/configuration?userId=${userId}`
+      
+      router.push(nextUrl)
     } catch (err) {
-      console.warn('Backend upload failed, continuing with mock upload flow:', err)
-      localStorage.setItem('uploadedFiles', JSON.stringify(storedNames))
-      localStorage.setItem('uploadedFileUrls', JSON.stringify({}))
-      router.push('/customer/configuration')
+      console.error('File upload failed:', err)
+      setError(err.message || t('Failed to upload files. Please try again.'))
     } finally {
       setUploading(false)
     }
@@ -77,123 +257,148 @@ export default function UploadPage() {
   return (
     <div className="wave-bg min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-10 py-8 lg:py-10">
       {/* Step Header */}
-      <div className="w-full max-w-md sm:max-w-xl lg:max-w-4xl mb-8">
+      <div className="w-full max-w-5xl mb-8">
         <div className="step-header">
-          <div className="step-number">3</div>
+          <div className="step-number">4</div>
           <div>
-            <h1 className="text-3xl font-bold text-black">Upload Document</h1>
-            <p className="text-gray-600">Upload your file (PDF, Image, Word, etc.)</p>
+            <h1 className="text-3xl font-bold text-black font-brand">{t('Upload Documents')}</h1>
+            <p className="text-gray-600">{t('Please upload files to print (PDF, JPG, PNG, Word)')}</p>
           </div>
         </div>
       </div>
 
       {/* Card Container */}
-      <div className="glassmorphism w-full max-w-md sm:max-w-xl lg:max-w-4xl p-6 sm:p-8 lg:p-10">
+      <div className="max-w-5xl w-full mx-auto rounded-[36px] bg-white shadow-xl border border-purple-100 p-8 md:p-10 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="mac-dots">
-              <div className="mac-dot red"></div>
-              <div className="mac-dot yellow"></div>
-              <div className="mac-dot green"></div>
-            </div>
-            <h2 className="text-xl font-bold text-black">Printsmart</h2>
+            <BackButton />
           </div>
-
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="p-2 hover:bg-gray-200 rounded-lg transition"
-            aria-label="Back"
-            title="Back"
-          >
-            <ArrowLeft size={20} className="text-gray-700" />
-          </button>
+          <span className="text-sm font-semibold text-gray-600">{t('Step 4 of 6')}</span>
         </div>
 
-        <h3 className="text-2xl font-bold text-black text-center mb-2">Upload Document</h3>
-        <p className="text-center text-gray-600 text-sm mb-1">Supported: PDF, JPG, PNG, Word</p>
-        <p className="text-center text-gray-500 text-xs mb-6">(Testing mode: upload is optional)</p>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex gap-3">
+            <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
+            <p className="text-sm text-red-700 font-semibold">{error}</p>
+          </div>
+        )}
 
         {/* Dropzone */}
         <div
           {...getRootProps()}
           className={`border-2 border-dashed rounded-xl p-8 lg:p-12 text-center transition cursor-pointer ${
             isDragActive
-              ? 'border-blue-500 bg-blue-50'
+              ? 'border-indigo-500 bg-indigo-50'
               : 'border-gray-300 bg-white hover:border-gray-400'
           }`}
         >
           <input {...getInputProps()} />
-          <Cloud size={48} className="mx-auto mb-4 text-blue-500" />
-          <p className="text-gray-700 font-medium mb-1">Drag & Drop your file here</p>
-          <p className="text-gray-500 text-sm mb-4">or</p>
-          <button className="gradient-button py-2 px-6 text-sm text-white font-semibold">
-            Choose File
+          <Cloud size={48} className="mx-auto mb-4 text-indigo-500" />
+          <p className="text-gray-700 font-medium mb-1">{t('Drag & Drop files here')}</p>
+          <p className="text-gray-500 text-sm mb-4">{t('or')}</p>
+          <button type="button" className="gradient-button py-2 px-6 text-sm text-white font-semibold">
+            {t('Choose Files')}
           </button>
         </div>
 
-        {/* Document Name (Required) */}
-        <div className="mt-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Document name <span className="text-red-500">*</span>
-          </label>
-          <input
-            value={documentName}
-            onChange={(e) => setDocumentName(e.target.value)}
-            placeholder="e.g., College Assignment, Resume, Project Report"
-            autoCorrect="on"
-            spellCheck={true}
-            autoCapitalize="words"
-            className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-gray-700 font-medium outline-none focus:border-blue-500 transition"
-          />
-          <p className="mt-2 text-xs text-gray-500">Required to continue, even if you don’t upload a file.</p>
-        </div>
-
-        {/* File List */}
+        {/* Document Previews Grid */}
         {files.length > 0 && (
-          <div className="mt-6 space-y-3">
-            <p className="text-sm font-semibold text-gray-700">Uploaded Files:</p>
-            {files.map((file, index) => (
-              <div
+          <div className="mt-8 border-b border-gray-200 pb-6 space-y-6">
+            {files.map((item, index) => (
+              <FilePreviewSection
                 key={index}
-                className="flex items-center justify-between bg-gray-50 p-4 rounded-lg"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <FileText size={24} className="text-red-500" />
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-700 truncate">{file.name}</p>
-                    <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeFile(index)}
-                  className="p-1 hover:bg-gray-200 rounded transition"
-                >
-                  <X size={20} className="text-gray-500" />
-                </button>
-              </div>
+                file={{
+                  customFileName: renames[index] !== undefined ? renames[index] : item.file.name.substring(0, item.file.name.lastIndexOf('.')),
+                  originalFileName: item.file.name
+                }}
+                thumbnailUrl={item.thumbnailUrl}
+                isBW={false}
+                isLoading={item.isLoadingThumbnail}
+              />
             ))}
           </div>
         )}
 
+        {/* File List */}
+        {files.length > 0 && (
+          <div className="mt-8 space-y-4">
+            <p className="text-sm font-bold text-gray-700">{t('Uploaded Files & Rename Options:')}</p>
+            {files.map((item, index) => {
+              const fileBaseName = item.file.name.substring(0, item.file.name.lastIndexOf('.'))
+              return (
+                <div
+                  key={index}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 p-4 rounded-xl gap-4 border border-gray-200"
+                >
+                  <div className="flex items-center gap-3 flex-1 w-full">
+                    {/* Thumbnail Preview */}
+                    <div className="w-12 h-12 bg-white rounded border border-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                      {item.isLoadingThumbnail ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500"></div>
+                      ) : item.previewUrl ? (
+                        <img
+                          src={item.previewUrl}
+                          alt="Thumbnail preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <FileText size={24} className="text-red-500" />
+                      )}
+                    </div>
+                    
+                    {/* File Renaming Input */}
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={renames[index] !== undefined ? renames[index] : fileBaseName}
+                        onChange={(e) => handleRenameChange(index, e.target.value)}
+                        placeholder={t('Enter custom filename')}
+                        className="w-full bg-white border border-gray-300 rounded px-2.5 py-1 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <span className="text-xs text-gray-500 mt-1 block">
+                        {t('Original:')} {item.file.name} • {formatFileSize(item.file.size)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeFile(index)}
+                    className="p-1.5 hover:bg-gray-200 rounded-lg transition self-end sm:self-auto"
+                    aria-label="Remove file"
+                  >
+                    <X size={18} className="text-gray-500" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* Security Message */}
-        <p className="text-center text-gray-600 text-sm mt-6">
-          Your files are 100% secure and auto-deleted after printing.
+        <p className="text-center text-gray-600 text-sm mt-6 flex items-center justify-center gap-1.5 font-medium">
+          <CheckCircle size={16} className="text-green-600" />
+          {t('Your files are encrypted and automatically deleted after printing.')}
         </p>
 
         {/* Continue Button */}
         <button
           onClick={handleContinue}
-          disabled={documentName.trim().length === 0 || uploading}
-          className={`w-full py-3 px-4 rounded-xl font-semibold transition mt-6 ${
-            documentName.trim().length > 0
+          disabled={files.length === 0 || uploading}
+          className={`w-full py-3 px-4 rounded-xl font-bold transition mt-6 text-white ${
+            files.length > 0 && !uploading
               ? 'gradient-button'
               : 'bg-gray-200 text-gray-500 cursor-not-allowed'
           }`}
         >
-          {uploading ? 'Uploading...' : 'Continue'}
+          {uploading ? t('Uploading Files...') : t('Continue to Print Settings')}
         </button>
+
+        {/* Reusable FeedbackLink */}
+        <FeedbackLink />
       </div>
+
+      <FeedbackButton />
     </div>
   )
 }

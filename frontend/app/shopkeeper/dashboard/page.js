@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isOnboardingComplete } from "../onboarding/_components/onboardingStorage";
+import { isOnboardingComplete, syncLocalStorageFromDb } from "../onboarding/_components/onboardingStorage";
 import DashboardHeader from "./_components/DashboardHeader";
 import WelcomeBar from "./_components/WelcomeBar";
 import StatsRow from "./_components/StatsRow";
@@ -13,6 +13,7 @@ import { bottomDockItems, dashboardStats, recentOrders } from "./_components/moc
 export default function ShopkeeperDashboard() {
   const router = useRouter();
   const [shopName, setShopName] = useState("");
+  const [shopkeeperIdCode, setShopkeeperIdCode] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [ordersList, setOrdersList] = useState([]);
 
@@ -34,16 +35,16 @@ export default function ShopkeeperDashboard() {
         const mappedOrders = data.map((o) => ({
           id: o.orderId,
           dbId: o.id,
-          status: o.status,
+          status: o.status ? (o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()) : "Pending",
           customerName: o.customerName || "Anonymous Customer",
           phone: o.phone || "",
-          fileName: o.fileName,
-          fileUrl: o.fileUrl,
+          fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
+          fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
           pages: 1,
           copies: o.printConfiguration?.copies || 1,
-          type: o.printConfiguration?.printType === "bw" ? "B&W" : "Color",
+          type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
           size: o.printConfiguration?.paperSize || "A4",
-          side: o.printConfiguration?.sides === "single" ? "Single" : "Double",
+          side: o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single",
           price: `₹${(o.price || 0.0).toFixed(2)}`,
           timestamp:
             new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
@@ -107,6 +108,10 @@ export default function ShopkeeperDashboard() {
       account = null;
     }
 
+    if (account) {
+      syncLocalStorageFromDb(account);
+    }
+
     if (!isOnboardingComplete(account || undefined)) {
       router.replace("/shopkeeper/onboarding/profile-setup");
       return;
@@ -125,8 +130,10 @@ export default function ShopkeeperDashboard() {
           }
         })();
       setShopName(derivedName);
+      setShopkeeperIdCode(profile.shopSlug || "");
     } catch {
       setShopName("");
+      setShopkeeperIdCode("");
     }
 
     fetchOrders();
@@ -159,7 +166,7 @@ export default function ShopkeeperDashboard() {
 
       <div className="px-4 sm:px-6 lg:px-8 pb-28">
         <div className="mx-auto max-w-7xl space-y-6">
-          <WelcomeBar shopName={shopName} />
+          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} />
           <StatsRow stats={dynamicStats} />
           <RecentOrders orders={displayedOrders} activeFilter={activeFilter} onStatusChange={handleStatusChange} />
         </div>

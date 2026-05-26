@@ -1,15 +1,17 @@
 const prisma = require("../config/db");
+const orderService = require("../services/order.service");
+const invoiceService = require("../services/invoice.service");
 
-// Create one or more orders (for single or multi-file orders)
+// Create one or more orders (per configured item)
 exports.createOrder = async (req, res) => {
   try {
-    const { orderId, customerName, phone, shopkeeperId, items } = req.body;
+    const { userId, shopkeeperId, customerName, phone, items } = req.body;
 
-    if (!orderId || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "Invalid order data" });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Invalid order items data" });
     }
 
-    // Resolve shopkeeper ID. If none provided, default to the first shopkeeper in the DB
+    // Resolve shopkeeper
     let targetShopkeeperId = shopkeeperId;
     if (!targetShopkeeperId) {
       const defaultShop = await prisma.shopkeeper.findFirst();
@@ -19,78 +21,200 @@ exports.createOrder = async (req, res) => {
       targetShopkeeperId = defaultShop.id;
     }
 
+    const shopkeeper = await prisma.shopkeeper.findUnique({
+      where: { id: targetShopkeeperId },
+    });
+
+    if (!shopkeeper) {
+      return res.status(404).json({ message: "Shopkeeper not found" });
+    }
+
     const createdOrders = [];
 
-    // Process each item/file
+    // Process each configured file as its own Order
     for (const item of items) {
-      const { fileName, fileUrl, price, variant, config } = item;
+      const { fileName, fileUrl, price, variant, config, fileSize } = item;
 
-      // 1. Create PrintConfiguration
-      const printConfig = await prisma.printConfiguration.create({
+      // 1. Determine print type for custom Order ID (default to BW)
+      const configPrintType = config?.printType?.toUpperCase() === "COLOR" ? "COLOR" : "BW";
+      
+      // 2. Generate Custom Sequential Order ID on the backend
+      const customOrderId = await orderService.generateCustomOrderId(configPrintType);
+
+      // 3. Calculate wait time
+      const estimatedTime = await orderService.calculateEstimatedTime(targetShopkeeperId, config);
+
+      // 4. Calculate pricing breakdown (tax, discount, subtotal)
+      const totalAmt = parseFloat(price) || 0.0;
+      const taxRate = 0.18; // 18% GST
+      const subtotalAmt = totalAmt / (1 + taxRate);
+      const taxAmt = totalAmt - subtotalAmt;
+
+      // 5. Create Order
+      const order = await prisma.order.create({
         data: {
-          printType: config?.printType || "bw",
-          copies: config?.copies || 1,
-          paperSize: config?.paperSize || "A4",
-          pages: config?.pages || "all",
-          sides: config?.sides || "single",
-          orientation: config?.orientation || "portrait",
+          orderId: customOrderId,
+          userId: userId || null,
+          shopkeeperId: targetShopkeeperId,
+          customerName: customerName || "Anonymous",
+          phone: phone || null,
+          price: totalAmt,
+          subtotal: subtotalAmt,
+          tax: taxAmt,
+          discount: 0,
+          totalAmount: totalAmt,
+          status: "PENDING",
+          estimatedTime,
         },
       });
 
-      // Get current max queue position for this shopkeeper
+      // 6. Create PrintConfiguration linked to Order
+      const printConfig = await prisma.printConfiguration.create({
+        data: {
+          orderId: order.id,
+          printType: configPrintType,
+          copies: config?.copies ? parseInt(config.copies) : 1,
+          paperSize: (config?.paperSize || "A4").toUpperCase(),
+          sides: config?.sides?.toUpperCase() === "DOUBLE" ? "DOUBLE" : "SINGLE",
+          orientation: config?.orientation?.toUpperCase() === "LANDSCAPE" ? "LANDSCAPE" : "PORTRAIT",
+          quality: config?.quality?.toUpperCase() || "NORMAL",
+          pageRange: config?.pageRange || "all",
+        },
+      });
+
+      // 7. Create OrderFile linked to Order
+      const orderFile = await prisma.orderFile.create({
+        data: {
+          orderId: order.id,
+          originalFileName: fileName || "Untitled Document",
+          customFileName: fileName || "Untitled Document",
+          fileUrl: fileUrl || "",
+          fileSize: fileSize || 0,
+          thumbnailUrl: fileUrl || null,
+        },
+      });
+
+      // 8. Queue handling: find next position
       const maxQueue = await prisma.queue.findFirst({
         where: {
-          order: {
-            shopkeeperId: targetShopkeeperId,
-          },
+          order: { shopkeeperId: targetShopkeeperId },
+          status: { not: "DONE" },
         },
-        orderBy: {
-          position: "desc",
-        },
+        orderBy: { position: "desc" },
       });
       const nextPosition = maxQueue ? maxQueue.position + 1 : 1;
 
-      // 2. Create Order linked to the configuration
-      const order = await prisma.order.create({
-        data: {
-          orderId,
-          customerName: customerName || "Anonymous",
-          phone: phone || null,
-          fileName,
-          fileUrl,
-          price: parseFloat(price) || 0.0,
-          variant: variant || "standard",
-          shopkeeperId: targetShopkeeperId,
-          printConfigId: printConfig.id,
-        },
-        include: {
-          printConfiguration: true,
-        },
-      });
-
-      // 3. Create Queue entry
       await prisma.queue.create({
         data: {
           orderId: order.id,
           position: nextPosition,
-          status: "Waiting",
+          status: "WAITING",
+          estimatedWaitTime: estimatedTime,
         },
       });
 
-      createdOrders.push(order);
+      // 9. Invoice PDF Generation
+      try {
+        const invoiceData = {
+          orderId: customOrderId,
+          customerName: customerName || "Anonymous",
+          phone: phone || "N/A",
+          shopName: shopkeeper.shopName,
+          shopAddress: shopkeeper.address,
+          shopPhone: shopkeeper.phone,
+          files: [orderFile],
+          printConfig,
+          subtotal: subtotalAmt,
+          tax: taxAmt,
+          discount: 0,
+          totalAmount: totalAmt,
+          createdAt: order.createdAt,
+        };
+
+        const invoiceResult = await invoiceService.generateInvoicePDF(invoiceData);
+
+        // Save invoice in DB
+        await prisma.invoice.create({
+          data: {
+            orderId: order.id,
+            invoiceNumber: invoiceResult.invoiceNumber,
+            pdfUrl: invoiceResult.pdfUrl,
+            subtotal: subtotalAmt,
+            tax: taxAmt,
+            discount: 0,
+            totalAmount: totalAmt,
+          },
+        });
+      } catch (invErr) {
+        console.error("Failed to generate invoice during order placement:", invErr);
+      }
+
+      // 10. Update stats (Daily, earnings, overall)
+      await orderService.updateShopkeeperStats(targetShopkeeperId, {
+        totalAmount: totalAmt,
+        printConfig,
+        quantity: printConfig.copies,
+      });
+
+      // Fetch complete populated order
+      const completedOrder = await prisma.order.findUnique({
+        where: { id: order.id },
+        include: {
+          printConfiguration: true,
+          orderFiles: true,
+          queue: true,
+          invoice: true,
+        },
+      });
+
+      createdOrders.push(completedOrder);
     }
 
     res.status(201).json({
-      message: "Order(s) placed successfully",
+      message: "Order(s) created successfully",
       orders: createdOrders,
     });
   } catch (err) {
-    console.error("Order creation error:", err);
-    res.status(500).json({ message: "Server error placing order" });
+    console.error("Create order controller error:", err);
+    res.status(500).json({ message: "Server error placing order", error: err.message });
   }
 };
 
-// Get orders for a shopkeeper (optionally filtered by status)
+// Fetch order history for a customer
+exports.getCustomerOrders = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    const orders = await prisma.order.findMany({
+      where: { userId },
+      include: {
+        printConfiguration: true,
+        orderFiles: true,
+        queue: true,
+        invoice: true,
+        shopkeeper: {
+          select: {
+            shopName: true,
+            address: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.status(200).json(orders);
+  } catch (err) {
+    console.error("Get customer orders error:", err);
+    res.status(500).json({ message: "Server error fetching customer orders", error: err.message });
+  }
+};
+
+// Fetch orders for a shopkeeper (optionally filtered by status)
 exports.getShopkeeperOrders = async (req, res) => {
   try {
     const shopkeeperId = req.shopkeeper.id;
@@ -108,7 +232,9 @@ exports.getShopkeeperOrders = async (req, res) => {
       where: whereCondition,
       include: {
         printConfiguration: true,
+        orderFiles: true,
         queue: true,
+        invoice: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -122,14 +248,20 @@ exports.getShopkeeperOrders = async (req, res) => {
   }
 };
 
-// Update order status
+// Update order status (Printing, Completed, etc.)
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params; // DB UUID
-    const { status } = req.body; // Pending, Accepted, Printing, Completed, Cancelled
+    const { status } = req.body; // PENDING, ACCEPTED, PRINTING, COMPLETED, CANCELLED
 
     if (!status) {
       return res.status(400).json({ message: "Status is required" });
+    }
+
+    // Map string status to Enum OrderStatus
+    const statusEnum = status.toUpperCase();
+    if (!["PENDING", "ACCEPTED", "PRINTING", "COMPLETED", "CANCELLED"].includes(statusEnum)) {
+      return res.status(400).json({ message: "Invalid order status value" });
     }
 
     const order = await prisma.order.findUnique({
@@ -144,18 +276,20 @@ exports.updateOrderStatus = async (req, res) => {
     // Update Order status
     const updatedOrder = await prisma.order.update({
       where: { id },
-      data: { status },
+      data: { status: statusEnum },
       include: {
         printConfiguration: true,
+        orderFiles: true,
         queue: true,
+        invoice: true,
       },
     });
 
     // Update Queue status if applicable
     if (order.queue) {
-      let queueStatus = "Waiting";
-      if (status === "Printing") queueStatus = "Printing";
-      if (status === "Completed" || status === "Cancelled") queueStatus = "Done";
+      let queueStatus = "WAITING";
+      if (statusEnum === "PRINTING") queueStatus = "PRINTING";
+      if (statusEnum === "COMPLETED" || statusEnum === "CANCELLED") queueStatus = "DONE";
 
       await prisma.queue.update({
         where: { orderId: id },
@@ -182,17 +316,23 @@ exports.getOrderById = async (req, res) => {
       where: { id },
       include: {
         printConfiguration: true,
+        orderFiles: true,
         queue: true,
+        invoice: true,
+        shopkeeper: true,
       },
     });
 
     if (!order) {
-      // Try fetching by the human-readable orderId as fallback
+      // Try human-readable orderId as fallback
       const orders = await prisma.order.findMany({
         where: { orderId: id },
         include: {
           printConfiguration: true,
+          orderFiles: true,
           queue: true,
+          invoice: true,
+          shopkeeper: true,
         },
       });
 
@@ -200,7 +340,7 @@ exports.getOrderById = async (req, res) => {
         return res.status(404).json({ message: "Order not found" });
       }
 
-      return res.json(orders.length === 1 ? orders[0] : orders);
+      return res.json(orders[0]);
     }
 
     res.json(order);
@@ -209,3 +349,74 @@ exports.getOrderById = async (req, res) => {
     res.status(500).json({ message: "Server error fetching order" });
   }
 };
+
+// Delete order (pending only)
+exports.deleteOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.status !== "PENDING") {
+      return res.status(400).json({ message: "Only pending orders can be deleted" });
+    }
+
+    // Delete order (cascades to configurations, queues, invoices and order files)
+    await prisma.order.delete({
+      where: { id },
+    });
+
+    res.status(200).json({ message: "Order deleted successfully" });
+  } catch (err) {
+    console.error("Delete order error:", err);
+    res.status(500).json({ message: "Server error deleting order", error: err.message });
+  }
+};
+
+// Download Invoice PDF
+exports.downloadInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Try finding by UUID or human-readable orderId
+    let order = await prisma.order.findUnique({
+      where: { id },
+      include: { invoice: true },
+    });
+
+    if (!order) {
+      const orders = await prisma.order.findMany({
+        where: { orderId: id },
+        include: { invoice: true },
+      });
+      if (orders.length > 0) {
+        order = orders[0];
+      }
+    }
+
+    if (!order || !order.invoice || !order.invoice.pdfUrl) {
+      return res.status(404).json({ message: "Invoice not found for this order" });
+    }
+
+    const path = require("path");
+    const fs = require("fs");
+    // Resolve path relative to backend folder
+    const pdfPath = path.join(__dirname, "..", order.invoice.pdfUrl);
+
+    if (fs.existsSync(pdfPath)) {
+      res.download(pdfPath, `invoice-${order.orderId}.pdf`);
+    } else {
+      res.status(404).json({ message: "Invoice file not found on disk" });
+    }
+  } catch (err) {
+    console.error("Download invoice error:", err);
+    res.status(500).json({ message: "Server error downloading invoice" });
+  }
+};
+

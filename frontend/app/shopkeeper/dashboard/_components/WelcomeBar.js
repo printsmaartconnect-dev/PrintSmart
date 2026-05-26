@@ -2,7 +2,7 @@
 
 import { Crown } from 'lucide-react'
 
-export default function WelcomeBar({ shopName }) {
+export default function WelcomeBar({ shopName, shopkeeperIdCode }) {
   return (
     <div className="rounded-2xl bg-white shadow-sm border border-slate-200">
       <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -20,6 +20,11 @@ export default function WelcomeBar({ shopName }) {
                 <Crown size={14} />
                 Premium Plan
               </span>
+              {shopkeeperIdCode && (
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 border border-slate-200">
+                  Shop ID: {shopkeeperIdCode}
+                </span>
+              )}
             </div>
           </div>
         </div>
