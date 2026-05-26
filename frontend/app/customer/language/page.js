@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
-import { setCurrentShop } from '../../../lib/shop-context'
+import { setCurrentShop, getActiveShop } from '../../../lib/shop-context'
 
 const LANGUAGES = [
   { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
@@ -71,21 +71,28 @@ export default function CustomerLanguagePage() {
   useEffect(() => {
     const validateShop = async () => {
       if (!shopId) {
-        // If they are on language selection with no shopId, clear any stale shop in localStorage
+        // Check if shop exists in localStorage (from QR scan on homepage)
+        const activeShop = getActiveShop()
+        
         if (step === 'language') {
-          localStorage.removeItem('activeShopId')
-          localStorage.removeItem('activeShopSlug')
-          localStorage.removeItem('selectedShop')
+          // On language step without query param, check if we have shop from QR
+          if (!activeShop) {
+            // No shop in localStorage and no query param - clear stale data
+            localStorage.removeItem('activeShopId')
+            localStorage.removeItem('activeShopSlug')
+            localStorage.removeItem('selectedShop')
+          }
           setShopError(null)
         } else if (step === 'details') {
-          const storedShopId = localStorage.getItem('activeShopId')
-          if (!storedShopId) {
+          // On details step, we need a shop
+          if (!activeShop) {
             setShopError(t('No printing shop selected. Please scan a QR code or enter a shop ID.'))
           }
         }
         return
       }
 
+      // shopId is provided in query params - validate it
       setValidatingShop(true)
       setShopError(null)
       try {
@@ -127,7 +134,9 @@ export default function CustomerLanguagePage() {
     const finalLanguage = selectedOther || selectedLanguage
     if (finalLanguage) {
       localStorage.setItem('customerLanguage', finalLanguage)
-      if (shopId) {
+      // Check if we have shop from query param or from QR scan localStorage
+      const activeShop = getActiveShop()
+      if (shopId || activeShop) {
         setStep('details')
       } else {
         router.push('/take-a-print')
