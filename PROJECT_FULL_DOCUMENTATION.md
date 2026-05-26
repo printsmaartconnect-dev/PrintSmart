@@ -17,8 +17,6 @@
 - PostgreSQL knowledge (if extending to backend)
 - Understanding of RESTful API principles
 
-
-my name is yash
 ---
 
 ## Quick Start
