@@ -384,6 +384,7 @@ export default function UploadPage() {
           </div>
         )}
 
+
         {/* Dropzone */}
         <div
           {...getRootProps()}
@@ -491,22 +492,6 @@ export default function UploadPage() {
             }`}
         >
           {uploading ? t('Uploading Files...') : t('Continue to Print Settings')}
-        </button>
-
-        {/* Talk to Shopkeeper option */}
-        <div className="flex items-center my-4">
-          <div className="flex-grow border-t border-gray-200"></div>
-          <span className="flex-shrink mx-4 text-gray-500 font-semibold text-sm">{t('OR')}</span>
-          <div className="flex-grow border-t border-gray-200"></div>
-        </div>
-
-        <button
-          onClick={handleTalkToShopkeeper}
-          disabled={uploading}
-          className="w-full py-3.5 px-4 rounded-xl font-bold transition text-indigo-700 border-2 border-indigo-600 bg-white hover:bg-indigo-50 flex items-center justify-center gap-2"
-        >
-          <MessageCircle size={20} className="text-indigo-600" />
-          {t('I Want to Talk with Shopkeeper First')}
         </button>
 
         {/* Reusable FeedbackLink */}
