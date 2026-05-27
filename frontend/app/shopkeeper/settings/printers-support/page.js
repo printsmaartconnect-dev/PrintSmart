@@ -165,7 +165,7 @@ function TopHeader({ shopName }) {
             </span>
             <div className="text-lg font-extrabold tracking-tight">
               <span className="text-slate-900">PrintSmart</span>
-              <span className="text-violet-600">.in</span>
+              <span className="text-violet-600"></span>
             </div>
           </div>
 

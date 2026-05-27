@@ -61,13 +61,19 @@ export default function DashboardHeader({ shopName }) {
           </div>
 
           <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 sm:block">
-            <div className="relative overflow-hidden rounded-full border border-violet-100/80 bg-white/75 px-5 py-2.5 shadow-sm shadow-violet-100 backdrop-blur-md transition-all duration-500 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="relative pointer-events-auto flex items-center gap-1.5 overflow-hidden rounded-full border border-violet-100/80 bg-white/75 px-5 py-2 shadow-sm shadow-violet-100 backdrop-blur-md transition-all duration-500 hover:-translate-y-0.5 hover:shadow-md">
               <span className="absolute inset-0 bg-gradient-to-r from-violet-50 via-indigo-50 to-sky-50 opacity-80" />
               <span className="absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-gradient-to-br from-violet-500 to-sky-500 opacity-90 shadow-[0_0_14px_rgba(99,102,241,0.35)] animate-pulse" />
               <span className="absolute right-3 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-sky-400/80" />
-              <span className="relative z-10 block px-3 text-sm font-extrabold uppercase tracking-[0.34em] text-transparent bg-gradient-to-r from-violet-700 via-indigo-600 to-sky-600 bg-clip-text">
-                Dashboard
-              </span>
+              <div className="relative z-10 flex items-center gap-2 pl-3 pr-2">
+                <span className="block text-sm font-extrabold uppercase tracking-[0.25em] text-transparent bg-gradient-to-r from-violet-700 via-indigo-600 to-sky-600 bg-clip-text">
+                  Dashboard
+                </span>
+                <span className="text-[10px] text-slate-300 font-light select-none">|</span>
+                <span className="inspired-text">
+                  inspired by the steve jobs.
+                </span>
+              </div>
             </div>
           </div>
 
