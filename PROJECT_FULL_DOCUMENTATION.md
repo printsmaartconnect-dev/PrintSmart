@@ -3550,47 +3550,51 @@ Manages the ordering workflow.
 ---
 
 ## Frontend-Backend Integration Walkthrough
-
-### 1. Customer Workflow
-1. **Landing & Scan**: Customer visits the homepage `/`, scans the shopkeeper's QR code (or types slug/ID manually, using `0000` for test routing), redirecting to `/take-a-print?shopId=slug`.
-2. **Shop Fetching**: `/take-a-print` queries `/api/shopkeeper/by-slug/:shopId`. On success, details are cached in `localStorage` and routing shifts to `/customer/language`.
-3. **Language Selection**: Browser language is auto-detected. Customer selects their preferred language, inputs their details (Name, Phone, Email), which posts to `/api/users/create`, caching the returned `userId` in `localStorage`.
-4. **File Upload**: Customer uploads one or multiple documents on `/customer/upload`.
-   - Each file generates a base64 thumbnail (rendering PDF pages using PDF.js CDN, or Canvas for images) cached locally to prevent blank images.
-   - Submitting routes files to `/api/files/upload`, returning file storage URLs.
-5. **Print Configuration**: On `/customer/configuration`, options (Color/BW, copies, paper size, quality, orientation, duplex sides, custom pages) are set.
-   - Previews render grayscale CSS dynamically on selecting the BW option.
-   - Pricing is computed locally using the shopkeeper's pricing rates.
-6. **Order Review**: Summarizes shop details, configurations, and pricing. Continuing creates orders via `/api/orders/create`.
-7. **Order Placed**: Customer views the backend-generated order ID, estimated wait time, and print details. History is accessible via `/customer/orders` with options to cancel pending orders or download invoices from `/api/orders/:id/invoice`.
-
-### 2. Shopkeeper Dashboard Actions
-1. **Authentication & Session Lifecycle**:
-   - Shopkeepers log in or register via `/api/auth/login`, `/api/auth/register`, or Google OAuth (`/api/auth/google`), receiving a JWT.
-   - The login page does NOT automatically bypass/redirect to the dashboard if a token exists. This allows multiple shopkeepers to log in or switch accounts on the same machine.
-   - Shopkeepers can clear their session and log out using the **Logout** button in the dashboard header, which removes `authToken` and user state from `localStorage` and routes back to `/shopkeeper/login`.
-2. **Onboarding & Setup**:
-   - New shopkeepers complete step-by-step onboarding (Profile Setup and Pricing Setup) which saves configuration details in the database via `PUT /api/auth/profile`.
-   - Onboarding profile updates preserve pricing details, and pricing configurations preserve profile details, preventing accidental nullification.
-   - Profile detail rendering uses standard `<img>` tags for logos to support base64 images, relative paths, and unconfigured dynamic URLs without Next.js domain/hostname optimization crashes.
-3. **Order Management**: Shopkeeper dashboard fetches `/api/orders/shopkeeper/all` to render order grids. Changing order statuses to `Printing` or `Completed` updates the backend and active queues instantly.
-4. **Real-time Queue & Print**: Shopkeeper updates items to `Completed` which calls the browser's printing service, downloads the invoice, and updates statistics.
-5. **Analytics**: The statistics dashboard pulls details from `/api/statistics/:shopkeeperId` to render charts and summaries.
-
----
-
-## Document Version
-
-- **Version:** 2.4.0
-- **Last Updated:** May 27, 2026
-- **Author:** Antigravity AI
-- **Status:** Complete (Fully synchronized with backend models, API routes, controller logic, PDF invoice generation, queue wait time algorithms, analytics statistics, user workflow paths, resolved auth controller syntax errors, login/logout session flow improvements, image rendering safety fixes, completed Google OAuth audience verification, automated QR Code generation for Google sign-ups, restored backend registration success response block to fix registration hang, and completed localization and dynamic multi-language translation across all settings subpages).
-
----
-
-**End of Documentation**
-
-For questions or updates, please contact the development team or create a GitHub issue.
-
----
+ 
+ ### 1. Customer Workflow
+ 1. **Landing & Scan**: Customer visits the homepage `/`, scans the shopkeeper's QR code (or types slug/ID manually, using `0000` for test routing), redirecting to `/take-a-print?shopId=slug`.
+ 2. **Shop Fetching**: `/take-a-print` queries `/api/shopkeeper/by-slug/:shopId`. On success, details are cached in `localStorage` and routing shifts to `/customer/language`.
+ 3. **Language Selection**: Browser language is auto-detected. Customer selects their preferred language, inputs their details (Name, Phone, Email), which posts to `/api/users/create`, caching the returned `userId` in `localStorage`.
+ 4. **File Upload**: Customer uploads one or multiple documents on `/customer/upload`.
+    - Each file generates a base64 thumbnail (rendering PDF pages using PDF.js CDN, or Canvas for images) cached locally to prevent blank images.
+    - Submitting routes files to `/api/files/upload`, returning file storage URLs.
+ 5. **Print Configuration Choices**: On `/customer/configuration`, the customer is presented with two options at the top:
+    - **"I Want to Talk with Shopkeeper First"**: Directly redirects to the review step with a `0` price (setting the order variant to `'talk'`).
+    - **"I Want to Configure Print Layout"**: Dynamically reveals the document preview sections and configuration fields (Color/BW, copies, paper size, quality, orientation, duplex sides, page range). By default, these configuration details are hidden to keep the landing layout clean.
+    - Grayscale CSS renders dynamically on selecting the BW option, and pricing is calculated using the shopkeeper's pricing rates.
+ 6. **Order Review**: Summarizes shop details, configurations, and pricing. If the customer selected the Talk First option, a talk-specific banner is shown with a ₹0.00 balance. Continuing creates orders via `/api/orders/create`.
+ 7. **Order Placed**: Customer views the backend-generated order ID, estimated wait time, and print details. History is accessible via `/customer/orders` with options to cancel pending orders or download invoices from `/api/orders/:id/invoice`.
+ 
+ ### 2. Shopkeeper Dashboard Actions
+ 1. **Authentication & Session Lifecycle**:
+    - Shopkeepers log in or register via `/api/auth/login`, `/api/auth/register`, or Google OAuth (`/api/auth/google`), receiving a JWT.
+    - The login page does NOT automatically bypass/redirect to the dashboard if a token exists. This allows multiple shopkeepers to log in or switch accounts on the same machine.
+    - Shopkeepers can clear their session and log out using the **Logout** button in the dashboard header, which removes `authToken` and user state from `localStorage` and routes back to `/shopkeeper/login`.
+ 2. **Onboarding & Setup**:
+    - New shopkeepers complete step-by-step onboarding (Profile Setup and Pricing Setup) which saves configuration details in the database via `PUT /api/auth/profile`.
+    - Onboarding profile updates preserve pricing details, and pricing configurations preserve profile details, preventing accidental nullification.
+    - Profile detail rendering uses standard `<img>` tags for logos to support base64 images, relative paths, and unconfigured dynamic URLs without Next.js domain/hostname optimization crashes.
+ 3. **Order Management**: Shopkeeper dashboard fetches `/api/orders/shopkeeper/all` to render order queues.
+    - **Premium Layout Toggle**: The dashboard supports switching between a horizontal scrolling **Card View** (with hover micro-animations) and a structured **Table View** presenting active print jobs in a grid.
+    - **Quick Actions**: Inline buttons (Preview, Print, Download, Cancel) let shopkeepers process orders instantly.
+    - **Database Enum Mapping**: When a shopkeeper downloads a customer file, the status change request is automatically mapped to `COMPLETED` in the backend. This prevents Prisma/PostgreSQL enum constraint errors while keeping the order completion data intact.
+ 4. **Real-time Queue & Print**: Shopkeeper updates items to `Completed` which calls the browser's printing service, downloads the invoice, and updates statistics.
+ 5. **Dynamic Shop Statistics**: All statistics card counts (Pending, Completed, Downloaded, Cancelled), bottom dock navigation badges, print sizes (A4, A3, etc.), document formats, revenue totals, and customer acquisition bar graphs are computed dynamically in real-time from the database order logs, ensuring exact reflections of database states.
+ 
+ ---
+ 
+ ## Document Version
+ 
+ - **Version:** 2.5.0
+ - **Last Updated:** May 27, 2026
+ - **Author:** Antigravity AI
+ - **Status:** Complete (Fully synchronized with backend models, API routes, controller logic, PDF invoice generation, queue wait time algorithms, analytics statistics, user workflow paths, resolved auth controller syntax errors, login/logout session flow improvements, image rendering safety fixes, completed Google OAuth audience verification, automated QR Code generation for Google sign-ups, restored backend registration success response block to fix registration hang, dynamic multi-language translation, customer choice configuration flow toggles, premium shopkeeper dashboard layout toggles, dynamic database statistic reflections, and backend downloaded status validation mapping).
+ 
+ ---
+ 
+ **End of Documentation**
+ 
+ For questions or updates, please contact the development team or create a GitHub issue.
+ 
+ ---
 
