@@ -259,7 +259,10 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     // Map string status to Enum OrderStatus
-    const statusEnum = status.toUpperCase();
+    let statusEnum = status.toUpperCase();
+    if (statusEnum === "DOWNLOADED") {
+      statusEnum = "COMPLETED";
+    }
     if (!["PENDING", "ACCEPTED", "PRINTING", "COMPLETED", "CANCELLED"].includes(statusEnum)) {
       return res.status(400).json({ message: "Invalid order status value" });
     }

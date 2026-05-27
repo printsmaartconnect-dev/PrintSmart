@@ -20,10 +20,16 @@ import { bottomDockItems, dashboardStats, recentOrders } from "./_components/moc
 
 export default function ShopkeeperDashboard() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [shopName, setShopName] = useState("");
   const [shopkeeperIdCode, setShopkeeperIdCode] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [ordersList, setOrdersList] = useState([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchOrders = async () => {
     const token = localStorage.getItem("authToken");
@@ -58,15 +64,18 @@ export default function ShopkeeperDashboard() {
             new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
             ", " +
             new Date(o.createdAt).toLocaleDateString([], { month: "short", day: "numeric" }),
-          variant: o.variant || "standard",
+          variant: o.variant || (o.orderFiles && o.orderFiles.length > 0 && (o.orderFiles[0].customFileName === "Customer wants to talk" || o.orderFiles[0].originalFileName === "Customer wants to talk" || o.price === 0) ? "talk" : "standard"),
         }));
         setOrdersList(mappedOrders);
+        setDataLoaded(true);
       } else {
         setOrdersList(recentOrders);
+        setDataLoaded(true);
       }
     } catch (err) {
       console.warn("Failed to fetch backend orders, using mock fallback:", err);
       setOrdersList(recentOrders);
+      setDataLoaded(true);
     }
   };
 
@@ -125,14 +134,7 @@ export default function ShopkeeperDashboard() {
           localStorage.setItem("shopkeeper", JSON.stringify(shopkeeper));
           syncLocalStorageFromDb(shopkeeper);
 
-          if (!shopkeeper.isOnboarded) {
-            if (!shopkeeper.profileCompleted) {
-              router.replace("/shopkeeper/onboarding/profile-setup");
-            } else {
-              router.replace("/shopkeeper/onboarding/pricing-setup");
-            }
-            return;
-          }
+
           // Onboarded - proceed
           setShopName(shopkeeper.shopName || "");
           setShopkeeperIdCode(shopkeeper.shopSlug || "");
@@ -155,20 +157,7 @@ export default function ShopkeeperDashboard() {
         const contact = getContact();
         const pricing = getPricing();
 
-        if (!isProfileSetupComplete(profile, contact)) {
-          router.replace("/shopkeeper/onboarding/profile-setup");
-          return;
-        }
 
-        if (!isPricingSetupComplete(pricing)) {
-          router.replace("/shopkeeper/onboarding/pricing-setup");
-          return;
-        }
-
-        if (!isOnboardingComplete(account || undefined)) {
-          router.replace("/shopkeeper/onboarding/profile-setup");
-          return;
-        }
 
         setShopName(profile.shopName || "");
         setShopkeeperIdCode(profile.shopSlug || "");
@@ -184,14 +173,14 @@ export default function ShopkeeperDashboard() {
       ? ordersList
       : ordersList.filter((order) => order.status === activeFilter);
 
+  const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
+  const completedCount = ordersList.filter((o) => o.status === "Completed").length;
+  const downloadedCount = ordersList.filter((o) => o.status === "Downloaded").length;
+  const cancelledCount = ordersList.filter((o) => o.status === "Cancelled").length;
+
   // Compute dynamic stats based on ordersList
   const dynamicStats = (() => {
-    if (ordersList.length === 0) return dashboardStats;
-    const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
-    const completedCount = ordersList.filter((o) => o.status === "Completed").length;
-    const downloadedCount = ordersList.filter((o) => o.status === "Downloaded").length;
-    const cancelledCount = ordersList.filter((o) => o.status === "Cancelled").length;
-
+    if (!dataLoaded) return dashboardStats;
     return [
       { key: "pending", label: "Pending Orders", count: String(pendingCount), tone: "orange" },
       { key: "completed", label: "Completed Orders", count: String(completedCount), tone: "green" },
@@ -199,6 +188,29 @@ export default function ShopkeeperDashboard() {
       { key: "cancelled", label: "Cancelled Orders", count: String(cancelledCount), tone: "red" },
     ];
   })();
+
+  const dynamicDockItems = (() => {
+    if (!dataLoaded) return bottomDockItems;
+    return [
+      { key: 'profile', label: 'Profile', badge: null, href: '/shopkeeper/profile' },
+      { key: 'settings', label: 'Settings', badge: null, href: '/shopkeeper/settings' },
+      { key: 'subscription', label: 'Subscription', badge: null, href: '/shopkeeper/subscription' },
+      { key: 'allOrders', label: 'All Orders', badge: null, href: '/shopkeeper/all-orders' },
+      { key: 'pending', label: 'Pending', badge: String(pendingCount) },
+      { key: 'completed', label: 'Completed', badge: String(completedCount) },
+      { key: 'downloaded', label: 'Downloaded', badge: String(downloadedCount) },
+      { key: 'cancelled', label: 'Cancelled', badge: String(cancelledCount) },
+      { key: 'coupon', label: 'Coupon Check', badge: null },
+    ];
+  })();
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-violet-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -213,7 +225,7 @@ export default function ShopkeeperDashboard() {
       </div>
 
       <BottomDock
-        items={bottomDockItems}
+        items={dynamicDockItems}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
       />

@@ -74,6 +74,7 @@ export default function ReviewPage() {
   // Calculate pricing based on shop keeper settings or fallbacks
   const calculateItemPrice = (item) => {
     if (!item || !item.config) return 0
+    if (item.variant === 'talk') return 0
     const copies = Number(item.config.copies || 1)
     
     // Fallback standard rates
@@ -128,7 +129,7 @@ export default function ReviewPage() {
       fileUrl: item.fileUrl,
       fileSize: item.fileSize || 0,
       price: calculateItemPrice(item) * 1.18, // including tax proportion
-      variant: 'standard',
+      variant: item.variant || 'standard',
       config: item.config
     }))
 
@@ -241,14 +242,20 @@ export default function ReviewPage() {
 
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-gray-900 truncate">{item.customFileName}</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 font-semibold mt-1">
-                    <span>{t('Type')}: {item.config?.printType === 'COLOR' ? t('Color') : t('B&W')}</span>
-                    <span>{t('Copies')}: {item.config?.copies || 1}</span>
-                    <span>{t('Size')}: {t(item.config?.paperSize || 'A4')}</span>
-                    <span>{t('Sides')}: {item.config?.sides === 'DOUBLE' ? t('Double-sided') : t('Single-sided')}</span>
-                    <span>{t('Orientation')}: {t(item.config?.orientation || 'PORTRAIT')}</span>
-                    <span>{t('Quality')}: {t(item.config?.quality || 'NORMAL')}</span>
-                  </div>
+                  {item.variant === 'talk' ? (
+                    <div className="text-xs text-violet-700 font-bold bg-violet-50 px-2.5 py-1 rounded-lg mt-1 w-fit border border-violet-100 flex items-center gap-1.5 animate-pulse">
+                      <span>💬 {t('I Want to Talk with Shopkeeper First')}</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 font-semibold mt-1">
+                      <span>{t('Type')}: {item.config?.printType === 'COLOR' ? t('Color') : t('B&W')}</span>
+                      <span>{t('Copies')}: {item.config?.copies || 1}</span>
+                      <span>{t('Size')}: {t(item.config?.paperSize || 'A4')}</span>
+                      <span>{t('Sides')}: {item.config?.sides === 'DOUBLE' ? t('Double-sided') : t('Single-sided')}</span>
+                      <span>{t('Orientation')}: {t(item.config?.orientation || 'PORTRAIT')}</span>
+                      <span>{t('Quality')}: {t(item.config?.quality || 'NORMAL')}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="text-right flex-shrink-0">

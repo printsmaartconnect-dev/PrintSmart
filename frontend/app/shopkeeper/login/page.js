@@ -42,7 +42,7 @@ export default function ShopkeeperLoginPage() {
         localStorage.setItem('authToken', data.token)
         localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
         localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
-        const destination = data.shopkeeper?.isOnboarded ? '/shopkeeper/dashboard' : '/shopkeeper/onboarding/profile-setup'
+        const destination = '/shopkeeper/dashboard'
         router.push(destination)
         return
       }
@@ -88,7 +88,7 @@ export default function ShopkeeperLoginPage() {
             localStorage.setItem('authToken', data.token)
             localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
             localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
-            const destination = data.shopkeeper?.isOnboarded ? '/shopkeeper/dashboard' : '/shopkeeper/onboarding/profile-setup'
+            const destination = '/shopkeeper/dashboard'
             router.push(destination)
           } catch (authErr) {
             console.error('Google auth response failed:', authErr)

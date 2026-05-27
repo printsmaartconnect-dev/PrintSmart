@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
   BarChart3,
@@ -12,66 +15,12 @@ import {
   XCircle,
 } from 'lucide-react'
 
-const statCards = [
-  {
-    title: 'Pending Orders',
-    count: '12',
-    icon: Clock3,
-    tone: 'amber',
-  },
-  {
-    title: 'Completed Orders',
-    count: '128',
-    icon: CheckCircle2,
-    tone: 'emerald',
-  },
-  {
-    title: 'Downloaded Files',
-    count: '36',
-    icon: Download,
-    tone: 'indigo',
-  },
-  {
-    title: 'Cancelled Orders',
-    count: '08',
-    icon: XCircle,
-    tone: 'rose',
-  },
-]
-
 const trendLegend = [
   { label: 'Total Pages Printed', tone: 'violet' },
   { label: 'Total Order Value (₹)', tone: 'amber' },
 ]
 
-const orderDistributionLegend = [
-  { label: 'B&W Print (13)', tone: 'emerald' },
-  { label: 'Color Print (2)', tone: 'amber' },
-]
-
-const formatRows = [
-  { label: '.pdf', count: 250, tone: 'violet' },
-  { label: '.docx', count: 100, tone: 'indigo' },
-  { label: '.jpg', count: 98, tone: 'amber' },
-  { label: '.png', count: 64, tone: 'emerald' },
-  { label: '.ppt', count: 36, tone: 'sky' },
-]
-
-const printSizeRows = [
-  { label: 'A4', value: 100, width: '88%' },
-  { label: 'A3', value: 84, width: '72%' },
-  { label: 'Legal', value: 68, width: '58%' },
-  { label: 'Letter', value: 41, width: '35%' },
-  { label: 'B5', value: 27, width: '24%' },
-]
-
-const customerBars = [
-  { label: 'New', value: 92, color: 'bg-indigo-500' },
-  { label: 'Returning', value: 47, color: 'bg-emerald-500' },
-]
-
-const channelTabs = ['Total', 'B&W', 'Color', 'Xerox', 'Digital']
-
+const channelTabs = ['Total', 'B&W', 'Color']
 const timeTabs = ['Last 30 days', '3 months', '1 year', 'All-time']
 
 function toneClasses(tone) {
@@ -128,8 +77,8 @@ function StatCard({ card }) {
       <div className="mt-3 text-sm font-medium text-slate-700">{card.title}</div>
       <div className="mt-1 text-[28px] font-extrabold leading-none tracking-tight text-slate-900">{card.count}</div>
 
-      <Link href="/shopkeeper/all-orders" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-violet-700">
-        View details <span aria-hidden="true">→</span>
+      <Link href="/shopkeeper/dashboard" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-violet-700">
+        Back to Dashboard <span aria-hidden="true">→</span>
       </Link>
     </div>
   )
@@ -181,7 +130,7 @@ function StatHeaderControls() {
         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
       >
         <CalendarDays size={16} className="text-slate-500" />
-        <span>20 Jan 2024</span>
+        <span>Today</span>
         <ChevronDown size={16} className="text-slate-400" />
       </button>
 
@@ -209,10 +158,10 @@ function LegendRow({ items }) {
   )
 }
 
-function FormatList() {
+function FormatList({ rows }) {
   return (
     <div className="space-y-3">
-      {formatRows.map((item) => (
+      {rows.map((item) => (
         <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-3 py-2.5">
           <div className="flex items-center gap-3">
             <Dot tone={item.tone} />
@@ -225,12 +174,12 @@ function FormatList() {
   )
 }
 
-function CustomerBars() {
-  const max = Math.max(...customerBars.map((item) => item.value))
+function CustomerBars({ bars }) {
+  const max = Math.max(...bars.map((item) => item.value)) || 1
 
   return (
     <div className="flex h-[220px] items-end gap-4 rounded-2xl bg-slate-50 px-4 py-4">
-      {customerBars.map((item) => (
+      {bars.map((item) => (
         <div key={item.label} className="flex flex-1 flex-col items-center gap-3">
           <div className="flex h-full w-full items-end justify-center">
             <div className="flex h-full w-full items-end justify-center">
@@ -248,6 +197,163 @@ function CustomerBars() {
 }
 
 export default function AllOrdersPage() {
+  const [ordersList, setOrdersList] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:5000/api/orders/shopkeeper/all", {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setOrdersList(data);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch backend orders:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  const pendingCount = ordersList.filter((o) => o.status === "PENDING" || o.status === "Pending").length;
+  const completedCount = ordersList.filter((o) => o.status === "COMPLETED" || o.status === "Completed").length;
+  const downloadedCount = ordersList.filter((o) => o.status === "DOWNLOADED" || o.status === "Downloaded").length;
+  const cancelledCount = ordersList.filter((o) => o.status === "CANCELLED" || o.status === "Cancelled").length;
+
+  const statCards = [
+    {
+      title: 'Pending Orders',
+      count: loading ? '...' : String(pendingCount),
+      icon: Clock3,
+      tone: 'amber',
+    },
+    {
+      title: 'Completed Orders',
+      count: loading ? '...' : String(completedCount),
+      icon: CheckCircle2,
+      tone: 'emerald',
+    },
+    {
+      title: 'Downloaded Files',
+      count: loading ? '...' : String(downloadedCount),
+      icon: Download,
+      tone: 'indigo',
+    },
+    {
+      title: 'Cancelled Orders',
+      count: loading ? '...' : String(cancelledCount),
+      icon: XCircle,
+      tone: 'rose',
+    },
+  ]
+
+  const bwCount = ordersList.filter((o) => o.printConfiguration?.printType === "BW").length;
+  const colorCount = ordersList.filter((o) => o.printConfiguration?.printType === "COLOR").length;
+
+  const orderDistributionLegend = [
+    { label: `B&W Print (${loading ? '...' : bwCount})`, tone: 'emerald' },
+    { label: `Color Print (${loading ? '...' : colorCount})`, tone: 'amber' },
+  ]
+
+  const getFormatCounts = () => {
+    const counts = { '.pdf': 0, '.docx': 0, '.jpg': 0, '.png': 0, 'other': 0 };
+    ordersList.forEach((o) => {
+      const fileName = o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName || o.orderFiles[0].originalFileName : '';
+      if (!fileName) return;
+      const dotIndex = fileName.lastIndexOf('.');
+      if (dotIndex === -1) {
+        counts['other']++;
+        return;
+      }
+      const ext = fileName.slice(dotIndex).toLowerCase();
+      if (counts[ext] !== undefined) {
+        counts[ext]++;
+      } else {
+        counts['other']++;
+      }
+    });
+    return counts;
+  };
+
+  const formatCounts = getFormatCounts();
+
+  const dynamicFormatRows = [
+    { label: '.pdf', count: loading ? 0 : formatCounts['.pdf'], tone: 'violet' },
+    { label: '.docx', count: loading ? 0 : formatCounts['.docx'], tone: 'indigo' },
+    { label: '.jpg', count: loading ? 0 : formatCounts['.jpg'], tone: 'amber' },
+    { label: '.png', count: loading ? 0 : formatCounts['.png'], tone: 'emerald' },
+    { label: 'other', count: loading ? 0 : formatCounts['other'], tone: 'sky' },
+  ];
+
+  const getSizeCounts = () => {
+    const counts = { 'A4': 0, 'A3': 0, 'LEGAL': 0, 'LETTER': 0, 'other': 0 };
+    ordersList.forEach((o) => {
+      const size = o.printConfiguration?.paperSize || 'A4';
+      if (counts[size] !== undefined) {
+        counts[size]++;
+      } else {
+        counts['other']++;
+      }
+    });
+    return counts;
+  };
+
+  const sizeCounts = getSizeCounts();
+  const totalSizes = ordersList.length || 1;
+
+  const dynamicPrintSizeRows = [
+    { label: 'A4', value: loading ? 0 : sizeCounts['A4'], width: `${loading ? 0 : (sizeCounts['A4'] / totalSizes) * 100}%` },
+    { label: 'A3', value: loading ? 0 : sizeCounts['A3'], width: `${loading ? 0 : (sizeCounts['A3'] / totalSizes) * 100}%` },
+    { label: 'Legal', value: loading ? 0 : sizeCounts['LEGAL'], width: `${loading ? 0 : (sizeCounts['LEGAL'] / totalSizes) * 100}%` },
+    { label: 'Letter', value: loading ? 0 : sizeCounts['LETTER'], width: `${loading ? 0 : (sizeCounts['LETTER'] / totalSizes) * 100}%` },
+    { label: 'Other', value: loading ? 0 : sizeCounts['other'], width: `${loading ? 0 : (sizeCounts['other'] / totalSizes) * 100}%` },
+  ];
+
+  const getCustomerStats = () => {
+    const customerOrdersCount = {};
+    ordersList.forEach((o) => {
+      const name = o.customerName || 'Anonymous';
+      customerOrdersCount[name] = (customerOrdersCount[name] || 0) + 1;
+    });
+
+    let newCustomers = 0;
+    let returningCustomers = 0;
+
+    Object.values(customerOrdersCount).forEach((count) => {
+      if (count === 1) {
+        newCustomers++;
+      } else {
+        returningCustomers++;
+      }
+    });
+
+    return { newCustomers, returningCustomers };
+  };
+
+  const customerStats = getCustomerStats();
+
+  const dynamicCustomerBars = [
+    { label: 'New', value: loading ? 0 : customerStats.newCustomers, color: 'bg-indigo-500' },
+    { label: 'Returning', value: loading ? 0 : customerStats.returningCustomers, color: 'bg-emerald-500' },
+  ];
+
+  const completedOrders = ordersList.filter((o) => o.status === "COMPLETED" || o.status === "Completed");
+  const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+  const avgOrderValue = completedOrders.length > 0 ? totalRevenue / completedOrders.length : 0;
+
   return (
     <div className="min-h-screen bg-[#f6f7fb] text-slate-900">
       <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
@@ -356,12 +462,12 @@ export default function AllOrdersPage() {
                 <div className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-sm text-slate-500">Total Revenue (Last 30 Days)</div>
-                      <div className="mt-2 text-[30px] font-extrabold tracking-tight text-slate-900">₹32,450</div>
+                      <div className="text-sm text-slate-500">Total Revenue</div>
+                      <div className="mt-2 text-[30px] font-extrabold tracking-tight text-slate-900">₹{loading ? '...' : totalRevenue.toFixed(2)}</div>
                     </div>
                     <div className="rounded-2xl bg-slate-50 p-4">
                       <div className="text-sm text-slate-500">Average Order Value</div>
-                      <div className="mt-2 text-[30px] font-extrabold tracking-tight text-slate-900">₹58</div>
+                      <div className="mt-2 text-[30px] font-extrabold tracking-tight text-slate-900">₹{loading ? '...' : Math.round(avgOrderValue)}</div>
                     </div>
                   </div>
 
@@ -390,13 +496,25 @@ export default function AllOrdersPage() {
                 <div className="grid gap-5 lg:grid-cols-2">
                   <div>
                     <div className="mb-3 text-sm font-semibold text-slate-900">Top 5 Most Printed File Formats</div>
-                    <FormatList />
+                    <FormatList rows={dynamicFormatRows} />
                   </div>
 
                   <div>
                     <div className="mb-3 text-sm font-semibold text-slate-900">Top 5 Print Sizes</div>
-                    {/* Horizontal bar chart placeholder. */}
-                    <PlaceholderBox label="Horizontal Bar Chart Placeholder" minHeight="min-h-[220px]" />
+                    {/* Size distribution list. */}
+                    <div className="space-y-3">
+                      {dynamicPrintSizeRows.map((row) => (
+                        <div key={row.label} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                            <span>{row.label}</span>
+                            <span>{row.value}</span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-slate-100">
+                            <div className="h-full rounded-full bg-indigo-500" style={{ width: row.width }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </CardShell>
@@ -416,13 +534,13 @@ export default function AllOrdersPage() {
                 }
               >
                 <div className="space-y-4">
-                  {/* Vertical bar chart placeholder. */}
-                  <PlaceholderBox label="Vertical Bar Chart Placeholder" minHeight="min-h-[240px]" />
+                  {/* Real Vertical bar chart. */}
+                  <CustomerBars bars={dynamicCustomerBars} />
 
                   <div className="rounded-2xl bg-slate-50 p-4">
                     <div className="text-sm font-bold text-slate-900">Key Takeaway</div>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                      B&amp;W A4 Xerox are your top volume, afternoon is your busiest time.
+                      We print standard formats. afternoon is usually the busiest printing queue time.
                     </p>
                   </div>
                 </div>
