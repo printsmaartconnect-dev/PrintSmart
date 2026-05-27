@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, MapPin, Printer, Settings2 } from 'lucide-react'
+import { ArrowLeft, FileText, MapPin, Printer, Settings2 } from 'lucide-react'
 import {
   getContact,
   getLoggedInShopkeeper,
@@ -13,6 +13,7 @@ import {
   validateProfileRequired,
   setPricing,
   setSetupCompleted,
+  syncLocalStorageFromDb,
   STORAGE_KEYS,
 } from '../_components/onboardingStorage'
 import {
@@ -33,11 +34,40 @@ export default function PricingSetupPage() {
   const [pricing, setPricingState] = useState(() => getPricing())
 
   useEffect(() => {
+    const token = localStorage.getItem('authToken')
     const loggedIn = getLoggedInShopkeeper()
-    if (!loggedIn) {
+    if (!token || !loggedIn) {
       router.replace('/shopkeeper/login')
       return
     }
+
+    const checkOnboardingStatus = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (response.ok) {
+          const shopkeeper = await response.json()
+          localStorage.setItem('loggedInShopkeeper', JSON.stringify(shopkeeper))
+          localStorage.setItem('shopkeeper', JSON.stringify(shopkeeper))
+          
+          // Sync database profile to local storage so validation has matching values
+          syncLocalStorageFromDb(shopkeeper)
+
+          if (shopkeeper.isOnboarded) {
+            router.replace('/shopkeeper/dashboard')
+            return
+          }
+        }
+      } catch (err) {
+        console.warn('Pricing setup onboarding check failed:', err)
+      }
+    }
+
+    checkOnboardingStatus()
   }, [router])
 
   const onChange = (key) => (e) => {
@@ -100,9 +130,13 @@ export default function PricingSetupPage() {
               subCategory: activeProfile.subCategory,
               languagePref: activeProfile.languagePreference,
               gstNumber: activeProfile.gstNumber,
+              businessDescription: activeProfile.businessDescription,
+              businessEstablishedYear: activeProfile.businessEstablishedYear,
+              website: activeContact.website,
+              alternatePhone: activeContact.alternatePhone,
               socials: activeSocials,
               pricing: pricing,
-              logoUrl: activeProfile.logoDataUrl || null,
+              logoUrl: activeProfile.logoDataUrl || activeProfile.logoUrl || null,
               phone: activeContact.phoneNumber,
             })
           })
@@ -148,21 +182,33 @@ export default function PricingSetupPage() {
   return (
     <div>
       {/* Page Header */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Pricing Setup</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Set your print pricing and service charges. You can change these anytime.
-          </p>
-        </div>
-        <SecondaryButton
+      <div className="mb-6 flex items-start gap-4">
+        <button
           type="button"
-          className="gap-2 self-start"
-          onClick={() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          onClick={() => router.back()}
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-800 hover:bg-slate-50 transition mt-1 flex-shrink-0"
+          aria-label="Back"
         >
-          <FileText size={16} />
-          Pricing Summary
-        </SecondaryButton>
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Pricing Setup</h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Set your print pricing and service charges. You can change these anytime.
+              </p>
+            </div>
+            <SecondaryButton
+              type="button"
+              className="gap-2 self-start"
+              onClick={() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            >
+              <FileText size={16} />
+              Pricing Summary
+            </SecondaryButton>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">

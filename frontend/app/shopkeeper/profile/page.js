@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
@@ -350,7 +349,7 @@ export default function ShopkeeperProfileViewPage() {
                   <div className="flex items-start gap-4 mb-5">
                     <div className="h-16 w-16 rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center">
                       {profile.logoDataUrl ? (
-                        <Image src={profile.logoDataUrl} alt="Shop logo" width={64} height={64} />
+                        <img src={profile.logoDataUrl} alt="Shop logo" className="h-full w-full object-cover" />
                       ) : (
                         <ImageIcon size={22} className="text-slate-400" />
                       )}

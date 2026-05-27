@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
-import { Cloud, X, FileText, ArrowLeft, Image as ImageIcon, AlertCircle, CheckCircle } from 'lucide-react'
+import { Cloud, X, FileText, ArrowLeft, Image as ImageIcon, AlertCircle, CheckCircle, MessageCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
@@ -59,25 +59,25 @@ const generateThumbnail = async (file) => {
                 script.onload = r;
               });
             }
-            
+
             const pdfjsLib = window.pdfjsLib;
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-            
+
             const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
-            
+
             const viewport = page.getViewport({ scale: 0.3 });
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             canvas.height = viewport.height;
             canvas.width = viewport.width;
-            
+
             await page.render({
               canvasContext: context,
               viewport: viewport
             }).promise;
-            
+
             resolve(canvas.toDataURL('image/jpeg', 0.75));
           } catch (err) {
             console.error('Error generating PDF thumbnail:', err);
@@ -113,30 +113,30 @@ export default function UploadPage() {
       thumbnailUrl: null,
       isLoadingThumbnail: file.type.startsWith('image/') || file.type === 'application/pdf' || file.name.endsWith('.pdf')
     }))
-    
+
     setFiles((prev) => {
       const updated = [...prev, ...newFiles]
-      
+
       newFiles.forEach((item, index) => {
         const globalIndex = prev.length + index;
         if (item.isLoadingThumbnail) {
           generateThumbnail(item.file).then((base64) => {
-            setFiles((current) => 
-              current.map((f, i) => 
-                i === globalIndex 
-                  ? { 
-                      ...f, 
-                      thumbnailUrl: base64, 
-                      previewUrl: base64 || f.previewUrl,
-                      isLoadingThumbnail: false 
-                    } 
+            setFiles((current) =>
+              current.map((f, i) =>
+                i === globalIndex
+                  ? {
+                    ...f,
+                    thumbnailUrl: base64,
+                    previewUrl: base64 || f.previewUrl,
+                    isLoadingThumbnail: false
+                  }
                   : f
               )
             )
           })
         }
       })
-      
+
       return updated
     })
   }, [])
@@ -169,7 +169,7 @@ export default function UploadPage() {
       URL.revokeObjectURL(target.previewUrl)
     }
     setFiles((prev) => prev.filter((_, i) => i !== index))
-    
+
     // Cleanup rename entry
     const newRenames = { ...renames }
     delete newRenames[index]
@@ -195,12 +195,12 @@ export default function UploadPage() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-      
+
       for (let i = 0; i < files.length; i++) {
         const item = files[i]
         const originalName = item.file.name
         const fileExt = originalName.substring(originalName.lastIndexOf('.'))
-        
+
         let customName = renames[i] || originalName
         // Ensure the custom name maintains its file extension
         if (!customName.endsWith(fileExt)) {
@@ -220,7 +220,7 @@ export default function UploadPage() {
         }
 
         const result = await response.json()
-        
+
         // Save file metadata
         uploadedFilesData.push({
           originalFileName: originalName,
@@ -231,18 +231,119 @@ export default function UploadPage() {
           uploadTimestamp: new Date().toISOString()
         })
       }
-      
+
       // Store complete file metadata in localStorage
       localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
-      
-      const nextUrl = shopId 
+
+      const nextUrl = shopId
         ? `/customer/configuration?shopId=${shopId}&userId=${userId}`
         : `/customer/configuration?userId=${userId}`
-      
+
       router.push(nextUrl)
     } catch (err) {
       console.error('File upload failed:', err)
       setError(err.message || t('Failed to upload files. Please try again.'))
+      setUploading(false)
+    }
+  }
+
+  const handleTalkToShopkeeper = async () => {
+    setUploading(true)
+    setError(null)
+
+    // Resolve user details
+    let resolvedUserId = userId
+    let customerName = 'Anonymous Customer'
+    let customerPhone = ''
+    try {
+      const sessionStr = localStorage.getItem('customerSession')
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr)
+        resolvedUserId = session.userId || resolvedUserId
+        customerName = session.name || customerName
+        customerPhone = session.phone || customerPhone
+      }
+    } catch (e) {
+      console.error('Error loading customer session:', e)
+    }
+
+    // Resolve shopkeeper details
+    let resolvedShopkeeperId = null
+    let shopName = 'Printing Shop'
+    try {
+      const activeShopStr = localStorage.getItem('activeShop')
+      const selectedShopStr = localStorage.getItem('selectedShop')
+      const shop = activeShopStr ? JSON.parse(activeShopStr) : selectedShopStr ? JSON.parse(selectedShopStr) : null
+      if (shop) {
+        resolvedShopkeeperId = shop.id
+        shopName = shop.shopName || shopName
+      }
+    } catch (e) {
+      console.error('Error loading shop details:', e)
+    }
+
+    if (!resolvedShopkeeperId && shopId) {
+      // Fetch shop details by slug if not found in localStorage
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const res = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${shopId}`)
+        if (res.ok) {
+          const data = await res.json()
+          resolvedShopkeeperId = data.shopkeeper?.id
+          shopName = data.shopkeeper?.shopName || shopName
+        }
+      } catch (err) {
+        console.error('Error fetching shop by slug:', err)
+      }
+    }
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/orders/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: resolvedUserId,
+          shopkeeperId: resolvedShopkeeperId,
+          customerName,
+          phone: customerPhone,
+          items: [{
+            fileName: t('Customer wants to talk'),
+            fileUrl: '',
+            fileSize: 0,
+            price: 0,
+            variant: 'talk',
+            config: {
+              copies: 1,
+              paperSize: 'A4',
+              printType: 'BW',
+              sides: 'SINGLE',
+              orientation: 'PORTRAIT',
+              quality: 'NORMAL'
+            }
+          }]
+        }),
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || t('Failed to create talk request'))
+      }
+
+      const result = await response.json()
+      const primaryOrder = result.orders[0]
+
+      localStorage.setItem('currentOrder', JSON.stringify({
+        orderId: primaryOrder.orderId,
+        estimatedTime: primaryOrder.estimatedTime,
+        price: '0.00',
+        shopName: shopName
+      }))
+
+      router.push(`/customer/order-placed?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
+    } catch (err) {
+      console.error('Talk request error:', err)
+      setError(err.message || t('Failed to initiate talk request. Please try again.'))
     } finally {
       setUploading(false)
     }
@@ -286,11 +387,10 @@ export default function UploadPage() {
         {/* Dropzone */}
         <div
           {...getRootProps()}
-          className={`border-2 border-dashed rounded-xl p-8 lg:p-12 text-center transition cursor-pointer ${
-            isDragActive
+          className={`border-2 border-dashed rounded-xl p-8 lg:p-12 text-center transition cursor-pointer ${isDragActive
               ? 'border-indigo-500 bg-indigo-50'
               : 'border-gray-300 bg-white hover:border-gray-400'
-          }`}
+            }`}
         >
           <input {...getInputProps()} />
           <Cloud size={48} className="mx-auto mb-4 text-indigo-500" />
@@ -345,7 +445,7 @@ export default function UploadPage() {
                         <FileText size={24} className="text-red-500" />
                       )}
                     </div>
-                    
+
                     {/* File Renaming Input */}
                     <div className="flex-1 min-w-0">
                       <input
@@ -385,13 +485,28 @@ export default function UploadPage() {
         <button
           onClick={handleContinue}
           disabled={files.length === 0 || uploading}
-          className={`w-full py-3 px-4 rounded-xl font-bold transition mt-6 text-white ${
-            files.length > 0 && !uploading
+          className={`w-full py-3 px-4 rounded-xl font-bold transition mt-6 text-white ${files.length > 0 && !uploading
               ? 'gradient-button'
               : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-          }`}
+            }`}
         >
           {uploading ? t('Uploading Files...') : t('Continue to Print Settings')}
+        </button>
+
+        {/* Talk to Shopkeeper option */}
+        <div className="flex items-center my-4">
+          <div className="flex-grow border-t border-gray-200"></div>
+          <span className="flex-shrink mx-4 text-gray-500 font-semibold text-sm">{t('OR')}</span>
+          <div className="flex-grow border-t border-gray-200"></div>
+        </div>
+
+        <button
+          onClick={handleTalkToShopkeeper}
+          disabled={uploading}
+          className="w-full py-3.5 px-4 rounded-xl font-bold transition text-indigo-700 border-2 border-indigo-600 bg-white hover:bg-indigo-50 flex items-center justify-center gap-2"
+        >
+          <MessageCircle size={20} className="text-indigo-600" />
+          {t('I Want to Talk with Shopkeeper First')}
         </button>
 
         {/* Reusable FeedbackLink */}

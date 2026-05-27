@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Bell, ChevronDown, Store } from 'lucide-react'
+import { Bell, ChevronDown, Store, LogOut, ArrowLeft } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 
 function NotificationButton() {
   return (
@@ -12,6 +13,28 @@ function NotificationButton() {
     >
       <Bell size={18} className="text-slate-600" />
       <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+    </button>
+  )
+}
+
+function LogoutButton() {
+  const handleLogout = () => {
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('loggedInShopkeeper')
+    localStorage.removeItem('shopkeeper')
+    // Redirect to login page
+    window.location.href = '/shopkeeper/login'
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleLogout}
+      className="relative inline-flex h-10 px-3 items-center justify-center gap-1.5 rounded-xl bg-white shadow-sm border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition text-slate-600 font-semibold text-xs"
+      aria-label="Logout"
+    >
+      <LogOut size={16} />
+      <span>Logout</span>
     </button>
   )
 }
@@ -46,11 +69,24 @@ function ProfileDropdown({ shopName }) {
 }
 
 export default function DashboardHeader({ shopName }) {
+  const pathname = usePathname()
+  const showBackButton = pathname !== '/shopkeeper/dashboard'
+
   return (
     <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60">
       <div className="px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {showBackButton && (
+              <button
+                type="button"
+                onClick={() => window.history.back()}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition mr-1 animate-fadeIn"
+                aria-label="Back"
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
               <Store size={18} />
             </span>
@@ -63,6 +99,7 @@ export default function DashboardHeader({ shopName }) {
           <div className="flex items-center gap-3">
             <NotificationButton />
             <ProfileDropdown shopName={shopName} />
+            <LogoutButton />
           </div>
         </div>
       </div>

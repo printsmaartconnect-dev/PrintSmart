@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Eye, EyeOff, Headphones, Home } from 'lucide-react'
+import {
+  getLoggedInShopkeeper,
+  isOnboardingComplete,
+} from '../onboarding/_components/onboardingStorage'
 
 export default function ShopkeeperRegisterPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -35,8 +40,10 @@ export default function ShopkeeperRegisterPage() {
 
       if (response.ok) {
         const data = await response.json()
+        localStorage.setItem('authToken', data.token)
+        localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
         localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
-        router.push('/shopkeeper/login')
+        router.push('/shopkeeper/onboarding/profile-setup')
         return
       }
 
@@ -44,11 +51,76 @@ export default function ShopkeeperRegisterPage() {
       alert(errorData.message || 'Registration failed')
     } catch (err) {
       console.warn('Backend connection failed, trying fallback mockup registration:', err)
-      // Fallback local storage logic
       localStorage.setItem('shopkeeper', JSON.stringify(formData))
-      router.push('/shopkeeper/login')
+      router.push('/shopkeeper/onboarding/profile-setup')
     }
   }
+
+  useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '1028741369527-mockclientid.apps.googleusercontent.com'
+    if (!clientId) return
+
+    const initializeGoogle = () => {
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) return
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response) => {
+          try {
+            const tokenRes = await fetch('http://localhost:5000/api/auth/google', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ credential: response.credential }),
+            })
+            if (!tokenRes.ok) {
+              const errorData = await tokenRes.json()
+              alert((errorData.message || 'Google login failed') + (errorData.error ? '\nDetails: ' + errorData.error : ''))
+              return
+            }
+            const data = await tokenRes.json()
+            localStorage.setItem('authToken', data.token)
+            localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+            localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+            const destination = data.shopkeeper?.isOnboarded ? '/shopkeeper/dashboard' : '/shopkeeper/onboarding/profile-setup'
+            router.push(destination)
+          } catch (authErr) {
+            console.error('Google auth response failed:', authErr)
+            alert('Google authentication failed')
+          } finally {
+            setGoogleLoading(false)
+          }
+        },
+      })
+
+      const container = document.getElementById('google-signin-button')
+      window.google.accounts.id.renderButton(
+        container,
+        {
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular',
+          width: container ? Math.min(container.offsetWidth, 400) : 360,
+        }
+      )
+    }
+
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      initializeGoogle()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = initializeGoogle
+    document.head.appendChild(script)
+    return () => {
+      if (document.head.contains(script)) {
+        document.head.removeChild(script)
+      }
+    }
+  }, [router])
 
   return (
     <div className="wave-bg min-h-screen relative">
@@ -163,6 +235,10 @@ export default function ShopkeeperRegisterPage() {
               >
                 Register
               </button>
+
+              <div className="w-full flex justify-center mt-3">
+                <div id="google-signin-button" className="w-full max-w-[380px]"></div>
+              </div>
             </form>
 
             <p className="text-center text-gray-600 mt-6">

@@ -13,7 +13,11 @@ import {
 import {
   getLoggedInShopkeeper,
   getProfile,
+  getContact,
+  getPricing,
   isOnboardingComplete,
+  isProfileSetupComplete,
+  syncLocalStorageFromDb,
 } from './_components/onboardingStorage'
 
 function SidebarNavLink({ href, active, icon: Icon, children }) {
@@ -86,25 +90,83 @@ export default function OnboardingLayout({ children }) {
   const router = useRouter()
   const pathname = usePathname()
   const [shopName, setShopName] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const token = localStorage.getItem('authToken')
     const loggedIn = getLoggedInShopkeeper()
-    if (!loggedIn) {
+    if (!token || !loggedIn) {
       router.replace('/shopkeeper/login')
       return
     }
 
-    if (isOnboardingComplete(loggedIn)) {
-      router.replace('/shopkeeper/dashboard')
-      return
+    const checkOnboardingStatus = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (response.ok) {
+          const shopkeeper = await response.json()
+          localStorage.setItem('loggedInShopkeeper', JSON.stringify(shopkeeper))
+          localStorage.setItem('shopkeeper', JSON.stringify(shopkeeper))
+          setShopName(shopkeeper.shopName || '')
+          
+          if (shopkeeper.isOnboarded) {
+            router.replace('/shopkeeper/dashboard')
+            return
+          }
+
+          // Sync database profile properties into localStorage so validation remains in sync
+          syncLocalStorageFromDb(shopkeeper)
+
+          if (pathname?.includes('/shopkeeper/onboarding/pricing-setup')) {
+            if (!shopkeeper.profileCompleted) {
+              router.replace('/shopkeeper/onboarding/profile-setup')
+              return
+            }
+          }
+          setLoading(false)
+          return
+        }
+      } catch (err) {
+        console.warn('Layout onboarding check failed:', err)
+        if (isOnboardingComplete(loggedIn)) {
+          router.replace('/shopkeeper/dashboard')
+          return
+        }
+      }
+
+      const profile = getProfile()
+      const contact = getContact()
+
+      if (pathname?.includes('/shopkeeper/onboarding/pricing-setup')) {
+        if (!isProfileSetupComplete(profile, contact)) {
+          router.replace('/shopkeeper/onboarding/profile-setup')
+          return
+        }
+      }
+      setLoading(false)
     }
 
-    const profile = getProfile()
-    setShopName(profile.shopName || loggedIn.shopName || '')
-  }, [router])
+    checkOnboardingStatus()
+  }, [router, pathname])
 
   const isProfile = pathname?.includes('/shopkeeper/onboarding/profile-setup')
   const isPricing = pathname?.includes('/shopkeeper/onboarding/pricing-setup')
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />
+          <span className="text-sm font-semibold text-slate-600 font-sans">Loading onboarding...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
+  ArrowLeft,
   Bell,
   BookOpen,
   ChevronDown,
@@ -160,6 +162,14 @@ function TopHeader({ shopName }) {
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition mr-1"
+              aria-label="Back"
+            >
+              <ArrowLeft size={16} />
+            </button>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
               <Store size={18} />
             </span>
@@ -327,6 +337,7 @@ function QualityOption({ title, description, selected, onSelect }) {
 }
 
 export default function PrintersSupportPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [shopName, setShopName] = useState('Shree Ganesh Xerox & Prints')
   const [selectedQuality, setSelectedQuality] = useState('standard')
@@ -355,7 +366,7 @@ export default function PrintersSupportPage() {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
                 <Settings2 size={16} />
               </span>
-              <h2 className="text-base font-bold text-slate-900">Settings</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('Settings')}</h2>
             </div>
 
             <nav className="space-y-2 p-3">
@@ -364,8 +375,8 @@ export default function PrintersSupportPage() {
                   key={item.label}
                   href={item.href}
                   icon={item.icon}
-                  label={item.label}
-                  description={item.description}
+                  label={t(item.label)}
+                  description={t(item.description)}
                   active={item.active}
                 />
               ))}
@@ -378,9 +389,9 @@ export default function PrintersSupportPage() {
                     <Headphones size={18} />
                   </span>
                   <div>
-                    <div className="text-sm font-semibold text-slate-800">Need Help?</div>
+                    <div className="text-sm font-semibold text-slate-800">{t('Need Help?')}</div>
                     <div className="mt-1 text-xs leading-5 text-slate-500">
-                      We&apos;re here to help you set up your shop/hardware.
+                      {t('We\'re here to help you set up your shop/hardware.')}
                     </div>
                   </div>
                 </div>
@@ -390,7 +401,7 @@ export default function PrintersSupportPage() {
                   onClick={() => router.push('/shopkeeper/support')}
                   className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
                 >
-                  Get Support
+                  {t('Get Support')}
                 </button>
               </div>
             </div>
@@ -399,22 +410,22 @@ export default function PrintersSupportPage() {
           <section className="space-y-6">
             <div>
               <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-                Printers &amp; Support
+                {t('Hardware & Printer')}
               </h1>
               <p className="mt-2 text-sm text-slate-500">
-                Manage your printers, print queue and get support when you need it.
+                {t('Manage your printers, print queue and get support when you need it.')}
               </p>
             </div>
 
             <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
-                <h2 className="text-base font-bold text-slate-900">Connected Printers</h2>
+                <h2 className="text-base font-bold text-slate-900">{t('Connected Printers')}</h2>
                 <button
                   type="button"
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   <Plus size={16} />
-                  Add Printer
+                  {t('Add Printer')}
                 </button>
               </div>
 
@@ -489,41 +500,41 @@ export default function PrintersSupportPage() {
             <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">Print Queue Control</h2>
-                  <p className="mt-1 text-sm text-slate-500">Manage current print queue and workflow</p>
+                  <h2 className="text-base font-bold text-slate-900">{t('Print Queue Control')}</h2>
+                  <p className="mt-1 text-sm text-slate-500">{t('Manage current print queue and workflow')}</p>
                 </div>
                 <button
                   type="button"
                   className="inline-flex items-center gap-2 rounded-xl bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
                 >
-                  Open Print Queue
+                  {t('Open Print Queue')}
                   <span aria-hidden="true">→</span>
                 </button>
               </div>
 
               <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4 sm:p-6">
                 {queueCards.map((item) => (
-                  <QueueCard key={item.label} item={item} />
+                  <QueueCard key={item.label} item={{...item, label: t(item.label)}} />
                 ))}
               </div>
             </section>
 
             <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
-                <h2 className="text-base font-bold text-slate-900">Print Quality</h2>
-                <p className="mt-1 text-sm text-slate-500">Choose your default print quality</p>
+                <h2 className="text-base font-bold text-slate-900">{t('Print Quality')}</h2>
+                <p className="mt-1 text-sm text-slate-500">{t('Choose your default print quality')}</p>
               </div>
 
               <div className="grid gap-3 p-5 sm:p-6 md:grid-cols-2">
                 <QualityOption
-                  title="Standard Quality"
-                  description="Best for everyday printing"
+                  title={t('Standard Quality')}
+                  description={t('Best for everyday printing')}
                   selected={selectedQuality === 'standard'}
                   onSelect={() => setSelectedQuality('standard')}
                 />
                 <QualityOption
-                  title="High Quality"
-                  description="Best for photos and important documents"
+                  title={t('High Quality')}
+                  description={t('Best for photos and important documents')}
                   selected={selectedQuality === 'high'}
                   onSelect={() => setSelectedQuality('high')}
                 />
@@ -532,8 +543,8 @@ export default function PrintersSupportPage() {
 
             <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
-                <h2 className="text-base font-bold text-slate-900">Support &amp; Help</h2>
-                <p className="mt-1 text-sm text-slate-500">We&apos;re here to help you 24/7</p>
+                <h2 className="text-base font-bold text-slate-900">{t('Support & Help')}</h2>
+                <p className="mt-1 text-sm text-slate-500">{t('We\'re here to help you 24/7')}</p>
               </div>
 
               <div className="grid gap-3 p-5 sm:p-6 sm:grid-cols-2 xl:grid-cols-4">

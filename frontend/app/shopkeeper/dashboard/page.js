@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isOnboardingComplete, syncLocalStorageFromDb } from "../onboarding/_components/onboardingStorage";
+import {
+  isOnboardingComplete,
+  syncLocalStorageFromDb,
+  getProfile,
+  getContact,
+  getPricing,
+  isProfileSetupComplete,
+  isPricingSetupComplete,
+} from "../onboarding/_components/onboardingStorage";
 import DashboardHeader from "./_components/DashboardHeader";
 import WelcomeBar from "./_components/WelcomeBar";
 import StatsRow from "./_components/StatsRow";
@@ -95,48 +103,80 @@ export default function ShopkeeperDashboard() {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
     const loggedIn = localStorage.getItem("loggedInShopkeeper");
-    if (!loggedIn) {
+    if (!token || !loggedIn) {
       router.replace("/shopkeeper/login");
       return;
     }
 
-    let account = null;
-    try {
-      account = JSON.parse(localStorage.getItem("shopkeeper") || "null");
-    } catch {
-      account = null;
-    }
-
-    if (account) {
-      syncLocalStorageFromDb(account);
-    }
-
-    if (!isOnboardingComplete(account || undefined)) {
-      router.replace("/shopkeeper/onboarding/profile-setup");
-      return;
-    }
-
-    try {
-      const profile = JSON.parse(localStorage.getItem("shopkeeperProfile") || "{}");
-      const derivedName =
-        profile.shopName ||
-        (() => {
-          try {
-            const logged = JSON.parse(loggedIn || "{}");
-            return logged.shopName || logged.name || "";
-          } catch {
-            return "";
+    const checkOnboardingStatus = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        const response = await fetch(`${apiUrl}/api/auth/profile`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
           }
-        })();
-      setShopName(derivedName);
-      setShopkeeperIdCode(profile.shopSlug || "");
-    } catch {
-      setShopName("");
-      setShopkeeperIdCode("");
-    }
+        });
+        if (response.ok) {
+          const shopkeeper = await response.json();
+          // Sync database state to local storage
+          localStorage.setItem("loggedInShopkeeper", JSON.stringify(shopkeeper));
+          localStorage.setItem("shopkeeper", JSON.stringify(shopkeeper));
+          syncLocalStorageFromDb(shopkeeper);
 
-    fetchOrders();
+          if (!shopkeeper.isOnboarded) {
+            if (!shopkeeper.profileCompleted) {
+              router.replace("/shopkeeper/onboarding/profile-setup");
+            } else {
+              router.replace("/shopkeeper/onboarding/pricing-setup");
+            }
+            return;
+          }
+          // Onboarded - proceed
+          setShopName(shopkeeper.shopName || "");
+          setShopkeeperIdCode(shopkeeper.shopSlug || "");
+          fetchOrders();
+        } else {
+          // If profile fetch fails (e.g. invalid token), redirect to login
+          router.replace("/shopkeeper/login");
+        }
+      } catch (err) {
+        console.warn("Database onboarding check failed, using fallback:", err);
+        // Fallback to local storage checks
+        let account = null;
+        try {
+          account = JSON.parse(localStorage.getItem("shopkeeper") || "null");
+        } catch {
+          account = null;
+        }
+
+        const profile = getProfile();
+        const contact = getContact();
+        const pricing = getPricing();
+
+        if (!isProfileSetupComplete(profile, contact)) {
+          router.replace("/shopkeeper/onboarding/profile-setup");
+          return;
+        }
+
+        if (!isPricingSetupComplete(pricing)) {
+          router.replace("/shopkeeper/onboarding/pricing-setup");
+          return;
+        }
+
+        if (!isOnboardingComplete(account || undefined)) {
+          router.replace("/shopkeeper/onboarding/profile-setup");
+          return;
+        }
+
+        setShopName(profile.shopName || "");
+        setShopkeeperIdCode(profile.shopSlug || "");
+        fetchOrders();
+      }
+    };
+
+    checkOnboardingStatus();
   }, [router]);
 
   const displayedOrders =

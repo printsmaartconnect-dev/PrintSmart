@@ -582,6 +582,7 @@ export default function DashboardHeader({ shopName }) {
 **Exports:**
 - `NotificationButton`: Reads-only bell icon with indicator
 - `ProfileDropdown`: Shows shop info; can be extended for dropdown menu
+- `LogoutButton`: Clears session tokens from localStorage and redirects to `/shopkeeper/login`
 - `default` (DashboardHeader): Main component
 
 ---
@@ -3485,6 +3486,7 @@ All shopkeeper-specific dashboards and settings endpoints require a valid JSON W
 |---|---|---|---|---|
 | `/api/auth/register` | `POST` | None | `{ email, phone, password, shopName, shopSlug }` | `{ token, shopkeeper: { id, email, ... } }` |
 | `/api/auth/login` | `POST` | None | `{ email, password }` | `{ token, shopkeeper: { id, email, ... } }` |
+| `/api/auth/google` | `POST` | None | `{ credential }` | `{ token, shopkeeper: { id, email, phone, shopName, ownerName, ... } }` (Google OAuth sign-in/up) |
 | `/api/auth/profile` | `GET` | JWT token | None | `{ id, email, phone, shopName, pricing, ... }` |
 | `/api/auth/profile` | `PUT` | JWT token | `{ shopName, address, phone, gstNumber, pricing, ... }` | `{ message: "Profile updated", shopkeeper }` |
 | `/api/shopkeeper/by-slug/:slug` | `GET` | None | None | `{ id, shopName, address, phone, pricing, ... }` |
@@ -3563,19 +3565,26 @@ Manages the ordering workflow.
 7. **Order Placed**: Customer views the backend-generated order ID, estimated wait time, and print details. History is accessible via `/customer/orders` with options to cancel pending orders or download invoices from `/api/orders/:id/invoice`.
 
 ### 2. Shopkeeper Dashboard Actions
-1. **Onboarding & Authentication**: Shopkeepers log in or register via `/api/auth/login` or `/api/auth/register`, receiving a JWT. They customize profile details and pricing parameters synced via `PUT /api/auth/profile`.
-2. **Order Management**: Shopkeeper dashboard fetches `/api/orders/shopkeeper/all` to render order grids. Changing order statuses to `Printing` or `Completed` updates the backend and active queues instantly.
-3. **Real-time Queue & Print**: Shopkeeper updates items to `Completed` which calls the browser's printing service, downloads the invoice, and updates statistics.
-4. **Analytics**: The statistics dashboard pulls details from `/api/statistics/:shopkeeperId` to render charts and summaries.
+1. **Authentication & Session Lifecycle**:
+   - Shopkeepers log in or register via `/api/auth/login`, `/api/auth/register`, or Google OAuth (`/api/auth/google`), receiving a JWT.
+   - The login page does NOT automatically bypass/redirect to the dashboard if a token exists. This allows multiple shopkeepers to log in or switch accounts on the same machine.
+   - Shopkeepers can clear their session and log out using the **Logout** button in the dashboard header, which removes `authToken` and user state from `localStorage` and routes back to `/shopkeeper/login`.
+2. **Onboarding & Setup**:
+   - New shopkeepers complete step-by-step onboarding (Profile Setup and Pricing Setup) which saves configuration details in the database via `PUT /api/auth/profile`.
+   - Onboarding profile updates preserve pricing details, and pricing configurations preserve profile details, preventing accidental nullification.
+   - Profile detail rendering uses standard `<img>` tags for logos to support base64 images, relative paths, and unconfigured dynamic URLs without Next.js domain/hostname optimization crashes.
+3. **Order Management**: Shopkeeper dashboard fetches `/api/orders/shopkeeper/all` to render order grids. Changing order statuses to `Printing` or `Completed` updates the backend and active queues instantly.
+4. **Real-time Queue & Print**: Shopkeeper updates items to `Completed` which calls the browser's printing service, downloads the invoice, and updates statistics.
+5. **Analytics**: The statistics dashboard pulls details from `/api/statistics/:shopkeeperId` to render charts and summaries.
 
 ---
 
 ## Document Version
 
-- **Version:** 2.0.0
-- **Last Updated:** May 26, 2026
+- **Version:** 2.4.0
+- **Last Updated:** May 27, 2026
 - **Author:** Antigravity AI
-- **Status:** Complete (Fully synchronized with backend models, API routes, controller logic, PDF invoice generation, queue wait time algorithms, analytics statistics, and user workflow paths)
+- **Status:** Complete (Fully synchronized with backend models, API routes, controller logic, PDF invoice generation, queue wait time algorithms, analytics statistics, user workflow paths, resolved auth controller syntax errors, login/logout session flow improvements, image rendering safety fixes, completed Google OAuth audience verification, automated QR Code generation for Google sign-ups, restored backend registration success response block to fix registration hang, and completed localization and dynamic multi-language translation across all settings subpages).
 
 ---
 
@@ -3584,84 +3593,4 @@ Manages the ordering workflow.
 For questions or updates, please contact the development team or create a GitHub issue.
 
 ---
- single order. Securable using JWT.
-- **Headers**: `Authorization: Bearer JWT_TOKEN`
-- **Request Body**:
-  ```json
-  {
-    "status": "Completed"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "message": "Order status updated successfully",
-    "order": {
-      "id": "order-uuid",
-      "status": "Completed",
-      "queue": {
-        "status": "Done"
-      }
-    }
-  }
-  ```
 
-#### `GET /api/orders/user/:userId`
-Retrieves all order history for the specified customer user ID in descending chronological order.
-- **Response**: List of orders, including files, configuration, and invoice details.
-
-#### `DELETE /api/orders/:id`
-Cancels and deletes a pending order from the database.
-- **Response**: `{ "message": "Order deleted successfully" }`
-
-#### `GET /api/orders/:id/invoice`
-Downloads a professionally formatted PDF invoice for the order.
-- **Response**: Binary PDF file.
-
-#### `GET /api/shopkeeper/by-slug/:slug`
-Retrieves shop details and pricing configurations for the scanned QR shopkeeper slug.
-- **Response**: Shop details JSON.
-
-#### `POST /api/users/create`
-Creates or updates a user profile with name, email, phone, and language preference.
-- **Response**: User details JSON.
-
----
-
-## Frontend -> Backend Integration Explanation
-
-We have fully integrated the Next.js frontend with PostgreSQL via Express REST APIs:
-
-1. **Authentication & Onboarding**:
-   - Onboarding profile data (shop details, pricing, social links) is synced directly to the PostgreSQL database via `PUT /api/auth/profile`.
-   - Slugs and QR Codes are generated in the backend on registration/onboarding and persist in the database.
-2. **File Upload**:
-   - `upload/page.js` supports uploading multiple files, generating high-fidelity document thumbnails dynamically (resizing images via canvas, and rendering PDF first pages using PDF.js CDN), and caching them in `localStorage` as Base64 JPEG data URLs to prevent broken previews. Uploads go to `/api/files/upload` (S3/local).
-3. **Ordering & Review**:
-   - Shopkeeper details are fetched from the database by slug on the review page.
-   - Prints are calculated dynamically using the shopkeeper's custom database pricing rates.
-   - Sequential custom Order IDs (format `MMYYP[BW|C][sequence]`) and estimated queue times are generated in the backend upon order creation. Both the Configuration page (`configuration/page.js`) and Order Review page (`review/page.js`) render the document thumbnails, applying a CSS grayscale contrast filter (`grayscale contrast-125`) instantly when the "Black & White" (BW) option is selected.
-4. **My Orders & Tracking**:
-   - Customer orders are fetched dynamically from the database and sorted with recent orders first.
-   - Pending orders show a "Delete Order" button with a confirmation modal.
-   - Professional PDF invoices generated by PDFKit are downloadable directly from the database.
-5. **Shopkeeper Actions**:
-   - Dashboard KPIs (Pending, Completed, Downloaded, Cancelled counts) are computed from real-time database orders.
-   - Slugs and dynamic QR codes are rendered directly from the database on the shop keeper profile page.
-
----
-
-## Document Version
-
-- **Version:** 1.8.0
-- **Last Updated:** May 26, 2026
-- **Author:** Antigravity AI
-- **Status:** Complete (Dynamic client-side PDF/image thumbnail extraction, localStorage caching, instant grayscale B&W toggles, kiosk-style print configuration preview, premium fallback previews for Word documents, and unified high-contrast file preview sections added)
-
----
-
-**End of Documentation**
-
-For questions or updates, please contact the development team or create a GitHub issue.
-
----
