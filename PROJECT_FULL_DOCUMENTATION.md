@@ -3208,6 +3208,16 @@ The backend of PrintSmart is built using a modern Node.js and Express.js stack, 
 - **Document Generation**: PDFKit for server-side generation of professional, itemized PDF invoices.
 - **Utilities**: `qrcode` (for QR code generation), `bcryptjs` (for password hashing), `jsonwebtoken` (for authentication), and `multer` (for handling multipart file uploads).
 
+### File Storage & S3 Fallback Architecture
+For managing documents in a scalable SaaS structure, PrintSmart integrates **AWS S3 Bucket** cloud storage.
+- **Phase 1 Implementation:** Customer-uploaded files are uploaded to AWS S3. Unrelated resources (QR codes, invoices, shop logos, thumbnails) remain stored locally.
+- **Scalable SaaS Key Structure:** Uploaded documents are saved under a key structured as: `orders/{orderId}/{uuid_filename}.ext` (or `orders/temp/{uuid_filename}.ext` during initial upload before order placement).
+- **Graceful Local Fallback:** The backend checks for AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `AWS_S3_BUCKET`). If these keys are missing or S3 upload fails, the files are automatically written to the local fallback directory `backend/uploads/orders/` and served statically.
+- **File Type & Security Validation:** The file controller actively validates uploaded files:
+  - **Allowed Formats:** `.pdf`, `.doc`, `.docx`, `.jpg`, `.jpeg`, `.png` (mimetypes verified).
+  - **Explicit Blocklist:** Executable extensions (like `.exe`, `.bat`, `.apk`, `.sh`) are rejected with 400 Bad Request to prevent security vulnerabilities.
+  - **Size Limit:** Max file upload size is capped at 50MB.
+
 ### Programmatic DB Push and Generation
 On server startup (`server.js`), the application programmatically synchronizes the database schema and builds the Prisma client:
 ```javascript
@@ -3506,7 +3516,7 @@ Used to handle physical document transfers.
 
 | Route | Method | Content-Type | Request Body | Success Response |
 |---|---|---|---|---|
-| `/api/files/upload` | `POST` | `multipart/form-data` | Form field `file` containing PDF/Image | `{ message: "File uploaded", fileName, fileUrl, fileKey, sizeBytes, mimeType }` |
+| `/api/files/upload` | `POST` | `multipart/form-data` | Form field `file` containing PDF/Image | `{ message: "File uploaded successfully", fileName, fileUrl, fileKey, storageType, sizeBytes, mimeType }` |
 
 ### 4. Orders
 Manages the ordering workflow.
@@ -3585,10 +3595,10 @@ Manages the ordering workflow.
  
  ## Document Version
  
- - **Version:** 2.5.0
- - **Last Updated:** May 27, 2026
+ - **Version:** 2.6.0
+ - **Last Updated:** May 28, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, controller logic, PDF invoice generation, queue wait time algorithms, analytics statistics, user workflow paths, resolved auth controller syntax errors, login/logout session flow improvements, image rendering safety fixes, completed Google OAuth audience verification, automated QR Code generation for Google sign-ups, restored backend registration success response block to fix registration hang, dynamic multi-language translation, customer choice configuration flow toggles, premium shopkeeper dashboard layout toggles, dynamic database statistic reflections, and backend downloaded status validation mapping).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing).
  
  ---
  
