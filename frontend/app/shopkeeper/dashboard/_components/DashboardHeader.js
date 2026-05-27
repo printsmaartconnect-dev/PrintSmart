@@ -49,7 +49,7 @@ export default function DashboardHeader({ shopName }) {
   return (
     <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60">
       <div className="px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex items-center justify-between">
+        <div className="relative flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
               <Store size={18} />
@@ -57,6 +57,17 @@ export default function DashboardHeader({ shopName }) {
             <div className="text-lg font-extrabold tracking-tight">
               <span className="text-slate-900">PrintSmart</span>
               <span className="text-violet-600"></span>
+            </div>
+          </div>
+
+          <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 sm:block">
+            <div className="relative overflow-hidden rounded-full border border-violet-100/80 bg-white/75 px-5 py-2.5 shadow-sm shadow-violet-100 backdrop-blur-md transition-all duration-500 hover:-translate-y-0.5 hover:shadow-md">
+              <span className="absolute inset-0 bg-gradient-to-r from-violet-50 via-indigo-50 to-sky-50 opacity-80" />
+              <span className="absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-gradient-to-br from-violet-500 to-sky-500 opacity-90 shadow-[0_0_14px_rgba(99,102,241,0.35)] animate-pulse" />
+              <span className="absolute right-3 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-sky-400/80" />
+              <span className="relative z-10 block px-3 text-sm font-extrabold uppercase tracking-[0.34em] text-transparent bg-gradient-to-r from-violet-700 via-indigo-600 to-sky-600 bg-clip-text">
+                Dashboard
+              </span>
             </div>
           </div>
 

@@ -7,6 +7,7 @@ import {
   Crown,
   Download,
   FileText,
+  Sparkles,
   Settings,
   Ticket,
   User,
@@ -23,6 +24,7 @@ const iconMap = {
   downloaded: Download,
   cancelled: XCircle,
   coupon: Ticket,
+  printsmartAi: Sparkles,
 }
 
 const filterItems = new Set(['pending', 'completed', 'downloaded', 'cancelled'])
@@ -31,15 +33,23 @@ function DockItem({ item, activeFilter, onFilterChange }) {
   const Icon = iconMap[item.key] || User
   const isFilterItem = filterItems.has(item.key)
   const isActive = isFilterItem && activeFilter === item.label
+  const isAiItem = item.key === 'printsmartAi'
 
   const content = (
     <>
       <span
         className={`relative flex h-10 w-10 items-center justify-center rounded-2xl border shadow-sm transition ${
-          isActive ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-violet-700'
+          isAiItem
+            ? 'rounded-full border-purple-200 bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.6)]'
+            : isActive
+              ? 'border-violet-200 bg-violet-50 text-violet-700'
+              : 'border-slate-200 bg-white text-violet-700'
         }`}
       >
-        <Icon size={18} className={isActive ? 'text-violet-700' : 'text-violet-700'} />
+        {isAiItem ? (
+          <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-fuchsia-200 animate-ping" />
+        ) : null}
+        <Icon size={18} className={isAiItem ? 'text-white' : 'text-violet-700'} />
         {item.badge ? (
           <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm">
             {item.badge}

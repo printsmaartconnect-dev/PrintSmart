@@ -115,4 +115,5 @@ export const bottomDockItems = [
   { key: 'downloaded', label: 'Downloaded', badge: '36' },
   { key: 'cancelled', label: 'Cancelled', badge: '08' },
   { key: 'coupon', label: 'Coupon Check', badge: null },
+  { key: 'printsmartAi', label: 'PrintSmart AI', badge: null, href: '/shopkeeper/printsmart-ai' },
 ]

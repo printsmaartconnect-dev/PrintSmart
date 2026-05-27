@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   Download,
   Eye,
@@ -102,6 +103,8 @@ function ActionButton({ tone, icon: Icon, label, onClick }) {
 }
 
 export default function OrderCard({ order, onStatusChange }) {
+  const [comment, setComment] = useState('')
+
   const handlePreview = () => {
     if (order.fileUrl) {
       window.open(order.fileUrl, '_blank')
@@ -162,6 +165,16 @@ export default function OrderCard({ order, onStatusChange }) {
       </div>
 
       {order.variant === 'talk' ? <CustomerWantsToTalk /> : <DetailGrid order={order} />}
+
+      <div className="mt-4">
+        <input
+          type="text"
+          value={comment}
+          onChange={(event) => setComment(event.target.value)}
+          placeholder="Customer Comment... (Optional)"
+          className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+        />
+      </div>
 
       <div className="mt-4 text-xs font-semibold text-slate-500">{order.timestamp}</div>
 
