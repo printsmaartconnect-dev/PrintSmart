@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
+  ArrowLeft,
   Bell,
   Globe2,
   Languages,
@@ -16,6 +18,12 @@ import {
   Crown,
   SquareUserRound,
 } from 'lucide-react'
+
+import {
+  getProfile,
+  getContact,
+  getSocials,
+} from '../../onboarding/_components/onboardingStorage'
 
 const sidebarItems = [
   {
@@ -232,22 +240,136 @@ function PreviewCard() {
   )
 }
 
+const LANG_MAP = {
+  'English': 'en',
+  'हिंदी': 'hi',
+  'मराठी': 'mr',
+  'en': 'English',
+  'hi': 'हिंदी',
+  'mr': 'मराठी'
+}
+
 export default function LanguageAccessibilityPage() {
   const router = useRouter()
+  const { t, i18n } = useTranslation()
   const [shopName, setShopName] = useState('Shree Ganesh Xerox & Prints')
   const [autoDetect, setAutoDetect] = useState(true)
   const [appLanguage, setAppLanguage] = useState('English')
 
+  const updateLanguageInDb = async (language) => {
+    try {
+      const code = LANG_MAP[language] || 'en'
+      localStorage.setItem('customerLanguage', code)
+      i18n.changeLanguage(code)
+
+      const token = localStorage.getItem('authToken')
+      if (!token) return
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const activeProfile = getProfile()
+      const activeContact = getContact()
+      const activeSocials = getSocials()
+
+      const response = await fetch(`${apiUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          shopName: activeProfile.shopName,
+          ownerName: activeProfile.shopOwnerName,
+          address: activeContact.shopAddress,
+          category: activeProfile.businessCategory,
+          subCategory: activeProfile.subCategory,
+          languagePref: language,
+          gstNumber: activeProfile.gstNumber,
+          businessDescription: activeProfile.businessDescription,
+          businessEstablishedYear: activeProfile.businessEstablishedYear,
+          website: activeContact.website,
+          alternatePhone: activeContact.alternatePhone,
+          socials: activeSocials,
+          pricing: localStorage.getItem('shopkeeperPricing') ? JSON.parse(localStorage.getItem('shopkeeperPricing')) : undefined,
+          logoUrl: activeProfile.logoDataUrl || activeProfile.logoUrl || null,
+          phone: activeContact.phoneNumber,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+        localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+        
+        const updatedProfile = { ...activeProfile, languagePreference: language }
+        localStorage.setItem('shopkeeperProfile', JSON.stringify(updatedProfile))
+      }
+    } catch (err) {
+      console.error('Failed to sync language preference with backend:', err)
+    }
+  }
+
+  const detectBrowserLanguage = () => {
+    if (typeof window === 'undefined') return
+    const browserLang = navigator.language || navigator.userLanguage || ''
+    const langCode = browserLang.split('-')[0].toLowerCase()
+
+    let detected = 'English'
+    if (langCode === 'hi') {
+      detected = 'हिंदी'
+    } else if (langCode === 'mr') {
+      detected = 'मराठी'
+    }
+
+    setAppLanguage(detected)
+    localStorage.setItem('shopkeeperLanguage', detected)
+    
+    const code = LANG_MAP[detected] || 'en'
+    localStorage.setItem('customerLanguage', code)
+    i18n.changeLanguage(code)
+
+    updateLanguageInDb(detected)
+  }
+
+  const handleToggleAutoDetect = (value) => {
+    setAutoDetect(value)
+    localStorage.setItem('shopkeeperAutoLanguage', String(value))
+    if (value) {
+      detectBrowserLanguage()
+    }
+  }
+
+  const handleLanguageChange = (value) => {
+    setAppLanguage(value)
+    localStorage.setItem('shopkeeperLanguage', value)
+    setAutoDetect(false)
+    localStorage.setItem('shopkeeperAutoLanguage', 'false')
+    updateLanguageInDb(value)
+  }
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('loggedInShopkeeper')
-      if (!raw) return
-      const parsed = JSON.parse(raw)
-      if (parsed?.shopName) setShopName(String(parsed.shopName))
-      else if (parsed?.shop) setShopName(String(parsed.shop))
-      else if (parsed?.name) setShopName(String(parsed.name))
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed?.shopName) setShopName(String(parsed.shopName))
+        else if (parsed?.shop) setShopName(String(parsed.shop))
+        else if (parsed?.name) setShopName(String(parsed.name))
+      }
     } catch {
       // ignore invalid localStorage
+    }
+
+    const storedAuto = localStorage.getItem('shopkeeperAutoLanguage')
+    const initialAuto = storedAuto !== 'false'
+    setAutoDetect(initialAuto)
+
+    const storedLang = localStorage.getItem('shopkeeperLanguage')
+    if (storedLang) {
+      setAppLanguage(storedLang)
+      const code = LANG_MAP[storedLang] || 'en'
+      i18n.changeLanguage(code)
+    } else if (initialAuto) {
+      detectBrowserLanguage()
     }
   }, [])
 
@@ -260,7 +382,7 @@ export default function LanguageAccessibilityPage() {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
                 <Settings2 size={16} />
               </span>
-              <h2 className="text-[18px] font-bold text-slate-900">Settings</h2>
+              <h2 className="text-[18px] font-bold text-slate-900">{t('Settings')}</h2>
             </div>
 
             <nav className="space-y-2 p-3">
@@ -269,8 +391,8 @@ export default function LanguageAccessibilityPage() {
                   key={item.label}
                   href={item.href}
                   icon={item.icon}
-                  label={item.label}
-                  description={item.description}
+                  label={t(item.label)}
+                  description={t(item.description)}
                   active={item.active}
                 />
               ))}
@@ -283,26 +405,35 @@ export default function LanguageAccessibilityPage() {
 
           <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="min-w-0 space-y-6">
-              <div>
-                <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">Language &amp; Accessibility</h1>
-                <p className="mt-2 text-sm text-slate-500">
-                  Choose your preferred language and accessibility options for a better experience.
-                </p>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/shopkeeper/dashboard"
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition flex-shrink-0"
+                  aria-label="Back to Dashboard"
+                >
+                  <ArrowLeft size={18} />
+                </Link>
+                <div>
+                  <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">{t('Language & Accessibility')}</h1>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {t('Choose your preferred language and accessibility options for a better experience.')}
+                  </p>
+                </div>
               </div>
 
               <section className="rounded-[28px] border border-slate-200 bg-white px-6 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)] sm:px-7">
-                <h2 className="text-lg font-bold text-slate-900">Language Settings</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t('Language Settings')}</h2>
 
                 <div className="mt-4 divide-y divide-slate-100">
                   <SettingsRow
                     icon={Globe2}
-                    title="App Language"
-                    description="Select your preferred language for the platform"
+                    title={t('App Language')}
+                    description={t('Select your preferred language for the platform')}
                   >
                     <div className="flex justify-end">
                       <select
                         value={appLanguage}
-                        onChange={(event) => setAppLanguage(event.target.value)}
+                        onChange={(event) => handleLanguageChange(event.target.value)}
                         className="h-11 w-full max-w-[140px] rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 shadow-sm outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-100"
                       >
                         <option>English</option>
@@ -314,19 +445,19 @@ export default function LanguageAccessibilityPage() {
 
                   <SettingsRow
                     icon={SquareUserRound}
-                    title="Auto Language Detection"
-                    description="Automatically detect and set language based on device"
+                    title={t('Auto Language Detection')}
+                    description={t('Automatically detect and set language based on device')}
                   >
                     <div className="flex justify-end">
-                      <ToggleSwitch enabled={autoDetect} onToggle={() => setAutoDetect((value) => !value)} />
+                      <ToggleSwitch enabled={autoDetect} onToggle={() => handleToggleAutoDetect(!autoDetect)} />
                     </div>
                   </SettingsRow>
 
                   <div className="flex flex-col gap-4 py-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="max-w-[330px]">
-                      <div className="text-sm font-semibold text-slate-900">Supported Languages</div>
+                      <div className="text-sm font-semibold text-slate-900">{t('Supported Languages')}</div>
                       <div className="mt-1 text-xs leading-5 text-slate-500">
-                        Application will be available in the following languages
+                        {t('Application will be available in the following languages')}
                       </div>
                     </div>
 
@@ -352,9 +483,9 @@ export default function LanguageAccessibilityPage() {
 
             <aside className="min-w-0 xl:pt-[46px]">
               <div className="rounded-[28px] border border-slate-200 bg-gradient-to-b from-violet-50 via-white to-white px-5 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
-                <div className="text-sm font-bold text-violet-700">Preview</div>
+                <div className="text-sm font-bold text-violet-700">{t('Preview')}</div>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  This is how the platform will look with your selected settings.
+                  {t('This is how the platform will look with your selected settings.')}
                 </p>
 
                 <div className="mt-5 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
@@ -366,7 +497,7 @@ export default function LanguageAccessibilityPage() {
                     <Sparkles size={14} />
                   </span>
                   <span className="leading-6">
-                    Changes will be applied instantly across the platform.
+                    {t('Changes will be applied instantly across the platform.')}
                   </span>
                 </div>
               </div>

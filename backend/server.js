@@ -65,6 +65,17 @@ app.use((err, req, res, next) => {
 app.listen(PORT, async () => {
   console.log(`PrintSmart backend running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`);
   
+  // DNS Diagnostics
+  try {
+    const dns = require('dns');
+    dns.lookup('db.hqlnmdtsdmehfsfjtucd.supabase.co', (err, address, family) => {
+      if (err) console.error('DNS LOOKUP ERROR FOR SUPABASE:', err.message);
+      else console.log(`DNS LOOKUP SUCCESS: IP=${address}, Family=IPv${family}`);
+    });
+  } catch (dnsErr) {
+    console.error('DNS test setup failed:', dnsErr.message);
+  }
+
   // Run db push and prisma generate programmatically to keep schema in sync
   try {
     const { execSync } = require("child_process");
@@ -84,3 +95,4 @@ app.listen(PORT, async () => {
     console.error("Failed to run seed service on startup:", seedErr);
   }
 });
+// Nodemon reload trigger: added client ID to .env

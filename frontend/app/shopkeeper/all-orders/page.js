@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {
+  ArrowLeft,
   BarChart3,
   CalendarDays,
   ChevronDown,
@@ -251,10 +252,19 @@ export default function AllOrdersPage() {
     <div className="min-h-screen bg-[#f6f7fb] text-slate-900">
       <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h1 className="text-[32px] font-extrabold tracking-tight text-slate-900 sm:text-[36px]">
-              Shop Statistics &amp; Analysis
-            </h1>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/shopkeeper/dashboard"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-800 hover:bg-slate-50 transition flex-shrink-0"
+              aria-label="Back to Dashboard"
+            >
+              <ArrowLeft size={18} />
+            </Link>
+            <div>
+              <h1 className="text-[32px] font-extrabold tracking-tight text-slate-900 sm:text-[36px]">
+                Shop Statistics &amp; Analysis
+              </h1>
+            </div>
           </div>
 
           <StatHeaderControls />

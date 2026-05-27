@@ -4,6 +4,39 @@ const prisma = require("../config/db");
 const qrcodeService = require("../services/qrcode.service");
 const qrService = require("../services/qr.service");
 
+const jwtSecret = process.env.JWT_SECRET || "supersecretjwtkeychangeinproduction";
+
+function createAuthResponse(shopkeeper, token) {
+  return {
+    token,
+    shopkeeper: {
+      id: shopkeeper.id,
+      email: shopkeeper.email,
+      phone: shopkeeper.phone,
+      shopName: shopkeeper.shopName,
+      ownerName: shopkeeper.ownerName,
+      address: shopkeeper.address,
+      category: shopkeeper.category,
+      subCategory: shopkeeper.subCategory,
+      languagePref: shopkeeper.languagePref,
+      gstNumber: shopkeeper.gstNumber,
+      businessDescription: shopkeeper.businessDescription,
+      businessEstablishedYear: shopkeeper.businessEstablishedYear,
+      website: shopkeeper.website,
+      alternatePhone: shopkeeper.alternatePhone,
+      socials: shopkeeper.socials,
+      pricing: shopkeeper.pricing,
+      logoUrl: shopkeeper.logoUrl,
+      shopSlug: shopkeeper.shopSlug,
+      qrCodeUrl: shopkeeper.qrCodeUrl,
+      shopkeeperIdCode: shopkeeper.shopkeeperIdCode,
+      isOnboarded: shopkeeper.isOnboarded,
+      profileCompleted: shopkeeper.profileCompleted,
+      pricingCompleted: shopkeeper.pricingCompleted,
+    },
+  };
+}
+
 // Register a shopkeeper
 exports.register = async (req, res) => {
   try {
@@ -71,25 +104,26 @@ exports.register = async (req, res) => {
     // Create token
     const token = jwt.sign(
       { shopkeeper: { id: shopkeeper.id } },
-      process.env.JWT_SECRET || "supersecretjwtkeychangeinproduction",
+      jwtSecret,
       { expiresIn: "7d" }
     );
 
-    res.status(201).json({
-      token,
-      shopkeeper: {
-        id: shopkeeper.id,
-        email: shopkeeper.email,
-        phone: shopkeeper.phone,
-        shopName: shopkeeper.shopName,
-        shopSlug,
-        qrCodeUrl,
-        shopkeeperIdCode: shopkeeper.shopkeeperIdCode,
-      },
+    const returnedShopkeeper = await prisma.shopkeeper.findUnique({
+      where: { id: shopkeeper.id },
     });
+
+    res.status(201).json(createAuthResponse(returnedShopkeeper, token));
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error during registration" });
+    try {
+      require("fs").writeFileSync(
+        require("path").join(__dirname, "../registration-error.log"),
+        `Error: ${err.message}\nStack: ${err.stack}\nTime: ${new Date().toISOString()}\n\n`
+      );
+    } catch (fsErr) {
+      console.error("Failed to write registration error to file:", fsErr);
+    }
+    res.status(500).json({ message: `Server error during registration: ${err.message}` });
   }
 };
 
@@ -117,34 +151,13 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Create token
     const token = jwt.sign(
       { shopkeeper: { id: shopkeeper.id } },
-      process.env.JWT_SECRET || "supersecretjwtkeychangeinproduction",
+      jwtSecret,
       { expiresIn: "7d" }
     );
 
-    res.json({
-      token,
-      shopkeeper: {
-        id: shopkeeper.id,
-        email: shopkeeper.email,
-        phone: shopkeeper.phone,
-        shopName: shopkeeper.shopName,
-        ownerName: shopkeeper.ownerName,
-        address: shopkeeper.address,
-        category: shopkeeper.category,
-        subCategory: shopkeeper.subCategory,
-        languagePref: shopkeeper.languagePref,
-        gstNumber: shopkeeper.gstNumber,
-        socials: shopkeeper.socials,
-        pricing: shopkeeper.pricing,
-        logoUrl: shopkeeper.logoUrl,
-        shopSlug: shopkeeper.shopSlug,
-        qrCodeUrl: shopkeeper.qrCodeUrl,
-        shopkeeperIdCode: shopkeeper.shopkeeperIdCode,
-      },
-    });
+    res.json(createAuthResponse(shopkeeper, token));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error during login" });
@@ -167,10 +180,19 @@ exports.getProfile = async (req, res) => {
         subCategory: true,
         languagePref: true,
         gstNumber: true,
+        businessDescription: true,
+        businessEstablishedYear: true,
+        website: true,
+        alternatePhone: true,
         socials: true,
         pricing: true,
         logoUrl: true,
+        shopSlug: true,
+        qrCodeUrl: true,
         shopkeeperIdCode: true,
+        isOnboarded: true,
+        profileCompleted: true,
+        pricingCompleted: true,
       },
     });
 
@@ -185,6 +207,95 @@ exports.getProfile = async (req, res) => {
   }
 };
 
+// Handle Google OAuth sign-in/up for shopkeeper
+exports.googleAuth = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ message: "Missing Google credential" });
+    }
+
+    if (typeof fetch !== "function") {
+      return res.status(500).json({ message: "Server fetch is unavailable" });
+    }
+
+    const tokenInfoRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`
+    );
+
+    if (!tokenInfoRes.ok) {
+      return res.status(401).json({ message: "Invalid Google credential" });
+    }
+
+    const tokenInfo = await tokenInfoRes.json();
+    const email = tokenInfo.email;
+    const name = tokenInfo.name || tokenInfo.email?.split("@")[0];
+    const phone = tokenInfo.phone_number || "";
+
+    // Verify audience to make sure it was issued for this application
+    if (tokenInfo.aud !== process.env.GOOGLE_CLIENT_ID) {
+      console.warn(`Audience mismatch: token aud is ${tokenInfo.aud}, expected ${process.env.GOOGLE_CLIENT_ID}`);
+      return res.status(401).json({ message: "Google token was not issued for this application" });
+    }
+
+    if (!email) {
+      return res.status(400).json({ message: "Google token did not return an email" });
+    }
+
+    let shopkeeper = await prisma.shopkeeper.findUnique({ where: { email } });
+    if (!shopkeeper) {
+      const slugBase = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+      const shopSlug = `${slugBase}-${Math.floor(Math.random() * 10000)}`;
+
+      // Generate a secure, random dummy password to satisfy DB schema requirements
+      const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+      shopkeeper = await prisma.shopkeeper.create({
+        data: {
+          email,
+          phone: phone || "0000000000",
+          password: hashedPassword,
+          shopName: "My Printing Shop",
+          shopSlug,
+          shopkeeperIdCode: shopSlug,
+          ownerName: name,
+        },
+      });
+
+      // Generate QR Code for the new Google OAuth registered shopkeeper
+      try {
+        const qrResult = await qrService.generateShopQr(shopkeeper.id);
+        const updated = await prisma.shopkeeper.update({
+          where: { id: shopkeeper.id },
+          data: {
+            qrCodeUrl: qrResult.qrCodeUrl,
+            qrValue: qrResult.qrValue,
+            qrGeneratedAt: new Date(),
+          },
+        });
+        shopkeeper = updated;
+      } catch (qrErr) {
+        console.error("QR Code generation failed during Google registration:", qrErr);
+      }
+    }
+
+    const token = jwt.sign({ shopkeeper: { id: shopkeeper.id } }, jwtSecret, {
+      expiresIn: "7d",
+    });
+
+    res.json(createAuthResponse(shopkeeper, token));
+  } catch (err) {
+    console.error("Google auth error:", err);
+    res.status(500).json({ 
+      message: "Server error during Google auth",
+      error: err.message,
+      stack: err.stack
+    });
+  }
+};
+
 // Update shopkeeper profile & onboarding data
 exports.updateProfile = async (req, res) => {
   try {
@@ -196,11 +307,25 @@ exports.updateProfile = async (req, res) => {
       subCategory,
       languagePref,
       gstNumber,
+      businessDescription,
+      businessEstablishedYear,
+      website,
+      alternatePhone,
       socials,
       pricing,
       logoUrl,
       phone,
     } = req.body;
+
+    const profileCompleted = Boolean(
+      shopName &&
+      languagePref &&
+      businessDescription &&
+      address &&
+      phone
+    );
+    const pricingCompleted = Boolean(pricing && Object.keys(pricing).length > 0);
+    const isOnboarded = profileCompleted && pricingCompleted;
 
     let updated = await prisma.shopkeeper.update({
       where: { id: req.shopkeeper.id },
@@ -212,10 +337,17 @@ exports.updateProfile = async (req, res) => {
         subCategory: subCategory || undefined,
         languagePref: languagePref || undefined,
         gstNumber: gstNumber || null,
+        businessDescription: businessDescription || null,
+        businessEstablishedYear: businessEstablishedYear || null,
+        website: website || null,
+        alternatePhone: alternatePhone || null,
         socials: socials || undefined,
         pricing: pricing || undefined,
         logoUrl: logoUrl || null,
         phone: phone || undefined,
+        profileCompleted,
+        pricingCompleted,
+        isOnboarded,
       },
     });
 
@@ -229,7 +361,7 @@ exports.updateProfile = async (req, res) => {
             qrCodeUrl: qrResult.qrCodeUrl,
             qrValue: qrResult.qrValue,
             qrGeneratedAt: new Date(),
-          }
+          },
         });
         updated.qrCodeUrl = nextUpdated.qrCodeUrl;
         updated.qrValue = nextUpdated.qrValue;
@@ -240,24 +372,7 @@ exports.updateProfile = async (req, res) => {
 
     res.json({
       message: "Profile updated successfully",
-      shopkeeper: {
-        id: updated.id,
-        email: updated.email,
-        phone: updated.phone,
-        shopName: updated.shopName,
-        ownerName: updated.ownerName,
-        address: updated.address,
-        category: updated.category,
-        subCategory: updated.subCategory,
-        languagePref: updated.languagePref,
-        gstNumber: updated.gstNumber,
-        socials: updated.socials,
-        pricing: updated.pricing,
-        logoUrl: updated.logoUrl,
-        shopSlug: updated.shopSlug,
-        qrCodeUrl: updated.qrCodeUrl,
-        shopkeeperIdCode: updated.shopkeeperIdCode,
-      },
+      shopkeeper: createAuthResponse(updated, null).shopkeeper,
     });
   } catch (err) {
     console.error(err);
