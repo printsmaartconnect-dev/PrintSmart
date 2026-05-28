@@ -251,6 +251,7 @@ export default function ProfileSetupPage() {
       setSocials({ ...socials })
 
       const token = localStorage.getItem('authToken')
+      let success = true
       if (token) {
         try {
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
@@ -282,13 +283,21 @@ export default function ProfileSetupPage() {
             const data = await response.json()
             localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
             localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+          } else {
+            success = false
+            const errData = await response.json().catch(() => ({}))
+            alert(`Failed to save profile: ${errData.message || 'Server error'}`)
           }
         } catch (apiErr) {
+          success = false
           console.warn('Failed to sync profile to backend:', apiErr)
+          alert('Network connection error. Failed to sync profile with database. Please try again.')
         }
       }
 
-      router.push('/shopkeeper/onboarding/pricing-setup')
+      if (success) {
+        router.push('/shopkeeper/onboarding/pricing-setup')
+      }
     } finally {
       setSaving(false)
     }
