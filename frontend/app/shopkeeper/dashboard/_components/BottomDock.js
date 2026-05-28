@@ -49,7 +49,11 @@ function DockItem({ item, activeFilter, onFilterChange }) {
         {isAiItem ? (
           <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-fuchsia-200 animate-ping" />
         ) : null}
-        <Icon size={18} className={isAiItem ? 'text-white' : 'text-violet-700'} />
+        {isAiItem ? (
+          <span className="text-[11px] font-black tracking-tight leading-none uppercase select-none">AI</span>
+        ) : (
+          <Icon size={18} className="text-violet-700" />
+        )}
         {item.badge ? (
           <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm">
             {item.badge}
