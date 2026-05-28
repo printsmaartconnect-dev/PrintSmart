@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Bell, Crown } from 'lucide-react'
+import { Bell, Crown, ArrowLeft } from 'lucide-react'
 
 function LogoMark() {
   return (
@@ -83,7 +83,17 @@ export default function SubscriptionPage() {
       <div className="relative z-10 flex min-h-screen flex-col px-4 py-5 sm:px-6 lg:px-8">
         <header className="mx-auto w-full max-w-[1400px] rounded-2xl border border-white/60 bg-white/55 px-4 py-3 shadow-[0_12px_26px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-5">
           <div className="flex items-center justify-between">
-            <LogoMark />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => window.history.back()}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition mr-1"
+                aria-label="Back"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <LogoMark />
+            </div>
 
             <div className="flex items-center gap-3">
               <NotifyButton />

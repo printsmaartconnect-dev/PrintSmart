@@ -92,9 +92,16 @@ model Shopkeeper {
   subCategory     String?  @default("Xerox & Digital Prints")
   languagePref    String?  @default("English")
   gstNumber       String?
+  businessDescription String?
+  businessEstablishedYear Int?
+  website         String?
+  alternatePhone  String?
   socials         Json?
   pricing         Json?
   logoUrl         String?
+  isOnboarded     Boolean  @default(false)
+  profileCompleted Boolean @default(false)
+  pricingCompleted Boolean @default(false)
 
   // QR Code
   qrCode          String?  @unique

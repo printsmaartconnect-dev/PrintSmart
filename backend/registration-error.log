@@ -1,0 +1,29 @@
+Error: 
+Invalid `prisma.shopkeeper.findUnique()` invocation in
+D:\New folder (4)\PrintSmart\backend\controllers\auth.controller.js:50:46
+
+  47 }
+  48 
+  49 // Check for existing shopkeeper
+→ 50 const existing = await prisma.shopkeeper.findUnique(
+Can't reach database server at `db.hqlnmdtsdmehfsfjtucd.supabase.co:5432`
+
+Please make sure your database server is running at `db.hqlnmdtsdmehfsfjtucd.supabase.co:5432`.
+Stack: PrismaClientInitializationError: 
+Invalid `prisma.shopkeeper.findUnique()` invocation in
+D:\New folder (4)\PrintSmart\backend\controllers\auth.controller.js:50:46
+
+  47 }
+  48 
+  49 // Check for existing shopkeeper
+→ 50 const existing = await prisma.shopkeeper.findUnique(
+Can't reach database server at `db.hqlnmdtsdmehfsfjtucd.supabase.co:5432`
+
+Please make sure your database server is running at `db.hqlnmdtsdmehfsfjtucd.supabase.co:5432`.
+    at $n.handleRequestError (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async exports.register (D:\New folder (4)\PrintSmart\backend\controllers\auth.controller.js:50:22)
+Time: 2026-05-27T08:24:57.849Z
+

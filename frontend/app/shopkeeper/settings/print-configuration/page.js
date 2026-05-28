@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
+  ArrowLeft,
   Bell,
   ChevronDown,
   Languages,
@@ -109,6 +111,14 @@ function TopHeader({ shopName }) {
       <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition mr-1"
+              aria-label="Back"
+            >
+              <ArrowLeft size={16} />
+            </button>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
               <Store size={18} />
             </span>
@@ -161,6 +171,7 @@ function SummaryRow({ label, value }) {
 }
 
 export default function PrintConfigurationSettingsPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [shopName, setShopName] = useState('Shree Ganesh Xerox & Prints')
   const [pricing, setPricingState] = useState(() => getPricing())
@@ -247,17 +258,17 @@ export default function PrintConfigurationSettingsPage() {
           const data = await response.json()
           localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
           localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
-          alert('Print configuration updated successfully!')
+          alert(t('Print configuration updated successfully!'))
         } else {
           console.error('Failed to sync pricing with database')
-          alert('Failed to save changes to the server.')
+          alert(t('Failed to save changes to the server.'))
         }
       }
 
       setPricing({ ...pricing })
     } catch (err) {
       console.error('Failed to update print settings:', err)
-      alert('An error occurred while saving print settings.')
+      alert(t('An error occurred while saving print settings.'))
     } finally {
       setSaving(false)
     }
@@ -275,7 +286,7 @@ export default function PrintConfigurationSettingsPage() {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
                 <Settings2 size={16} />
               </span>
-              <h2 className="text-[18px] font-bold text-slate-900">Settings</h2>
+              <h2 className="text-[18px] font-bold text-slate-900">{t('Settings')}</h2>
             </div>
 
             <nav className="space-y-2 p-3">
@@ -284,8 +295,8 @@ export default function PrintConfigurationSettingsPage() {
                   key={item.label}
                   href={item.href}
                   icon={item.icon}
-                  label={item.label}
-                  description={item.description}
+                  label={t(item.label)}
+                  description={t(item.description)}
                   active={item.active}
                 />
               ))}
@@ -296,23 +307,23 @@ export default function PrintConfigurationSettingsPage() {
           <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="min-w-0 space-y-6">
               <div>
-                <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">Print Configuration</h1>
+                <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">{t('Print Configuration')}</h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  Update your printing prices, extra service charges, and automatic document deletion rules.
+                  {t('Update your printing prices, extra service charges, and automatic document deletion rules.')}
                 </p>
               </div>
 
               {/* pricing settings cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card title="Black & White Printing" icon={Printer}>
+                <Card title={t('Black & White Printing')} icon={Printer}>
                   <div className="space-y-4">
-                    <Field label="A4 (Per Page)">
+                    <Field label={t('A4 (Per Page)')}>
                       <RupeeInput value={pricing.bwA4} onChange={onChange('bwA4')} placeholder="1.00" />
                     </Field>
-                    <Field label="A3 (Per Page)">
+                    <Field label={t('A3 (Per Page)')}>
                       <RupeeInput value={pricing.bwA3} onChange={onChange('bwA3')} placeholder="2.00" />
                     </Field>
-                    <Field label="Double Side (Per Page)">
+                    <Field label={t('Double Side (Per Page)')}>
                       <RupeeInput
                         value={pricing.bwDoubleSide}
                         onChange={onChange('bwDoubleSide')}
@@ -322,15 +333,15 @@ export default function PrintConfigurationSettingsPage() {
                   </div>
                 </Card>
 
-                <Card title="Color Printing" icon={Printer}>
+                <Card title={t('Color Printing')} icon={Printer}>
                   <div className="space-y-4">
-                    <Field label="A4 (Per Page)">
+                    <Field label={t('A4 (Per Page)')}>
                       <RupeeInput value={pricing.colorA4} onChange={onChange('colorA4')} placeholder="5.00" />
                     </Field>
-                    <Field label="A3 (Per Page)">
+                    <Field label={t('A3 (Per Page)')}>
                       <RupeeInput value={pricing.colorA3} onChange={onChange('colorA3')} placeholder="8.00" />
                     </Field>
-                    <Field label="Double Side (Per Page)">
+                    <Field label={t('Double Side (Per Page)')}>
                       <RupeeInput
                         value={pricing.colorDoubleSide}
                         onChange={onChange('colorDoubleSide')}
@@ -341,16 +352,16 @@ export default function PrintConfigurationSettingsPage() {
                 </Card>
 
                 <div className="md:col-span-2">
-                  <Card title="Other Settings" icon={Settings2}>
+                  <Card title={t('Other Settings')} icon={Settings2}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field label="Express Print (Extra Charges)">
+                      <Field label={t('Express Print (Extra Charges)')}>
                         <RupeeInput
                           value={pricing.expressPrint}
                           onChange={onChange('expressPrint')}
                           placeholder="10.00"
                         />
                       </Field>
-                      <Field label="Auto Delete After (Hours)">
+                      <Field label={t('Auto Delete After (Hours)')}>
                         <SelectInput
                           value={pricing.autoDeleteAfterHours}
                           onChange={(e) =>
@@ -368,7 +379,7 @@ export default function PrintConfigurationSettingsPage() {
 
                       {showCustomAutoDelete && (
                         <div className="sm:col-span-2">
-                          <Field label="Custom Hours">
+                          <Field label={t('Custom Hours')}>
                             <TextInput
                               type="number"
                               min={1}
@@ -392,7 +403,7 @@ export default function PrintConfigurationSettingsPage() {
 
               <div className="flex justify-end">
                 <PrimaryButton type="button" onClick={handleSave} disabled={saving} className="px-8 py-3">
-                  Save Changes
+                  {t('Save Changes')}
                 </PrimaryButton>
               </div>
             </div>
@@ -404,16 +415,16 @@ export default function PrintConfigurationSettingsPage() {
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
                     <FileText size={16} />
                   </span>
-                  <h3 className="text-sm font-bold text-slate-900">Pricing Summary</h3>
+                  <h3 className="text-sm font-bold text-slate-900">{t('Pricing Summary')}</h3>
                 </div>
                 <div className="space-y-1">
-                  <SummaryRow label="B&W A4" value={pricingSummary.bwA4} />
-                  <SummaryRow label="B&W A3" value={pricingSummary.bwA3} />
-                  <SummaryRow label="Color A4" value={pricingSummary.colorA4} />
-                  <SummaryRow label="Color A3" value={pricingSummary.colorA3} />
-                  <SummaryRow label="Double Side B&W" value={pricingSummary.bwDoubleSide} />
-                  <SummaryRow label="Double Side Color" value={pricingSummary.colorDoubleSide} />
-                  <SummaryRow label="Express Print" value={pricingSummary.expressPrint} />
+                  <SummaryRow label={t('B&W A4')} value={pricingSummary.bwA4} />
+                  <SummaryRow label={t('B&W A3')} value={pricingSummary.bwA3} />
+                  <SummaryRow label={t('Color A4')} value={pricingSummary.colorA4} />
+                  <SummaryRow label={t('Color A3')} value={pricingSummary.colorA3} />
+                  <SummaryRow label={t('Double Side B&W')} value={pricingSummary.bwDoubleSide} />
+                  <SummaryRow label={t('Double Side Color')} value={pricingSummary.colorDoubleSide} />
+                  <SummaryRow label={t('Express Print')} value={pricingSummary.expressPrint} />
                 </div>
               </div>
             </aside>

@@ -164,11 +164,19 @@ export function validatePricingRequired(pricing) {
   return { ok: missing.length === 0, missing }
 }
 
+export function isProfileSetupComplete(profile, contact) {
+  return validateProfileRequired(profile, contact).ok
+}
+
+export function isPricingSetupComplete(pricing) {
+  return validatePricingRequired(pricing).ok
+}
+
 export function isOnboardingComplete(shopkeeperAccount) {
   if (typeof window === 'undefined') return false
 
   const flagCompleted = window.localStorage.getItem(KEYS.setupCompleted) === 'true'
-  const accountCompleted = shopkeeperAccount?.setupCompleted === true
+  const accountCompleted = shopkeeperAccount?.setupCompleted === true || shopkeeperAccount?.isOnboarded === true
   const completedSignal = flagCompleted || accountCompleted
   if (!completedSignal) return false
 
