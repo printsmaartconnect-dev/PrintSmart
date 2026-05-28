@@ -2841,6 +2841,7 @@ npm run dev                 # Start dev server
 npm run build              # Build for production
 npm start                  # Run production build
 npm run lint               # Lint code
+node test-s3.js            # Run S3 configuration connectivity test (in backend/)
 
 # Dependency Management
 npm install               # Install all dependencies
@@ -3217,6 +3218,7 @@ For managing documents in a scalable SaaS structure, PrintSmart integrates **AWS
   - **Allowed Formats:** `.pdf`, `.doc`, `.docx`, `.jpg`, `.jpeg`, `.png` (mimetypes verified).
   - **Explicit Blocklist:** Executable extensions (like `.exe`, `.bat`, `.apk`, `.sh`) are rejected with 400 Bad Request to prevent security vulnerabilities.
   - **Size Limit:** Max file upload size is capped at 50MB.
+- **S3 Connectivity Verification Script:** Developers can verify the configured S3 credentials and connectivity by executing `node test-s3.js` from the `backend/` directory. The script attempts to upload a test string to `test-folder/test.txt` and logs the resulting S3 URL.
 
 ### Programmatic DB Push and Generation
 On server startup (`server.js`), the application programmatically synchronizes the database schema and builds the Prisma client:
@@ -3235,6 +3237,7 @@ Additionally, a startup seed script auto-registers a default shopkeeper if the d
 ```
 backend/
 ├── server.js                 # Express server initialization, DB syncing, and startup seeding
+├── test-s3.js                # S3 configuration and upload connectivity testing utility
 ├── config/
 │   └── db.js                 # Prisma Client instance instantiation
 ├── prisma/
