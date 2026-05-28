@@ -196,6 +196,13 @@ function CustomerBars({ bars }) {
   )
 }
 
+const scratchCardHistory = [
+  { customer: 'Aman Kumar', reward: 'Flat ₹5 Off', code: 'PS5OFF', status: 'Claimed', timestamp: 'Today, 10:30 AM' },
+  { customer: 'Neha Sharma', reward: '10% Discount', code: 'SAVE10', status: 'Claimed', timestamp: 'Today, 10:28 AM' },
+  { customer: 'Pooja Singh', reward: 'Free Express Print', code: 'EXPRESSFREE', status: 'Active', timestamp: 'Today, 10:15 AM' },
+  { customer: 'Vivek Patil', reward: 'Flat ₹10 Off', code: 'PS10OFF', status: 'Expired', timestamp: 'Yesterday, 05:20 PM' },
+]
+
 export default function AllOrdersPage() {
   const [ordersList, setOrdersList] = useState([])
   const [loading, setLoading] = useState(true)
@@ -522,25 +529,45 @@ export default function AllOrdersPage() {
 
             <div className="xl:col-span-2">
               <CardShell
-                title="New and Returning Customers"
+                title="Scratch Card History"
                 headerRight={
                   <button
                     type="button"
                     className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm"
-                    aria-label="Filter customers"
+                    aria-label="Filter scratch cards"
                   >
                     <Filter size={18} />
                   </button>
                 }
               >
                 <div className="space-y-4">
-                  {/* Real Vertical bar chart. */}
-                  <CustomerBars bars={dynamicCustomerBars} />
+                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                    {scratchCardHistory.map((item, idx) => (
+                      <div key={idx} className="flex flex-col gap-1.5 rounded-xl bg-slate-50 p-3 border border-slate-100/80">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-slate-800">{item.customer}</span>
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide border ${
+                            item.status === 'Claimed'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : item.status === 'Active'
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}>
+                            {item.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded border border-violet-100">{item.reward} ({item.code})</span>
+                          <span className="text-slate-400 font-medium">{item.timestamp}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-sm font-bold text-slate-900">Key Takeaway</div>
+                    <div className="text-sm font-bold text-slate-900">Rewards Summary</div>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                      We print standard formats. afternoon is usually the busiest printing queue time.
+                      Customers love discount incentives! Most coupons are claimed directly upon order completion.
                     </p>
                   </div>
                 </div>

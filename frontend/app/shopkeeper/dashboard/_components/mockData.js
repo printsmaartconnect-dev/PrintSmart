@@ -109,7 +109,7 @@ export const bottomDockItems = [
   { key: 'profile', label: 'Profile', badge: null, href: '/shopkeeper/profile' },
   { key: 'settings', label: 'Settings', badge: null, href: '/shopkeeper/settings' },
   { key: 'subscription', label: 'Subscription', badge: null, href: '/shopkeeper/subscription' },
-  { key: 'allOrders', label: 'All Orders', badge: null, href: '/shopkeeper/all-orders' },
+  { key: 'allOrders', label: 'Statistics & Analysis', badge: null, href: '/shopkeeper/all-orders' },
   { key: 'pending', label: 'Pending', badge: '12' },
   { key: 'completed', label: 'Completed', badge: '128' },
   { key: 'downloaded', label: 'Downloaded', badge: '36' },

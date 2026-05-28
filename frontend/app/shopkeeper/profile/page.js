@@ -293,6 +293,7 @@ export default function ShopkeeperProfileViewPage() {
                 Profile Setup
               </SidebarNavItem>
               <SidebarNavItem
+                href="/shopkeeper/profile/pricing"
                 active={false}
                 icon={Store}
               >
