@@ -28,14 +28,20 @@
 git clone <repository-url>
 cd PrintSmart
 
-# 2. Install dependencies
+# 2. Set up the Database & Backend
+cd backend
 npm install
+# (Optional) Schema will programmatically sync on server start, or manually run:
+npx prisma db push
+npx prisma generate
+cp .env.example .env
+npm run dev # Starts backend on http://localhost:5000
 
-# 3. Set up environment variables (see Configuration section)
+# 3. Set up the Frontend (In a separate terminal window)
+cd ../frontend
+npm install
 cp .env.example .env.local
-
-# 4. Run the development server
-npm run dev
+npm run dev # Starts frontend on http://localhost:3000
 ```
 
 **Access the application:**
@@ -53,20 +59,21 @@ npm run dev
 
 ### Basic Commands
 
+**Backend Services:**
 ```bash
-# Development
-npm run dev              # Start dev server on port 3000
+cd backend
+npm run dev              # Start Express backend dev server on port 5000
+npm run prisma:migrate   # Run database migrations
+npm run prisma:generate  # Programmatically generate Prisma Client JS
+```
 
-# Production Build
-npm run build            # Compile Next.js app
+**Frontend Application:**
+```bash
+cd frontend
+npm run dev              # Start Next.js dev server on port 3000
+npm run build            # Compile Next.js app for production
 npm start                # Run production server
-
-# Code Quality
-npm run lint             # Run ESLint on all files
-
-# Clean Build
-rm -rf .next             # Remove build cache
-npm run build            # Rebuild
+npm run lint             # Run ESLint validation checks
 ```
 
 ---
@@ -158,114 +165,117 @@ User Visits http://localhost:3000
 
 ```
 PrintSmart/
-├── app/                              # Next.js App Router (pages & layouts)
-│   ├── layout.js                     # Root layout wrapper
-│   ├── page.js                       # Homepage / Landing page
-│   ├── globals.css                   # Global styles (Tailwind imports)
+├── frontend/                         # Next.js 14 Frontend Application
+│   ├── app/                          # Next.js App Router (pages & layouts)
+│   │   ├── layout.js                 # Root layout wrapper with i18n support
+│   │   ├── page.js                   # QR-aware homepage (verified partner card)
+│   │   ├── globals.css               # Global styles (Tailwind & custom glassmorphism)
+│   │   ├── I18nProvider.js           # Client-side i18n localization wrapper
+│   │   │
+│   │   ├── admin/                    # Admin role pages
+│   │   │   ├── page.js               # Admin auth gate / login form
+│   │   │   └── dashboard/
+│   │   │       └── page.js           # Admin dashboard (KPI grids, global orders table)
+│   │   │
+│   │   ├── shopkeeper/               # Shopkeeper role pages
+│   │   │   ├── login/
+│   │   │   │   └── page.js           # Shopkeeper login page
+│   │   │   ├── register/
+│   │   │   │   └── page.js           # Shopkeeper registration page
+│   │   │   ├── dashboard/
+│   │   │   │   ├── page.js           # Shopkeeper main dashboard
+│   │   │   │   ├── all-orders/
+│   │   │   │   │   └── page.js       # Shop-wide order management queue
+│   │   │   │   └── _components/      # Reusable dashboard panel cards
+│   │   │   │       ├── DashboardHeader.js
+│   │   │   │       ├── WelcomeBar.js
+│   │   │   │       ├── StatsRow.js
+│   │   │   │       ├── RecentOrders.js
+│   │   │   │       ├── OrderCard.js
+│   │   │   │       ├── BottomDock.js
+│   │   │   │       └── FloatingHelpButton.js
+│   │   │   ├── onboarding/           # Multi-step shop onboarding
+│   │   │   │   ├── layout.js         # Stepper sidebar layout
+│   │   │   │   ├── pricing-setup/
+│   │   │   │   │   └── page.js       # Subscription plan setup
+│   │   │   │   └── profile-setup/
+│   │   │   │       └── page.js       # Store profiles configuration
+│   │   │   ├── settings/
+│   │   │   │   ├── page.js           # Settings panels hub
+│   │   │   │   ├── language-accessibility/
+│   │   │   │   │   └── page.js       # Accessibility settings
+│   │   │   │   ├── printers-support/
+│   │   │   │   │   └── page.js       # Printer status and routing
+│   │   │   │   └── support-feedback/
+│   │   │   │       └── page.js       # In-app support request form
+│   │   │   └── profile/
+│   │   │       └── page.js           # Shopkeeper dynamic profile and QR download
+│   │   │
+│   │   ├── customer/                 # Customer kiosks workflow
+│   │   │   ├── language/
+│   │   │   │   └── page.js           # Browser auto-detect & language select
+│   │   │   ├── configuration/
+│   │   │   │   └── page.js           # Kiosk print configs & grayscale css previews
+│   │   │   ├── upload/
+│   │   │   │   └── page.js           # Dropzone uploads & base64 dynamic thumbnails
+│   │   │   ├── review/
+│   │   │   │   └── page.js           # Order reviews, dynamic pricing, & checkout
+│   │   │   ├── order-placed/
+│   │   │   │   └── page.js           # Custom Order ID display & wait-time estimates
+│   │   │   └── orders/
+│   │   │       └── page.js           # Customer orders timeline & invoice download
+│   │   │
+│   │   ├── take-a-print/
+│   │   │   └── page.js               # Manual shop ID entering & scanner routing
+│   │   │
+│   │   └── components/               # Global shared customer widgets
+│   │       ├── BackButton.js         # Sticky header back routing
+│   │       ├── FeedbackButton.js     # Floating help modal (all customer screens)
+│   │       └── customer/
+│   │           ├── DocumentPreview.jsx # High contrast previews & grayscale triggers
+│   │           └── FilePreviewSection.jsx # Unified file preview container card
 │   │
-│   ├── admin/                        # Admin role pages
-│   │   ├── page.js                   # Admin login / auth gate
-│   │   └── dashboard/
-│   │       └── page.js               # Admin dashboard
+│   ├── lib/                          # Local frontend helpers
+│   │   ├── shop-context.js           # Session and QR storage contextual caches
+│   │   └── i18n.js                   # Client-side multi-language translation bindings
 │   │
-│   ├── shopkeeper/                   # Shopkeeper role pages
-│   │   ├── login/
-│   │   │   └── page.js               # Shopkeeper login page
-│   │   ├── register/
-│   │   │   └── page.js               # Shopkeeper registration
-│   │   ├── dashboard/
-│   │   │   ├── page.js               # Shopkeeper dashboard (main)
-│   │   │   ├── all-orders/
-│   │   │   │   └── page.js           # View all orders
-│   │   │   └── _components/          # Dashboard sub-components
-│   │   │       ├── DashboardHeader.js     # Header with profile
-│   │   │       ├── WelcomeBar.js          # Welcome message
-│   │   │       ├── StatsRow.js            # KPI stats
-│   │   │       ├── RecentOrders.js        # Orders table
-│   │   │       ├── OrderCard.js           # Order card UI
-│   │   │       ├── BackToDashboardButton.js
-│   │   │       ├── FloatingHelpButton.js  # Help/support button
-│   │   │       ├── BottomDock.js          # Navigation dock
-│   │   │       └── mockData.js            # Mock orders & stats
-│   │   ├── onboarding/               # Shopkeeper onboarding flow
-│   │   │   ├── layout.js             # Onboarding layout
-│   │   │   ├── pricing-setup/
-│   │   │   │   └── page.js           # Pricing setup page
-│   │   │   ├── profile-setup/
-│   │   │   │   ├── page.js           # Profile setup page
-│   │   │   │   ├── BackToDashboardButton.js
-│   │   │   │   └── FloatingHelpButton.js
-│   │   │   └── _components/
-│   │   │       ├── onboardingStorage.js  # LocalStorage helpers
-│   │   │       └── ui.js             # Shared UI components
-│   │   ├── profile/
-│   │   │   ├── page.js               # Profile view/edit
-│   │   │   └── _components/
-│   │   │       └── ReadOnlyField.js  # Profile field component
-│   │   ├── settings/
-│   │   │   ├── page.js               # Settings main page
-│   │   │   ├── language-accessibility/
-│   │   │   │   └── page.js           # Language & accessibility
-│   │   │   ├── printers-support/
-│   │   │   │   └── page.js           # Printer support settings
-│   │   │   └── support-feedback/
-│   │   │       └── page.js           # Support & feedback form
-│   │   ├── subscription/
-│   │   │   └── page.js               # Subscription management
-│   │   ├── support/
-│   │   │   └── page.js               # Support page
-│   │   └── page.js                   # Shopkeeper home page
+│   ├── public/                       # Static UI imagery and logos
+│   │   └── [static assets]
 │   │
-│   ├── customer/                     # Customer role pages
-│   │   ├── language/
-│   │   │   └── page.js               # Language selection
-│   │   ├── configuration/
-│   │   │   └── page.js               # Print configuration settings
-│   │   ├── upload/
-│   │   │   └── page.js               # File upload interface
-│   │   ├── coupon/
-│   │   │   └── page.js               # Coupon management
-│   │   ├── review/
-│   │   │   └── page.js               # Order review & rating
-│   │   ├── order-placed/
-│   │   │   └── page.js               # Order confirmation
-│   │   └── orders/
-│   │       └── page.js               # Order history & tracking
-│   │
-│   └── dashboard/                    # Fallback/generic dashboard
-│       └── page.js                   # Placeholder dashboard
+│   ├── package.json                  # Frontend dependencies
+│   ├── next.config.js                # Next.js configurations & security headers
+│   └── tailwind.config.js            # Tailwind theme configurations
 │
-├── public/                           # Static assets (images, icons, etc.)
-│   └── [static files]
+├── backend/                          # Express & Prisma Backend Server
+│   ├── server.js                     # Express core, server-start DB push & seeding
+│   ├── config/
+│   │   └── db.js                     # Prisma client initialization instance
+│   ├── prisma/
+│   │   └── schema.prisma             # PostgreSQL schemas, relations, and enums
+│   ├── middleware/
+│   │   └── auth.middleware.js        # Protected JWT session verification
+│   ├── controllers/
+│   │   ├── auth.controller.js        # Registration, profile config, & QR endpoints
+│   │   ├── file.controller.js        # Multer-to-S3/Local file brokers
+│   │   ├── order.controller.js       # Placements, queue connections, & invoices
+│   │   ├── statistics.controller.js  # Daily, weekly, monthly analytical growth
+│   │   └── feedback.controller.js    # Customer issues tracking & ticket status
+│   ├── services/
+│   │   ├── storage.service.js        # S3 storage bucket & local folder disk fallbacks
+│   │   ├── qrcode.service.js         # Base64 data urls slug QR code generators
+│   │   ├── order.service.js          # Sequential numeric IDs & wait time math
+│   │   ├── invoice.service.js        # PDFKit itemized PDF invoice streaming
+│   │   └── seed.service.js           # Database default seed utilities
+│   ├── routes/
+│   │   └── [api routing files]       # Express routers mapping routes to controllers
+│   ├── package.json                  # Backend dependencies
+│   └── .env                          # PostgreSQL database URL & S3 variables
 │
-├── node_modules/                     # Installed dependencies (git-ignored)
-│
-├── .git/                             # Git repository (version control)
-│
-├── .next/                            # Build output (git-ignored)
-│
-├── Configuration Files
-│   ├── package.json                  # Project metadata & dependencies
-│   ├── package-lock.json             # Locked dependency versions
-│   ├── next.config.js                # Next.js configuration
-│   ├── tailwind.config.js            # Tailwind CSS theme & plugins
-│   ├── postcss.config.js             # PostCSS configuration
-│   ├── .env.local                    # Local environment variables (git-ignored)
-│   ├── .env.example                  # Template for env variables
-│   └── .gitignore                    # Git ignore rules
-│
-├── Documentation
-│   ├── README.md                     # Project overview
-│   ├── QUICK_START.md                # Quick start guide
-│   ├── SETUP_GUIDE.md                # Detailed setup instructions
-│   ├── PROJECT_FULL_DOCUMENTATION.md # This file
-│   ├── frontenddata.md               # Frontend code reference
-│   └── Changelog.md                  # Version history
-│
-└── Assets & Demo
-    ├── demo.html                     # Demo / preview file
-    └── Shopkeeper_login.jpeg         # Screenshot reference
+├── IMPLEMENTATION_SUMMARY.md         # Completed vs remaining task milestones
+├── QR_FLOW_IMPLEMENTATION.md         # Detailed QR Context flow walkthrough
+└── PROJECT_FULL_DOCUMENTATION.md     # This file
 ```
+
 
 ---
 
@@ -1161,42 +1171,36 @@ POST /api/uploads/validate
 
 ---
 
-#### Module 3: File Upload (React Dropzone)
+#### Module 3: File Upload & Thumbnail Preview Engine
 
 **Files Involved:**
-- `app/customer/upload/page.js`
+- `frontend/app/customer/upload/page.js`
+- `frontend/app/components/customer/FilePreviewSection.jsx`
+- `frontend/app/components/customer/DocumentPreview.jsx`
 
 **How It Works:**
-```javascript
-const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
-  accept: { 'application/pdf': ['.pdf'], 'image/*': ['.jpg', '.png'] },
-  maxSize: 50 * 1024 * 1024, // 50MB
-})
+1. **Dropzone Interface**: Uses `react-dropzone` to handle dragging or clicking to select files. Acceptable mime types include `.pdf`, `.jpg`, `.jpeg`, `.png`, `.doc`, and `.docx`.
+2. **Dynamic Client-Side Thumbnail Generation (`generateThumbnail`)**:
+   - **Images**: Automatically parsed using a client-side `FileReader` as Data URLs, scaled within a `canvas` to a maximum dimension of `150px`, and exported as high-fidelity Base64 JPEG data URLs (`canvas.toDataURL('image/jpeg', 0.75)`).
+   - **PDFs**: Instantiates a client-side `FileReader` loading the document as an `ArrayBuffer`.
+     - Automatically checks and dynamically loads the official `PDF.js` CDN library (`pdf.min.js`) and worker (`pdf.worker.min.js`) if not already present in the document.
+     - Loads Page 1 of the PDF using `pdfjsLib.getDocument`, draws it dynamically on a client-side rendering canvas viewport at a `0.3` scale, and exports it as a lightweight Base64 JPEG Data URL.
+   - **Word Documents (`.doc`/`.docx`)**: Uses a premium, clean document preview card template displaying an official Microsoft Word emblem, file categories, and extensions.
+   - **Generic Files**: Falls back to generic document vectors for unspecified extensions.
+3. **Metadata & Thumbnail Caching**:
+   - The generated Base64 JPEG strings are cached in the local state and uploaded to the file schema.
+   - When proceeding to checkout, the entire file details list—including the base64 thumbnails—are serialized and cached in the `localStorage` key `uploadedFiles`.
+4. **Grayscale B&W Live Previews**:
+   - In subsequent pages (e.g. `customer/configuration` and `customer/review`), the custom components `FilePreviewSection` and `DocumentPreview` are used to render the preview canvas.
+   - If the user selects the **"Black & White" (BW)** printing option, the preview card dynamically applies a clean CSS grayscale-contrast filter (`grayscale contrast-125`) instantly to the thumbnail image or fallback vector. This provides the client with a true, high-fidelity physical print rendering beforehand.
+5. **Renaming & Deletions**:
+   - Customers can customize individual filenames directly via text inputs (which auto-appends original extensions), and remove files safely, which automatically garbage collects object blob URLs.
 
-// In JSX:
-<div {...getRootProps()}>
-  <input {...getInputProps()} />
-  {/* UI */}
-</div>
-```
+**Why This Approach:**
+- **Zero Server Overhead**: Thumbnail rendering is performed completely on the client CPU, saving server processing cycles.
+- **Fast and Cached**: Storing base64 string lists in `localStorage` allows instant, blank-free previews across subsequent configuration, review, and cart screens without repeated network requests or canvas renders.
+- **Enhanced Customer Kiosk UX**: Instant B&W filter previews and renaming mimic modern professional printing kiosks.
 
-**Why React Dropzone:**
-- Lightweight (< 10KB gzipped)
-- Handles drag-and-drop and file picker
-- File validation built-in
-- Accessible (ARIA labels)
-
-**Workflow:**
-1. User drags file or clicks to browse
-2. `acceptedFiles` array updates
-3. Component displays preview/filename
-4. On "Upload" button, would send to backend
-
-**Future Improvements:**
-- Progress bar (track upload %)
-- Pause/resume capability
-- Chunk upload for large files
-- Real-time cost calculation based on page count
 
 ---
 
@@ -1314,12 +1318,19 @@ Effects: shadow-lg, rounded-xl, opacity-70
 
 ---
 
-### State Management
+### State Management & Context Resolution
 
 **Current Approach:**
-- React `useState` hooks for component-level state
-- `localStorage` for session persistence
-- URL params for navigation state (Next.js Link)
+- **React Hooks**: Use client-side `useState` and `useMemo` hooks for component-level and page-level reactive rendering state.
+- **LocalStorage**: Used as the primary client-side persistent storage across onboarding steps, customer carts, and active shop configurations.
+- **Shop Context Helper (`frontend/lib/shop-context.js`)**: Encapsulates helper functions for managing shop parameters, ensuring smooth data retrieval while maintaining strict backward compatibility for downstream components:
+  - `getCurrentShopId()`: Fetches the active shopkeeper UUID (`activeShopId` key).
+  - `getCurrentShopSlug()`: Fetches the active shop slug or code (`activeShopSlug` key).
+  - `getActiveShop()`: Parses the complete verified shop details dictionary (`activeShop` key) containing branding, logos, and custom printing rates.
+  - `setCurrentShop(shop)` / `setActiveShop(shop)`: Serializes and stores the complete shop dictionary, while automatically setting `activeShopId` and `activeShopSlug` strings for compatibility.
+  - `clearCurrentShop()`: Removes all active shop state, resetting the client.
+- **URL Parameters**: Next.js `useSearchParams` hook is utilized in client entry gates (like homepage detection or kiosk manual pages) to parse incoming QR query triggers.
+
 
 **Example:**
 ```javascript
@@ -3423,13 +3434,22 @@ Tracks ongoing performance metrics for a specific shop.
 
 ## Core System Workflows
 
-### 1. QR Code Generation & Entry Flow
-- **Generation**: On shopkeeper registration or manual request via `/api/shopkeeper/regenerate-qr`, the backend creates a QR code image pointing to `${FRONTEND_URL}/take-a-print?shopId=${shopSlug}`.
-- **Service Implementation**:
+### 1. QR Code Generation & Upgraded Entry Flow
+- **QR Code Generation**: Upon registration or profile update, the backend generates QR codes pointing to the base frontend url with the shop slug as a query parameter: `${FRONTEND_URL}/?shopId=${shopSlug}`.
   - `qrcode.service.js` generates a local PNG file under `/uploads/qrcodes/` and a base64 Data URL using the `qrcode` library.
   - `qr.service.js` creates a QR file under `/uploads/qrs/` containing the UUID of the shop.
-- **Entry Flow**: The customer scans the code, landing on `/take-a-print?shopId=slug`. If the QR scan fails, a manual entry field is provided.
-- **Testing Shortcut**: Entering code `0000` automatically maps to the default seeded shop `smart-print-hub`, bypasses scanning, and fetches database configuration parameters instantly.
+- **Upgraded Homepage QR Entry Flow**:
+  1. The customer scans a modern QR code and lands on the homepage root: `/?shopId=slug-name`.
+  2. The homepage App Component (`frontend/app/page.js`) checks for the `shopId` search parameter inside a client-side `useEffect` hook.
+  3. If present, it triggers `fetchShopDetails(shopId)` which queries `/api/shopkeeper/by-slug/:slug` to retrieve name, categories, address, pricing rates, and branding.
+  4. The retrieved shop is cached in `localStorage` as a unified JSON object (`activeShop`) using context manager helpers.
+  5. The homepage renders a beautiful, premium, interactive **"Verified Print Partner"** card displaying shop details (logo, verified badge, name, category, address, phone) instead of the default landing screen.
+  6. Clicking the card's **"Get Started"** button navigates the customer directly to the onboarding language selector page (`/customer/language`).
+- **Legacy & Fallback Entry Flows**:
+  - **Manual Entry / Fallback**: If the customer lands on the homepage without a QR scan, clicking "Take a Print" routes them to `/take-a-print` where they can manually input a shop ID code or slug.
+  - **Legacy QR codes**: Older QR codes pointing to `/take-a-print?shopId=slug` continue to function seamlessly, preserving complete backward compatibility.
+- **Testing Bypass Code**: For rapid manual and automated testing, entering code `0000` in the entry field automatically resolves to the default seeded shop `smart-print-hub`, bypasses physical scanning steps, sets up context states instantly, and routes to user language preferences.
+
 
 ### 2. Custom Order ID Generation
 To ensure shopkeepers have short, human-readable IDs to track orders, the backend generates IDs using the format `MMYYP[BW|C][sequence]` in `order.service.js`:
@@ -3572,91 +3592,10 @@ Manages the ordering workflow.
 
 ## Document Version
 
-- **Version:** 2.0.0
-- **Last Updated:** May 26, 2026
+- **Version:** 2.1.0
+- **Last Updated:** May 27, 2026
 - **Author:** Antigravity AI
-- **Status:** Complete (Fully synchronized with backend models, API routes, controller logic, PDF invoice generation, queue wait time algorithms, analytics statistics, and user workflow paths)
-
----
-
-**End of Documentation**
-
-For questions or updates, please contact the development team or create a GitHub issue.
-
----
- single order. Securable using JWT.
-- **Headers**: `Authorization: Bearer JWT_TOKEN`
-- **Request Body**:
-  ```json
-  {
-    "status": "Completed"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "message": "Order status updated successfully",
-    "order": {
-      "id": "order-uuid",
-      "status": "Completed",
-      "queue": {
-        "status": "Done"
-      }
-    }
-  }
-  ```
-
-#### `GET /api/orders/user/:userId`
-Retrieves all order history for the specified customer user ID in descending chronological order.
-- **Response**: List of orders, including files, configuration, and invoice details.
-
-#### `DELETE /api/orders/:id`
-Cancels and deletes a pending order from the database.
-- **Response**: `{ "message": "Order deleted successfully" }`
-
-#### `GET /api/orders/:id/invoice`
-Downloads a professionally formatted PDF invoice for the order.
-- **Response**: Binary PDF file.
-
-#### `GET /api/shopkeeper/by-slug/:slug`
-Retrieves shop details and pricing configurations for the scanned QR shopkeeper slug.
-- **Response**: Shop details JSON.
-
-#### `POST /api/users/create`
-Creates or updates a user profile with name, email, phone, and language preference.
-- **Response**: User details JSON.
-
----
-
-## Frontend -> Backend Integration Explanation
-
-We have fully integrated the Next.js frontend with PostgreSQL via Express REST APIs:
-
-1. **Authentication & Onboarding**:
-   - Onboarding profile data (shop details, pricing, social links) is synced directly to the PostgreSQL database via `PUT /api/auth/profile`.
-   - Slugs and QR Codes are generated in the backend on registration/onboarding and persist in the database.
-2. **File Upload**:
-   - `upload/page.js` supports uploading multiple files, generating high-fidelity document thumbnails dynamically (resizing images via canvas, and rendering PDF first pages using PDF.js CDN), and caching them in `localStorage` as Base64 JPEG data URLs to prevent broken previews. Uploads go to `/api/files/upload` (S3/local).
-3. **Ordering & Review**:
-   - Shopkeeper details are fetched from the database by slug on the review page.
-   - Prints are calculated dynamically using the shopkeeper's custom database pricing rates.
-   - Sequential custom Order IDs (format `MMYYP[BW|C][sequence]`) and estimated queue times are generated in the backend upon order creation. Both the Configuration page (`configuration/page.js`) and Order Review page (`review/page.js`) render the document thumbnails, applying a CSS grayscale contrast filter (`grayscale contrast-125`) instantly when the "Black & White" (BW) option is selected.
-4. **My Orders & Tracking**:
-   - Customer orders are fetched dynamically from the database and sorted with recent orders first.
-   - Pending orders show a "Delete Order" button with a confirmation modal.
-   - Professional PDF invoices generated by PDFKit are downloadable directly from the database.
-5. **Shopkeeper Actions**:
-   - Dashboard KPIs (Pending, Completed, Downloaded, Cancelled counts) are computed from real-time database orders.
-   - Slugs and dynamic QR codes are rendered directly from the database on the shop keeper profile page.
-
----
-
-## Document Version
-
-- **Version:** 1.8.0
-- **Last Updated:** May 26, 2026
-- **Author:** Antigravity AI
-- **Status:** Complete (Dynamic client-side PDF/image thumbnail extraction, localStorage caching, instant grayscale B&W toggles, kiosk-style print configuration preview, premium fallback previews for Word documents, and unified high-contrast file preview sections added)
+- **Status:** Complete (Refactored codebase architecture with separated frontend/ and backend/ directories, QR-aware customer onboarding flows, local storage context caching, client-side dynamic document thumbnails, instant B&W preview CSS filters, custom numeric Order IDs, and PDFKit server-side invoice generation fully documented)
 
 ---
 
