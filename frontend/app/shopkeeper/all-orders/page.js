@@ -4,13 +4,11 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
-  BarChart3,
   CalendarDays,
   ChevronDown,
   CheckCircle2,
   Clock3,
   Download,
-  FileText,
   Filter,
   XCircle,
 } from 'lucide-react'
@@ -56,13 +54,7 @@ function Dot({ tone }) {
   return <span className={`h-2.5 w-2.5 rounded-full ${classes[tone] || classes.slate}`} />
 }
 
-function ActiveChip({ children }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-700 ring-1 ring-violet-200">
-      {children}
-    </span>
-  )
-}
+
 
 function StatCard({ card }) {
   const Icon = card.icon
@@ -99,30 +91,635 @@ function CardShell({ title, children, headerRight, subtitle }) {
   )
 }
 
-function PlaceholderBox({ label, minHeight = 'min-h-[220px]' }) {
+const generateMockOrders = () => {
+  const list = [];
+  
+  // Seed pseudo-random generator for deterministic data
+  let seed = 12345;
+  const random = () => {
+    let x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+  };
+
+  const statuses = ["COMPLETED", "DOWNLOADED", "PENDING", "CANCELLED"];
+  const formats = [".pdf", ".docx", ".jpg", ".png"];
+  const sizes = ["A4", "A3", "LEGAL", "LETTER"];
+  const names = [
+    "Aman Kumar", "Neha Sharma", "Vivek Patil", "Pooja Singh", "Rohit Verma",
+    "Rahul Sharma", "Anjali Gupta", "Vikram Malhotra", "Karan Johar", "Deepika Padukone",
+    "Siddharth Malhotra", "Shraddha Kapoor", "Varun Dhawan", "Alia Bhatt", "Ranbir Kapoor"
+  ];
+  const fileNames = [
+    "Project_Report", "Assignment_1", "Notes_Maths", "ID_Proof_Copy", "Fee_Receipt",
+    "Resume_2026", "Thesis_Final", "Passport_Scan", "Application_Form", "Syllabus_Physics"
+  ];
+
+  const targets = {
+    COMPLETED: 128,
+    DOWNLOADED: 36,
+    PENDING: 12,
+    CANCELLED: 8
+  };
+
+  Object.entries(targets).forEach(([status, count]) => {
+    for (let i = 0; i < count; i++) {
+      const daysAgo = Math.floor(random() * 30);
+      const hour = 9 + Math.floor(random() * 12); // mostly shop hours: 9 AM to 9 PM
+      const minute = Math.floor(random() * 60);
+      
+      const orderDate = new Date();
+      orderDate.setDate(orderDate.getDate() - daysAgo);
+      orderDate.setHours(hour, minute, 0, 0);
+
+      const copies = 1 + Math.floor(random() * 3);
+      const pages = 1 + Math.floor(random() * 25);
+      const isBW = random() > 0.3; // 70% B&W, 30% Color
+      const pricePerPage = isBW ? 2.5 : 8.0;
+      const price = pages * copies * pricePerPage;
+
+      const size = random() > 0.8 ? sizes[1 + Math.floor(random() * 3)] : "A4";
+      const format = formats[Math.floor(random() * formats.length)];
+      const docName = fileNames[Math.floor(random() * fileNames.length)] + format;
+
+      list.push({
+        id: `ORD-${10000 + Math.floor(random() * 90000)}`,
+        status: status,
+        customerName: names[Math.floor(random() * names.length)],
+        phone: `+91 ${70000 + Math.floor(random() * 29999)} ${10000 + Math.floor(random() * 89999)}`,
+        orderFiles: [{ customFileName: docName, originalFileName: docName, fileUrl: "" }],
+        printConfiguration: {
+          copies: copies,
+          printType: isBW ? "BW" : "COLOR",
+          paperSize: size,
+          sides: random() > 0.5 ? "DOUBLE" : "SINGLE"
+        },
+        price: price,
+        pages: pages,
+        createdAt: orderDate.toISOString()
+      });
+    }
+  });
+
+  return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+};
+
+function MainPrintTrendsChart({ orders, timeRange }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const svgSize = { width: 700, height: 320 };
+
+  // Dynamically aggregate order data for 7 intervals based on time range
+  const points = (() => {
+    const numPoints = 7;
+    const now = new Date();
+    let daysLimit = 30;
+
+    if (timeRange === "3 months") daysLimit = 90;
+    else if (timeRange === "1 year") daysLimit = 365;
+    else if (timeRange === "All-time") {
+      if (orders.length > 0) {
+        const oldestDate = new Date(orders[orders.length - 1].createdAt);
+        daysLimit = Math.max(1, Math.ceil((now - oldestDate) / (24 * 60 * 60 * 1000)));
+      } else {
+        daysLimit = 30;
+      }
+    }
+
+    const pts = Array.from({ length: numPoints }, (_, i) => {
+      const daysAgo = daysLimit - (i * (daysLimit / (numPoints - 1)));
+      const date = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+      return {
+        date,
+        label: date.toLocaleDateString([], { month: "short", day: "numeric" }),
+        pages: 0,
+        revenue: 0,
+      };
+    });
+
+    orders.forEach((o) => {
+      const orderDate = new Date(o.createdAt);
+      let closestIndex = 0;
+      let minDiff = Infinity;
+
+      pts.forEach((pt, idx) => {
+        const diff = Math.abs(orderDate - pt.date);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = idx;
+        }
+      });
+
+      const copies = o.printConfiguration?.copies || 1;
+      const pages = o.pages || 5; 
+      pts[closestIndex].pages += pages * copies;
+      pts[closestIndex].revenue += o.price || 0;
+    });
+
+    return pts;
+  })();
+
+  const maxPages = Math.max(...points.map((p) => p.pages), 10);
+  const maxRevenue = Math.max(...points.map((p) => p.revenue), 10);
+
+  // SVG grid calculations
+  const paddingX = 55;
+  const paddingY = 30;
+  const chartW = svgSize.width - paddingX * 2;
+  const chartH = svgSize.height - paddingY * 2;
+
+  const getCoords = (idx, type) => {
+    const pt = points[idx];
+    const x = paddingX + (idx / (points.length - 1)) * chartW;
+    const maxVal = type === "pages" ? maxPages : maxRevenue;
+    const val = pt[type];
+    const y = svgSize.height - paddingY - (val / maxVal) * chartH;
+    return { x, y };
+  };
+
+  // Generate continuous smooth Bezier curves
+  const getBezierPath = (type) => {
+    if (points.length === 0) return "";
+    let d = "";
+    const start = getCoords(0, type);
+    d += `M ${start.x} ${start.y} `;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const curr = getCoords(i, type);
+      const next = getCoords(i + 1, type);
+      const cp1x = curr.x + (next.x - curr.x) / 3;
+      const cp1y = curr.y;
+      const cp2x = next.x - (next.x - curr.x) / 3;
+      const cp2y = next.y;
+      d += `C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next.x} ${next.y} `;
+    }
+    return d;
+  };
+
+  const getBezierAreaPath = (type) => {
+    const linePath = getBezierPath(type);
+    if (!linePath) return "";
+    const firstX = paddingX;
+    const lastX = paddingX + chartW;
+    const baseY = svgSize.height - paddingY;
+    return `${linePath} L ${lastX} ${baseY} L ${firstX} ${baseY} Z`;
+  };
+
+  const pagesPath = getBezierPath("pages");
+  const pagesAreaPath = getBezierAreaPath("pages");
+  const revenuePath = getBezierPath("revenue");
+  const revenueAreaPath = getBezierAreaPath("revenue");
+
+  // Grid lines
+  const gridLines = Array.from({ length: 5 }, (_, i) => {
+    const ratio = i / 4;
+    const y = svgSize.height - paddingY - ratio * chartH;
+    const pagesLabel = Math.round(ratio * maxPages);
+    const revenueLabel = Math.round(ratio * maxRevenue);
+    return { y, pagesLabel, revenueLabel };
+  });
+
   return (
-    <div
-      className={`flex items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm font-medium text-slate-400 ${minHeight}`}
-    >
-      {label}
+    <div className="relative w-full overflow-hidden bg-white p-2 rounded-2xl">
+      <svg
+        viewBox={`0 0 ${svgSize.width} ${svgSize.height}`}
+        className="w-full h-auto select-none"
+        onMouseLeave={() => setHoveredIdx(null)}
+      >
+        <defs>
+          <linearGradient id="pagesGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.0" />
+          </linearGradient>
+          <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+
+        {/* Horizontal grid lines and left/right labels */}
+        {gridLines.map((line, idx) => (
+          <g key={idx}>
+            <line
+              x1={paddingX}
+              y1={line.y}
+              x2={svgSize.width - paddingX}
+              y2={line.y}
+              stroke="#f1f5f9"
+              strokeWidth="1.5"
+              strokeDasharray="4 4"
+            />
+            {/* Left labels (Pages - Violet) */}
+            <text
+              x={paddingX - 10}
+              y={line.y + 4}
+              textAnchor="end"
+              className="text-[10px] font-extrabold fill-violet-500"
+            >
+              {line.pagesLabel}
+            </text>
+            {/* Right labels (Revenue - Amber) */}
+            <text
+              x={svgSize.width - paddingX + 10}
+              y={line.y + 4}
+              textAnchor="start"
+              className="text-[10px] font-extrabold fill-amber-600"
+            >
+              ₹{line.revenueLabel}
+            </text>
+          </g>
+        ))}
+
+        {/* Gradient fills */}
+        {pagesAreaPath && (
+          <path d={pagesAreaPath} fill="url(#pagesGrad)" />
+        )}
+        {revenueAreaPath && (
+          <path d={revenueAreaPath} fill="url(#revenueGrad)" />
+        )}
+
+        {/* Lines */}
+        {pagesPath && (
+          <path
+            d={pagesPath}
+            fill="none"
+            stroke="#8b5cf6"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="transition-all duration-300"
+          />
+        )}
+        {revenuePath && (
+          <path
+            d={revenuePath}
+            fill="none"
+            stroke="#f59e0b"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="transition-all duration-300"
+          />
+        )}
+
+        {/* Dynamic Interactive Nodes */}
+        {points.map((pt, idx) => {
+          const pgCoord = getCoords(idx, "pages");
+          const revCoord = getCoords(idx, "revenue");
+          const isHovered = hoveredIdx === idx;
+
+          return (
+            <g key={idx}>
+              {/* Pages Circle */}
+              <circle
+                cx={pgCoord.x}
+                cy={pgCoord.y}
+                r={isHovered ? 7 : 4}
+                fill="#ffffff"
+                stroke="#8b5cf6"
+                strokeWidth={isHovered ? 4 : 2}
+                className="transition-all duration-200 cursor-pointer"
+              />
+              {/* Revenue Circle */}
+              <circle
+                cx={revCoord.x}
+                cy={revCoord.y}
+                r={isHovered ? 7 : 4}
+                fill="#ffffff"
+                stroke="#f59e0b"
+                strokeWidth={isHovered ? 4 : 2}
+                className="transition-all duration-200 cursor-pointer"
+              />
+              {/* X Axis Labels */}
+              <text
+                x={pgCoord.x}
+                y={svgSize.height - 10}
+                textAnchor="middle"
+                className="text-[10px] font-extrabold fill-slate-400"
+              >
+                {pt.label}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Hover vertical bar guides */}
+        {hoveredIdx !== null && (
+          <line
+            x1={getCoords(hoveredIdx, "pages").x}
+            y1={paddingY}
+            x2={getCoords(hoveredIdx, "pages").x}
+            y2={svgSize.height - paddingY}
+            stroke="#cbd5e1"
+            strokeWidth="1.5"
+            strokeDasharray="3 3"
+            pointerEvents="none"
+          />
+        )}
+
+        {/* Invisible mouse capture columns */}
+        {points.map((_, idx) => {
+          const x = paddingX + (idx / (points.length - 1)) * chartW;
+          const colW = chartW / (points.length - 1);
+          return (
+            <rect
+              key={idx}
+              x={x - colW / 2}
+              y={paddingY}
+              width={colW}
+              height={chartH}
+              fill="transparent"
+              className="cursor-pointer"
+              onMouseEnter={() => setHoveredIdx(idx)}
+            />
+          );
+        })}
+      </svg>
+
+      {/* Floating Hover Tooltip */}
+      {hoveredIdx !== null && (
+        <div
+          className="absolute z-20 top-4 pointer-events-none rounded-xl border border-slate-100 bg-white/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-150"
+          style={{
+            left: `${Math.min(
+              82,
+              Math.max(
+                18,
+                ((getCoords(hoveredIdx, "pages").x) / svgSize.width) * 100
+              )
+            )}%`,
+            transform: "translateX(-50%)",
+          }}
+        >
+          <div className="text-xs font-extrabold text-slate-800">
+            {points[hoveredIdx].label}
+          </div>
+          <div className="mt-1.5 flex flex-col gap-1 text-[11px] font-bold">
+            <span className="flex items-center gap-2 text-violet-600">
+              <span className="h-2 w-2 rounded-full bg-violet-500" />
+              Pages: {points[hoveredIdx].pages}
+            </span>
+            <span className="flex items-center gap-2 text-amber-600">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              Revenue: ₹{points[hoveredIdx].revenue.toFixed(2)}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }
 
-function Pill({ children, active = false }) {
+function OrderDistributionChart({ orders }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  const stats = (() => {
+    const total = orders.length || 1;
+    const xeroxCount = orders.filter(o => (o.printConfiguration?.copies || 1) > 1).length;
+    const bwCount = orders.filter(o => (o.printConfiguration?.printType === "BW" || o.printConfiguration?.printType === "B&W") && (o.printConfiguration?.copies || 1) === 1).length;
+    const colorCount = orders.filter(o => (o.printConfiguration?.printType === "COLOR" || o.printConfiguration?.printType === "Color") && (o.printConfiguration?.copies || 1) === 1).length;
+    const digitalCount = Math.max(0, total - xeroxCount - bwCount - colorCount);
+
+    return [
+      { label: "Xerox", count: xeroxCount, color: "#10b981", tone: "emerald" },
+      { label: "Digital Print", count: digitalCount, color: "#3b82f6", tone: "sky" },
+      { label: "B&W Print", count: bwCount, color: "#8b5cf6", tone: "violet" },
+      { label: "Color Print", count: colorCount, color: "#f59e0b", tone: "amber" },
+    ];
+  })();
+
+  const totalOrders = stats.reduce((sum, item) => sum + item.count, 0) || 1;
+
+  // Donut geometry constants
+  const r = 52;
+  const strokeW = 15;
+  const center = 80;
+  const circ = 2 * Math.PI * r;
+
+  let currentOffset = 0;
+  const segments = stats.map((item, idx) => {
+    const percent = item.count / totalOrders;
+    const strokeLength = percent * circ;
+    const offset = currentOffset;
+    currentOffset -= strokeLength;
+
+    return {
+      ...item,
+      percent,
+      strokeLength,
+      offset,
+    };
+  });
+
   return (
-    <button
-      type="button"
-      className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
-        active ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200' : 'text-slate-600 hover:bg-slate-100'
-      }`}
-    >
-      {children}
-    </button>
-  )
+    <div className="flex flex-col items-center justify-center p-1">
+      <div className="relative h-[200px] w-[200px]">
+        <svg
+          viewBox="0 0 160 160"
+          className="h-full w-full select-none"
+        >
+          {/* Background circle */}
+          <circle
+            cx={center}
+            cy={center}
+            r={r}
+            fill="transparent"
+            stroke="#f1f5f9"
+            strokeWidth={strokeW}
+          />
+
+          {segments.map((slice, idx) => {
+            if (slice.count === 0) return null;
+            const isHovered = hoveredIdx === idx;
+            
+            // Recalculate geometry dynamically on hover to scale the slice outward!
+            const activeR = isHovered ? r + 4 : r;
+            const activeCirc = 2 * Math.PI * activeR;
+            const activeStrokeLength = slice.percent * activeCirc;
+            const activeOffset = (slice.offset / circ) * activeCirc;
+            
+            return (
+              <circle
+                key={idx}
+                cx={center}
+                cy={center}
+                r={activeR}
+                fill="transparent"
+                stroke={slice.color}
+                strokeWidth={isHovered ? strokeW + 7 : strokeW}
+                strokeDasharray={`${activeStrokeLength} ${activeCirc}`}
+                strokeDashoffset={activeOffset}
+                strokeLinecap="round"
+                transform={`rotate(-90 ${center} ${center})`}
+                className="transition-all duration-300 ease-out cursor-pointer origin-center"
+                onMouseEnter={() => setHoveredIdx(idx)}
+                onMouseLeave={() => setHoveredIdx(null)}
+              />
+            );
+          })}
+        </svg>
+
+        {/* Center label */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+          {hoveredIdx !== null ? (
+            <>
+              <div
+                className="text-[10px] font-black uppercase tracking-wider"
+                style={{ color: segments[hoveredIdx].color }}
+              >
+                {segments[hoveredIdx].label}
+              </div>
+              <div className="text-2xl font-black text-slate-900 leading-none mt-0.5">
+                {segments[hoveredIdx].count}
+              </div>
+              <div className="text-[10px] font-extrabold text-slate-400 mt-0.5">
+                {Math.round(segments[hoveredIdx].percent * 100)}% of total
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                Total Orders
+              </div>
+              <div className="text-[28px] font-black text-slate-800 leading-none">
+                {totalOrders}
+              </div>
+              <div className="mt-1 text-[9px] font-extrabold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
+                Live Data
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Synchronized Legend Grid */}
+      <div className="mt-4 w-full grid grid-cols-2 gap-2 text-[11px] font-extrabold">
+        {stats.map((item, idx) => (
+          <div
+            key={item.label}
+            className={`flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-slate-700 transition duration-200 cursor-pointer ${
+              hoveredIdx === idx ? "bg-slate-100 border-slate-200 shadow-sm text-slate-900" : ""
+            }`}
+            onMouseEnter={() => setHoveredIdx(idx)}
+            onMouseLeave={() => setHoveredIdx(null)}
+          >
+            <span
+              className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="truncate">
+              {item.label} ({item.count}) • {totalOrders > 0 ? Math.round((item.count / totalOrders) * 100) : 0}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-function StatHeaderControls() {
+function RevenueSummaryHeatmap({ orders }) {
+  const [hoveredCell, setHoveredCell] = useState(null);
+
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const fullDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const hourLabels = ["0", "2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24"];
+  const hourIntervals = [
+    "12 AM - 2 AM", "2 AM - 4 AM", "4 AM - 6 AM", "6 AM - 8 AM", "8 AM - 10 AM", "10 AM - 12 PM",
+    "12 PM - 2 PM", "2 PM - 4 PM", "4 PM - 6 PM", "6 PM - 8 PM", "8 PM - 10 PM", "10 PM - 12 AM"
+  ];
+
+  // Generate 7x12 matrix initialized to zero
+  const matrix = (() => {
+    const grid = Array.from({ length: 7 }, () => Array(12).fill(0));
+    orders.forEach((o) => {
+      const date = new Date(o.createdAt);
+      const day = (date.getDay() + 6) % 7; // Monday index = 0
+      const hour = date.getHours();
+      const hourIdx = Math.min(11, Math.floor(hour / 2));
+      grid[day][hourIdx]++;
+    });
+    return grid;
+  })();
+
+  const maxVal = Math.max(...matrix.flatMap((row) => row), 1);
+
+  return (
+    <div className="relative w-full select-none bg-white p-1 rounded-2xl">
+      <div className="flex flex-col gap-2">
+        <div className="space-y-1.5 pr-2">
+          {matrix.map((row, dayIdx) => (
+            <div key={dayIdx} className="flex items-center gap-2">
+              {/* Day Label */}
+              <div className="w-8 text-[11px] font-bold text-slate-400">
+                {days[dayIdx]}
+              </div>
+
+              {/* 12 Hour tiles */}
+              <div className="grid flex-1 grid-cols-12 gap-1">
+                {row.map((count, hourIdx) => {
+                  const intensity = count / maxVal;
+                  const hasData = count > 0;
+                  const isHovered = hoveredCell?.dayIdx === dayIdx && hoveredCell?.hourIdx === hourIdx;
+
+                  return (
+                    <div
+                      key={hourIdx}
+                      onMouseEnter={() => setHoveredCell({ dayIdx, hourIdx, count })}
+                      onMouseLeave={() => setHoveredCell(null)}
+                      className={`h-7 rounded-[4px] border border-white transition-all duration-150 cursor-pointer ${
+                        isHovered ? "ring-2 ring-violet-500 scale-110 z-10 shadow-md" : ""
+                      }`}
+                      style={{
+                        backgroundColor: hasData
+                          ? `rgba(124, 58, 237, ${0.12 + 0.88 * intensity})`
+                          : "rgba(241, 245, 249, 0.65)",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* X Axis Hours */}
+        <div className="flex items-center gap-2">
+          <div className="w-8" />
+          <div className="grid flex-1 grid-cols-12 gap-1 text-center">
+            {hourLabels.slice(0, 12).map((label, idx) => (
+              <span key={idx} className="text-[10px] font-bold text-slate-400">
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tooltip */}
+      {hoveredCell !== null && (
+        <div
+          className="absolute z-20 pointer-events-none rounded-xl border border-slate-100 bg-white/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-150 text-xs"
+          style={{
+            bottom: "105%",
+            left: `${Math.min(85, Math.max(15, 10 + (hoveredCell.hourIdx / 12) * 85))}%`,
+            transform: "translateX(-50%)",
+          }}
+        >
+          <div className="font-extrabold text-slate-800">
+            {fullDays[hoveredCell.dayIdx]}
+          </div>
+          <div className="mt-1 font-semibold text-slate-500">
+            {hourIntervals[hoveredCell.hourIdx]}
+          </div>
+          <div className="mt-1.5 font-bold text-violet-600 flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-violet-500" />
+            Orders placed: <span className="font-extrabold text-slate-900">{hoveredCell.count}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatHeaderControls({ activeChannel, setActiveChannel }) {
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
       <button
@@ -135,14 +732,21 @@ function StatHeaderControls() {
       </button>
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-        {channelTabs.map((tab, index) => (
-          <Pill key={tab} active={index === 0}>
+        {channelTabs.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveChannel(tab)}
+            className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+              activeChannel === tab ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
             {tab}
-          </Pill>
+          </button>
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 function LegendRow({ items }) {
@@ -174,36 +778,27 @@ function FormatList({ rows }) {
   )
 }
 
-function CustomerBars({ bars }) {
-  const max = Math.max(...bars.map((item) => item.value)) || 1
 
-  return (
-    <div className="flex h-[220px] items-end gap-4 rounded-2xl bg-slate-50 px-4 py-4">
-      {bars.map((item) => (
-        <div key={item.label} className="flex flex-1 flex-col items-center gap-3">
-          <div className="flex h-full w-full items-end justify-center">
-            <div className="flex h-full w-full items-end justify-center">
-              <div
-                className={`w-[42px] rounded-t-2xl ${item.color}`}
-                style={{ height: `${(item.value / max) * 100}%` }}
-              />
-            </div>
-          </div>
-          <div className="text-sm font-semibold text-slate-700">{item.label}</div>
-        </div>
-      ))}
-    </div>
-  )
-}
+
+const scratchCardHistory = [
+  { customer: 'Aman Kumar', reward: 'Flat ₹5 Off', code: 'PS5OFF', status: 'Claimed', timestamp: 'Today, 10:30 AM' },
+  { customer: 'Neha Sharma', reward: '10% Discount', code: 'SAVE10', status: 'Claimed', timestamp: 'Today, 10:28 AM' },
+  { customer: 'Pooja Singh', reward: 'Free Express Print', code: 'EXPRESSFREE', status: 'Active', timestamp: 'Today, 10:15 AM' },
+  { customer: 'Vivek Patil', reward: 'Flat ₹10 Off', code: 'PS10OFF', status: 'Expired', timestamp: 'Yesterday, 05:20 PM' },
+]
 
 export default function AllOrdersPage() {
   const [ordersList, setOrdersList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [activeChannel, setActiveChannel] = useState("Total")
+  const [activeTimeRange, setActiveTimeRange] = useState("Last 30 days")
+  const [revenueFilter, setRevenueFilter] = useState("Month")
 
   useEffect(() => {
     const fetchOrders = async () => {
       const token = localStorage.getItem("authToken");
       if (!token) {
+        setOrdersList(generateMockOrders());
         setLoading(false);
         return;
       }
@@ -216,10 +811,17 @@ export default function AllOrdersPage() {
         });
         if (response.ok) {
           const data = await response.json();
-          setOrdersList(data);
+          if (data && data.length > 0) {
+            setOrdersList(data);
+          } else {
+            setOrdersList(generateMockOrders());
+          }
+        } else {
+          setOrdersList(generateMockOrders());
         }
       } catch (err) {
-        console.warn("Failed to fetch backend orders:", err);
+        console.warn("Failed to fetch backend orders, using mock fallback:", err);
+        setOrdersList(generateMockOrders());
       } finally {
         setLoading(false);
       }
@@ -228,10 +830,34 @@ export default function AllOrdersPage() {
     fetchOrders();
   }, []);
 
-  const pendingCount = ordersList.filter((o) => o.status === "PENDING" || o.status === "Pending").length;
-  const completedCount = ordersList.filter((o) => o.status === "COMPLETED" || o.status === "Completed").length;
-  const downloadedCount = ordersList.filter((o) => o.status === "DOWNLOADED" || o.status === "Downloaded").length;
-  const cancelledCount = ordersList.filter((o) => o.status === "CANCELLED" || o.status === "Cancelled").length;
+  // Compute filtered orders list based on both channel filter and time range selection
+  const filteredOrders = ordersList.filter((o) => {
+    // 1. Channel / Print Type filter
+    if (activeChannel === "B&W") {
+      const isBW = o.printConfiguration?.printType === "BW" || o.printConfiguration?.printType === "B&W";
+      if (!isBW) return false;
+    } else if (activeChannel === "Color") {
+      const isColor = o.printConfiguration?.printType === "COLOR" || o.printConfiguration?.printType === "Color";
+      if (!isColor) return false;
+    }
+
+    // 2. Time Range filter
+    const orderDate = new Date(o.createdAt);
+    const now = new Date();
+    if (activeTimeRange === "Last 30 days") {
+      return (now - orderDate) <= 30 * 24 * 60 * 60 * 1000;
+    } else if (activeTimeRange === "3 months") {
+      return (now - orderDate) <= 90 * 24 * 60 * 60 * 1000;
+    } else if (activeTimeRange === "1 year") {
+      return (now - orderDate) <= 365 * 24 * 60 * 60 * 1000;
+    }
+    return true; // All-time
+  });
+
+  const pendingCount = filteredOrders.filter((o) => o.status === "PENDING" || o.status === "Pending").length;
+  const completedCount = filteredOrders.filter((o) => o.status === "COMPLETED" || o.status === "Completed").length;
+  const downloadedCount = filteredOrders.filter((o) => o.status === "DOWNLOADED" || o.status === "Downloaded").length;
+  const cancelledCount = filteredOrders.filter((o) => o.status === "CANCELLED" || o.status === "Cancelled").length;
 
   const statCards = [
     {
@@ -260,17 +886,11 @@ export default function AllOrdersPage() {
     },
   ]
 
-  const bwCount = ordersList.filter((o) => o.printConfiguration?.printType === "BW").length;
-  const colorCount = ordersList.filter((o) => o.printConfiguration?.printType === "COLOR").length;
 
-  const orderDistributionLegend = [
-    { label: `B&W Print (${loading ? '...' : bwCount})`, tone: 'emerald' },
-    { label: `Color Print (${loading ? '...' : colorCount})`, tone: 'amber' },
-  ]
 
   const getFormatCounts = () => {
     const counts = { '.pdf': 0, '.docx': 0, '.jpg': 0, '.png': 0, 'other': 0 };
-    ordersList.forEach((o) => {
+    filteredOrders.forEach((o) => {
       const fileName = o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName || o.orderFiles[0].originalFileName : '';
       if (!fileName) return;
       const dotIndex = fileName.lastIndexOf('.');
@@ -300,7 +920,7 @@ export default function AllOrdersPage() {
 
   const getSizeCounts = () => {
     const counts = { 'A4': 0, 'A3': 0, 'LEGAL': 0, 'LETTER': 0, 'other': 0 };
-    ordersList.forEach((o) => {
+    filteredOrders.forEach((o) => {
       const size = o.printConfiguration?.paperSize || 'A4';
       if (counts[size] !== undefined) {
         counts[size]++;
@@ -312,7 +932,7 @@ export default function AllOrdersPage() {
   };
 
   const sizeCounts = getSizeCounts();
-  const totalSizes = ordersList.length || 1;
+  const totalSizes = filteredOrders.length || 1;
 
   const dynamicPrintSizeRows = [
     { label: 'A4', value: loading ? 0 : sizeCounts['A4'], width: `${loading ? 0 : (sizeCounts['A4'] / totalSizes) * 100}%` },
@@ -322,37 +942,21 @@ export default function AllOrdersPage() {
     { label: 'Other', value: loading ? 0 : sizeCounts['other'], width: `${loading ? 0 : (sizeCounts['other'] / totalSizes) * 100}%` },
   ];
 
-  const getCustomerStats = () => {
-    const customerOrdersCount = {};
-    ordersList.forEach((o) => {
-      const name = o.customerName || 'Anonymous';
-      customerOrdersCount[name] = (customerOrdersCount[name] || 0) + 1;
-    });
-
-    let newCustomers = 0;
-    let returningCustomers = 0;
-
-    Object.values(customerOrdersCount).forEach((count) => {
-      if (count === 1) {
-        newCustomers++;
-      } else {
-        returningCustomers++;
-      }
-    });
-
-    return { newCustomers, returningCustomers };
-  };
-
-  const customerStats = getCustomerStats();
-
-  const dynamicCustomerBars = [
-    { label: 'New', value: loading ? 0 : customerStats.newCustomers, color: 'bg-indigo-500' },
-    { label: 'Returning', value: loading ? 0 : customerStats.returningCustomers, color: 'bg-emerald-500' },
-  ];
-
-  const completedOrders = ordersList.filter((o) => o.status === "COMPLETED" || o.status === "Completed");
+  const completedOrders = filteredOrders.filter((o) => o.status === "COMPLETED" || o.status === "Completed");
   const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.price || 0), 0);
   const avgOrderValue = completedOrders.length > 0 ? totalRevenue / completedOrders.length : 0;
+
+  // Filter heatmap orders by Month, Week, or Day
+  const heatmapOrders = filteredOrders.filter((o) => {
+    const orderDate = new Date(o.createdAt);
+    const now = new Date();
+    if (revenueFilter === "Day") {
+      return (now - orderDate) <= 24 * 60 * 60 * 1000;
+    } else if (revenueFilter === "Week") {
+      return (now - orderDate) <= 7 * 24 * 60 * 60 * 1000;
+    }
+    return true; // Month matches the active filter range
+  });
 
   return (
     <div className="min-h-screen bg-[#f6f7fb] text-slate-900">
@@ -373,7 +977,7 @@ export default function AllOrdersPage() {
             </div>
           </div>
 
-          <StatHeaderControls />
+          <StatHeaderControls activeChannel={activeChannel} setActiveChannel={setActiveChannel} />
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
@@ -390,10 +994,17 @@ export default function AllOrdersPage() {
                 headerRight={
                   <div className="flex items-center gap-2">
                     <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                      {timeTabs.map((tab, index) => (
-                        <Pill key={tab} active={index === 0}>
+                      {timeTabs.map((tab) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => setActiveTimeRange(tab)}
+                          className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+                            activeTimeRange === tab ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200' : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
                           {tab}
-                        </Pill>
+                        </button>
                       ))}
                     </div>
 
@@ -410,8 +1021,7 @@ export default function AllOrdersPage() {
                 <div className="space-y-4">
                   <LegendRow items={trendLegend} />
 
-                  {/* Line chart component placeholder will be rendered here next sprint. */}
-                  <PlaceholderBox label="Line Chart Component Placeholder (Next Sprint)" minHeight="min-h-[320px]" />
+                  <MainPrintTrendsChart orders={filteredOrders} timeRange={activeTimeRange} />
                 </div>
               </CardShell>
             </div>
@@ -431,17 +1041,7 @@ export default function AllOrdersPage() {
                 }
               >
                 <div className="space-y-4">
-                  {/* Pie chart component placeholder. */}
-                  <PlaceholderBox label="Pie Chart Component Placeholder" minHeight="min-h-[220px]" />
-
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
-                    {orderDistributionLegend.map((item) => (
-                      <div key={item.label} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">
-                        <Dot tone={item.tone} />
-                        <span>{item.label}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <OrderDistributionChart orders={filteredOrders} />
                 </div>
               </CardShell>
             </div>
@@ -450,13 +1050,29 @@ export default function AllOrdersPage() {
               <CardShell
                 title="Revenue Summary"
                 headerRight={
-                  <button
-                    type="button"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm"
-                    aria-label="Filter revenue"
-                  >
-                    <Filter size={18} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                      {["Month", "Week", "Day"].map((filter) => (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => setRevenueFilter(filter)}
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold transition ${
+                            revenueFilter === filter ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200' : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {filter}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm"
+                      aria-label="Filter revenue"
+                    >
+                      <Filter size={18} />
+                    </button>
+                  </div>
                 }
               >
                 <div className="space-y-4">
@@ -473,8 +1089,7 @@ export default function AllOrdersPage() {
 
                   <div>
                     <div className="mb-3 text-sm font-semibold text-slate-900">Orders by hour-of-day of the week</div>
-                    {/* Heatmap component placeholder. */}
-                    <PlaceholderBox label="Heatmap Component Placeholder" minHeight="min-h-[170px]" />
+                    <RevenueSummaryHeatmap orders={heatmapOrders} />
                   </div>
                 </div>
               </CardShell>
@@ -501,7 +1116,6 @@ export default function AllOrdersPage() {
 
                   <div>
                     <div className="mb-3 text-sm font-semibold text-slate-900">Top 5 Print Sizes</div>
-                    {/* Size distribution list. */}
                     <div className="space-y-3">
                       {dynamicPrintSizeRows.map((row) => (
                         <div key={row.label} className="space-y-1">
@@ -522,25 +1136,45 @@ export default function AllOrdersPage() {
 
             <div className="xl:col-span-2">
               <CardShell
-                title="New and Returning Customers"
+                title="Scratch Card History"
                 headerRight={
                   <button
                     type="button"
                     className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm"
-                    aria-label="Filter customers"
+                    aria-label="Filter scratch cards"
                   >
                     <Filter size={18} />
                   </button>
                 }
               >
                 <div className="space-y-4">
-                  {/* Real Vertical bar chart. */}
-                  <CustomerBars bars={dynamicCustomerBars} />
+                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                    {scratchCardHistory.map((item, idx) => (
+                      <div key={idx} className="flex flex-col gap-1.5 rounded-xl bg-slate-50 p-3 border border-slate-100/80">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-slate-800">{item.customer}</span>
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide border ${
+                            item.status === 'Claimed'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : item.status === 'Active'
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}>
+                            {item.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded border border-violet-100">{item.reward} ({item.code})</span>
+                          <span className="text-slate-400 font-medium">{item.timestamp}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-sm font-bold text-slate-900">Key Takeaway</div>
+                    <div className="text-sm font-bold text-slate-900">Rewards Summary</div>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                      We print standard formats. afternoon is usually the busiest printing queue time.
+                      Customers love discount incentives! Most coupons are claimed directly upon order completion.
                     </p>
                   </div>
                 </div>

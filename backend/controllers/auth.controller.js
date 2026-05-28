@@ -327,6 +327,8 @@ exports.updateProfile = async (req, res) => {
     const pricingCompleted = Boolean(pricing && Object.keys(pricing).length > 0);
     const isOnboarded = profileCompleted && pricingCompleted;
 
+    const estYear = businessEstablishedYear ? parseInt(businessEstablishedYear, 10) : null;
+
     let updated = await prisma.shopkeeper.update({
       where: { id: req.shopkeeper.id },
       data: {
@@ -338,7 +340,7 @@ exports.updateProfile = async (req, res) => {
         languagePref: languagePref || undefined,
         gstNumber: gstNumber || null,
         businessDescription: businessDescription || null,
-        businessEstablishedYear: businessEstablishedYear || null,
+        businessEstablishedYear: isNaN(estYear) ? null : estYear,
         website: website || null,
         alternatePhone: alternatePhone || null,
         socials: socials || undefined,
