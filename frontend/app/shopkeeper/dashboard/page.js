@@ -200,7 +200,7 @@ export default function ShopkeeperDashboard() {
       { key: 'completed', label: 'Completed', badge: String(completedCount) },
       { key: 'downloaded', label: 'Downloaded', badge: String(downloadedCount) },
       { key: 'cancelled', label: 'Cancelled', badge: String(cancelledCount) },
-      { key: 'coupon', label: 'Coupon Check', badge: null },
+      { key: 'coupon', label: 'Business network', badge: null, href: '/shopkeeper/business-network' },
       { key: 'printsmartAi', label: 'PrintSmart AI', badge: null, href: '/shopkeeper/printsmart-ai' },
     ];
   })();
