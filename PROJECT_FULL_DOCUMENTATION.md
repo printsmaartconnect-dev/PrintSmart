@@ -243,10 +243,13 @@ PrintSmart/
     │   │       └── page.js           # Active order statuses queue, downloads, cancellations
     │   │
     │   ├── shopkeeper/               # Shopkeeper admin dashboard
+    │   │   ├── page.js               # Shopkeeper home redirect wrapper [NEW]
     │   │   ├── login/
     │   │   │   └── page.js           # Multiple login support authentication
     │   │   ├── register/
     │   │   │   └── page.js           # New printer registrations
+    │   │   ├── all-orders/
+    │   │   │   └── page.js           # Detailed order analytics dashboard (Heatmap, trends, print-sizes, order-types) [NEW]
     │   │   ├── business-network/
     │   │   │   └── page.js           # Premium connections & network layout [NEW]
     │   │   ├── printsmart-ai/
@@ -259,8 +262,24 @@ PrintSmart/
     │   │   │   │   └── page.js       # Subscription selects
     │   │   │   └── profile-setup/
     │   │   │       └── page.js       # Shop metadata database configuration (retains details)
-    │   │   └── profile/
-    │   │       └── page.js           # View & edit profiles using Next-safe standard image tags
+    │   │   ├── profile/
+    │   │   │   └── page.js           # View & edit profiles using Next-safe standard image tags
+    │   │   ├── settings/
+    │   │   │   ├── page.js           # Main Settings navigation dashboard [NEW]
+    │   │   │   ├── appearance/
+    │   │   │   │   └── page.js       # Dark mode & visual UI appearance preferences [NEW]
+    │   │   │   ├── language-accessibility/
+    │   │   │   │   └── page.js       # Language selector & high contrast toggler [NEW]
+    │   │   │   ├── print-configuration/
+    │   │   │   │   └── page.js       # Set pricing tables & default print configurations [NEW]
+    │   │   │   ├── printers-support/
+    │   │   │   │   └── page.js       # Printer device connections & queue status management [NEW]
+    │   │   │   └── support-feedback/
+    │   │   │       └── page.js       # Support inquiry forms & feedback submissions [NEW]
+    │   │   ├── subscription/
+    │   │   │   └── page.js           # Subscriptions manager & billing history details [NEW]
+    │   │   └── support/
+    │   │       └── page.js           # Shopkeeper support FAQ accordions [NEW]
     │   │
     │   └── take-a-print/
     │       └── page.js               # Manual shop ID slug gateway (test fallback code "0000")
@@ -776,6 +795,19 @@ export function getOnboardingProgress() { /* ... */ }
 - Support & Feedback
 - Account Settings
 - Privacy & Security
+- Appearance
+- Print Configuration
+
+---
+
+##### `settings/appearance/page.js`
+**Purpose:** Customize theme appearance and layout modes.
+
+**Features:**
+- Toggle between light, dark, and system themes
+- Choose visual density of tables and charts
+- High-contrast visual options
+- Toggle standard navigation hover effects
 
 ---
 
@@ -788,6 +820,17 @@ export function getOnboardingProgress() { /* ... */ }
 - Font size selector
 - High contrast mode toggle
 - Screen reader optimization option
+
+---
+
+##### `settings/print-configuration/page.js`
+**Purpose:** Configure active printer paper sizes, duplex setups, and standard pricing scales.
+
+**Features:**
+- Standard page layout pricing matrices (B&W vs Color margins)
+- Custom duplex configuration overrides
+- Default orientation and margin scales setup
+- Estimated runtime calculator modifiers
 
 ---
 
@@ -814,6 +857,18 @@ export function getOnboardingProgress() { /* ... */ }
 ---
 
 #### Other Shopkeeper Pages
+
+##### `all-orders/page.js`
+**Purpose:** Comprehensive interactive orders analytics dashboard for shopkeepers.
+
+**Features:**
+- Real-time aggregation of orders by Day, Week, and Month filters
+- Dynamic interactive SVG charts including **Main Print Trends Chart** and **Order Distribution Chart**
+- **Revenue Summary Heatmap** showing order distributions by hour-of-day of the week
+- Interactive filters for Total, Black & White, and Color prints
+- Full scratch-card analytics history log view for promotional campaigns
+
+---
 
 ##### `subscription/page.js`
 **Purpose:** Manage active subscription and upgrade/downgrade.

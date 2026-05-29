@@ -233,12 +233,20 @@ export default function CustomerLanguagePage() {
           ) : (
             <>
               {shopError && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex gap-3">
-                  <AlertCircle className="text-amber-600 flex-shrink-0 animate-pulse" size={20} />
-                  <div className="text-left">
-                    <p className="font-semibold text-amber-900">{t('Shop Selection Required')}</p>
-                    <p className="text-sm text-amber-700 font-medium">{shopError}</p>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 space-y-3">
+                  <div className="flex gap-3">
+                    <AlertCircle className="text-amber-600 flex-shrink-0 animate-pulse" size={20} />
+                    <div className="text-left">
+                      <p className="font-semibold text-amber-900">{t('Shop Selection Required')}</p>
+                      <p className="text-sm text-amber-700 font-medium">{shopError}</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => router.push('/take-a-print')}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition"
+                  >
+                    {t('Scan QR or Enter Shop ID')}
+                  </button>
                 </div>
               )}
 
