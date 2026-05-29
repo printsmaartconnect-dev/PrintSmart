@@ -218,6 +218,7 @@ PrintSmart/
     │   ├── layout.js                 # Global HTML & SEO structural shell
     │   ├── page.js                   # Homepage (detects scanned QRs, renders Partner specs)
     │   ├── globals.css               # Tailwind directives & Glassmorphism definitions
+    │   ├── I18nProvider.js           # Multi-language i18n translation context provider [NEW]
     │   │
     │   ├── admin/                    # Admin portal pages
     │   │   ├── page.js               # Admin authentication gateway
@@ -226,7 +227,11 @@ PrintSmart/
     │   │
     │   ├── components/               # Shareable component modules
     │   │   ├── BackButton.js         # Unified client navigation button
-    │   │   └── FeedbackButton.js     # Floating help modal triggers
+    │   │   ├── FeedbackButton.js     # Floating help modal triggers
+    │   │   ├── FeedbackLink.js       # Reusable help form footer link [NEW]
+    │   │   └── customer/             # Customer workflow UI components [NEW]
+    │   │       ├── DocumentPreview.jsx # Live thumbnail & grayscale CSS preview renderer [NEW]
+    │   │       └── FilePreviewSection.jsx # Document title & config options wrapper [NEW]
     │   │
     │   ├── customer/                 # Customer order flow views
     │   │   ├── language/
@@ -852,41 +857,67 @@ export function getOnboardingProgress() { /* ... */ }
 
 ---
 
+##### `all-orders/page.js`
+**Purpose:** Shop Statistics & Analysis dashboard for the shopkeeper.
+
+**Sections & Features:**
+- **KPI Summary Cards:** Displays counts for Pending, Completed, Downloaded, and Cancelled orders, filtered dynamically by print channel (All, B&W, Color) and time range.
+- **Main Print Trends Chart:** Dynamic SVG rendering a smooth Bezier line chart showing total pages printed (violet) and total order value (amber) over selected timeframes. Includes an interactive hovering tooltip.
+- **Order Distribution Donut Chart:** Interactive SVG donut chart showing order segments (Xerox, Digital Print, B&W, Color). Slices dynamically expand outward on hover.
+- **Revenue Summary & Heatmap:** Lists total revenue and average order value, alongside a 7x12 matrix (Mon-Sun by 2-hour slots) visualizing order density hotspots.
+- **Top Formats & Sizes:** Lists count distributions for file extensions (`.pdf`, `.docx`, `.jpg`, `.png`, other) and print paper sizes (A4, A3, Legal, Letter, other).
+- **Scratch Card History:** Displays customer loyalty coupon codes claimed, pending, or expired.
+
+---
+
 ### Customer Pages
 
 #### `customer/language/page.js`
-**Purpose:** Customer's first step; select language for their session.
+**Purpose:** Customer's first step; select language for their session and collect user details.
 
 **Shows:**
-- Language options (flags or text)
-- Selected language auto-saves to localStorage
-- Proceeds to configuration page
+- Language options: English, Hindi, Marathi, Gujarati (with custom flag selectors)
+- "Other Languages" dropdown listing regional options (Bengali, Punjabi, Tamil, etc.)
+- User details form (Name [required], Phone [optional], Email [optional]) to sync identity parameters
+- Auto-detects browser language on initial load
+
+**Saves:** 
+- Selected language to `localStorage.customerLanguage` and initializes `i18next` locale context
+- Posts user details to `/api/users/create` to register/fetch user ID, and saves context to `localStorage.customerSession`
 
 ---
 
 #### `customer/configuration/page.js`
-**Purpose:** Set print configuration (paper size, color, quality, etc.).
+**Purpose:** Select printing preferences (paper size, color/BW, quality, duplex, range, and copies).
+
+**Layout Flow Options:**
+- **"I Want to Talk with Shopkeeper First"**: Bypasses layout configurations and redirects to the review step. Sets order variant to `'talk'` with ₹0 price.
+- **"I Want to Configure Print Layout"**: Reveals details below.
 
 **Options:**
-- Paper Size (A4, A3, Letter, etc.)
-- Color Mode (B&W, Color)
-- Quality (Draft, Normal, Premium)
-- Binding option (None, Left, Top)
+- Print Type (Black & White vs Color)
+- Number of Copies (supports increment/decrement selectors, range 1-999)
+- Paper Size (A4, A3, A5, Legal, Letter, Executive, Ledger, Tabloid)
+- Print Sides (Single-sided vs Double-sided)
+- Orientation (Portrait vs Landscape)
+- Print Quality (Draft, Normal, High)
+- Pages to Print (All Pages, Odd Pages Only, Even Pages Only)
 
-**Saves:** To localStorage or session state
+**Saves:** Stores full file configurations array (with customized layouts per file) to `localStorage.printConfigurations`
 
 ---
 
 #### `customer/upload/page.js`
-**Purpose:** Main file upload interface using React Dropzone.
+**Purpose:** Drag-and-drop file upload using React Dropzone.
 
 **Features:**
-- Drag-and-drop zone
-- File browser button
-- Accepted formats (PDF, DOCX, XLSX, JPG, PNG)
-- File preview thumbnails
-- Upload progress indicator
-- Estimated cost calculation
+- Multi-file drag/drop zone supporting PDF, Word doc/docx, and JPG/JPEG/PNG images
+- Dynamic thumbnail generation:
+  - Images use browser Canvas resize
+  - PDF documents use a CDN-loaded `pdf.js` worker script to render the first page on a canvas context
+- Custom renaming field for each uploaded file (retaining file extensions)
+- Local file size formatting utility
+- Integrates with POST `/api/files/upload` to store files and retrieve URLs
 
 **Key Code:**
 ```javascript
@@ -894,11 +925,18 @@ export function getOnboardingProgress() { /* ... */ }
 import { useDropzone } from 'react-dropzone'
 
 export default function UploadPage() {
-  const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
+  const onDrop = (acceptedFiles) => {
+    // Generates object previews and kicks off async thumbnail generator
+  }
+
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop,
     accept: {
       'application/pdf': ['.pdf'],
-      'application/msword': ['.docx'],
-      'image/*': ['.jpg', '.png'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
     },
   })
 
@@ -926,38 +964,38 @@ export default function UploadPage() {
 ---
 
 #### `customer/review/page.js`
-**Purpose:** Rate and review order after completion.
+**Purpose:** Review print specifications, calculate GST breakdown, and place the print order.
 
-**Form:**
-- Star rating (1-5)
-- Comment textarea
-- Photo upload (optional)
-- Submit review button
+**Shows:**
+- Shop details card showing name, address, phone, and estimated wait duration
+- Itemized files list displaying custom names, configured variants (e.g. Standard layout details vs "I Want to Talk" status banner), and individual estimated costs
+- Financial summary breakdown (Subtotal, 18% GST tax, and Total Cost)
+
+**Actions:**
+- Submits order via POST `/api/orders/create` payload containing items array, configurations, customer details, and total amount
+- Caches returned order details to `localStorage.currentOrder` and routes to placement confirmation
 
 ---
 
 #### `customer/order-placed/page.js`
-**Purpose:** Confirmation page after order submission.
+**Purpose:** Alphanumeric order confirmation page displaying queue and ID.
 
 **Shows:**
-- Order ID and confirmation number
-- Total amount and taxes
-- Estimated delivery date
-- Order summary
-- "Track Order" and "Continue Shopping" buttons
+- Alphanumeric Custom Order ID (format: `MMYYP[BW|C][sequence]`)
+- Estimated print wait time (e.g., 2–7 mins based on current queue size)
+- Print order details summary and total pricing
+- Links to order history tracking `/customer/orders`
 
 ---
 
 #### `customer/orders/page.js`
-**Purpose:** View all past and current orders.
+**Purpose:** Track active order statuses and manage past history.
 
 **Features:**
-- Filter by status (All, Pending, Printing, Ready, Delivered)
-- Search by order ID
-- Sort by date
-- Order details modal
-- Reorder button
-- Download invoice link
+- Real-time status cards (Pending, Accepted, Printing, Ready, Completed, Cancelled)
+- Inline button to download invoices (calls `/api/orders/:id/invoice`)
+- Delete order confirmation modal (allowed only if status is `PENDING`)
+- Ascending/descending date sorting filters and status badges
 
 ---
 
@@ -3603,10 +3641,10 @@ Manages the ordering workflow.
  
  ## Document Version
  
- - **Version:** 2.6.0
- - **Last Updated:** May 28, 2026
+ - **Version:** 2.7.0
+ - **Last Updated:** May 29, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration, file validation security rules, multi-language i18n support, and shopkeeper statistics analytics with interactive SVG graphs, heatmaps, and renames).
  
  ---
  
