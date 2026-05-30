@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Eye, EyeOff, Headphones, Home } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import {
   getLoggedInShopkeeper,
   isOnboardingComplete,
@@ -10,6 +11,7 @@ import {
 
 export default function ShopkeeperLoginPage() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
@@ -174,13 +176,13 @@ export default function ShopkeeperLoginPage() {
             </div>
 
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-black">Welcome Back!</h2>
-              <p className="text-gray-600 mt-2">Login to continue</p>
+              <h2 className="text-3xl font-bold text-black">{t('Welcome Back!')}</h2>
+              <p className="text-gray-600 mt-2">{t('Login to continue')}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-gray-700 font-semibold mb-2">Gmail</label>
+                <label className="block text-gray-700 font-semibold mb-2">{t('Gmail')}</label>
                 <input
                   type="email"
                   name="email"
@@ -190,13 +192,13 @@ export default function ShopkeeperLoginPage() {
                   autoCapitalize="none"
                   spellCheck={false}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition"
-                  placeholder="your@gmail.com"
+                  placeholder={t('your@gmail.com')}
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-2">Password</label>
+                <label className="block text-gray-700 font-semibold mb-2">{t('Password')}</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -207,7 +209,7 @@ export default function ShopkeeperLoginPage() {
                     autoCapitalize="none"
                     spellCheck={false}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition pr-12"
-                    placeholder="Enter your password"
+                    placeholder={t('Enter your password')}
                     required
                   />
                   <button
@@ -225,7 +227,7 @@ export default function ShopkeeperLoginPage() {
                 type="submit"
                 className="w-full gradient-button py-3 px-4 rounded-xl font-semibold transition text-white mt-6"
               >
-                Login
+                {t('Login')}
               </button>
 
               <div className="w-full flex justify-center mt-3">
@@ -238,7 +240,7 @@ export default function ShopkeeperLoginPage() {
                 href="/shopkeeper/register"
                 className="text-blue-600 font-semibold hover:underline"
               >
-                Register account?
+                {t('Register account?')}
               </a>
             </div>
           </div>
@@ -251,7 +253,7 @@ export default function ShopkeeperLoginPage() {
         target="_blank"
         rel="noopener noreferrer"
         className="fixed left-5 bottom-5 z-50 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/90 border border-gray-200 text-gray-800 font-semibold shadow-sm hover:bg-white transition"
-        aria-label="Help & Support"
+        aria-label={t('Help & Support')}
       >
         <span className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100">
           <Headphones size={18} className="text-blue-600" />

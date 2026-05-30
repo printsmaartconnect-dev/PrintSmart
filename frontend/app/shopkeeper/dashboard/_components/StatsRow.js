@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import {
   CheckCircle2,
   Clock,
@@ -36,6 +37,7 @@ const toneMap = {
 }
 
 function StatCard({ label, count, tone }) {
+  const { t } = useTranslation()
   const cfg = toneMap[tone]
   const Icon = cfg.icon
 
@@ -54,7 +56,7 @@ function StatCard({ label, count, tone }) {
         type="button"
         className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-700"
       >
-        View details <MoveRight size={14} />
+        {t('View details')} <MoveRight size={14} />
       </button>
     </div>
   )

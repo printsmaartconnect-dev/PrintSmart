@@ -95,13 +95,68 @@ async function generateInvoicePDF(orderData) {
       .text(`Print Side: ${printConfig?.sides === 'DOUBLE' ? 'Double Sided' : 'Single Sided'}`);
     doc.moveDown(1);
 
-    // Files section
-    doc.fontSize(11).font('Helvetica-Bold').text('FILES:');
+    // Files Table section
+    doc.fontSize(11).font('Helvetica-Bold').text('ITEMIZED PRINT BILLING:');
+    doc.moveDown(0.5);
+
+    // Draw Table Header
+    const tableHeaderY = doc.y;
+    doc.fontSize(9).font('Helvetica-Bold');
+    doc.text('Order ID', 50, tableHeaderY);
+    doc.text('File Name', 140, tableHeaderY);
+    doc.text('Print Details & Copies', 330, tableHeaderY);
+    doc.text('Amount', 480, tableHeaderY, { align: 'right', width: 60 });
+    
+    doc.moveDown(0.4);
+    doc.moveTo(50, doc.y).lineTo(540, doc.y).stroke();
+    doc.moveDown(0.6);
+
+    // Draw Table Rows
     if (files && files.length > 0) {
       files.forEach((file, idx) => {
-        doc.fontSize(10).font('Helvetica').text(`${idx + 1}. ${file.customFileName || file.originalFileName}`);
+        let displayName = file.customFileName || file.originalFileName;
+        let fileId = orderId; // fallback to main orderId
+        let itemPrice = totalAmount; // fallback to overall
+        let fileConfig = printConfig;
+
+        if (displayName && displayName.includes('|')) {
+          try {
+            const parts = displayName.split('|');
+            displayName = parts[0];
+            const parsedConfig = JSON.parse(parts[1]);
+            if (parsedConfig) {
+              fileId = parsedConfig.orderId || fileId;
+              itemPrice = parsedConfig.price !== undefined ? parseFloat(parsedConfig.price) : itemPrice;
+              fileConfig = parsedConfig;
+            }
+          } catch (e) {
+            console.error("Error parsing serialized file config in invoice generation", e);
+          }
+        }
+
+        // Shorten long file names so they don't overlap other columns
+        if (displayName.length > 28) {
+          displayName = displayName.substring(0, 25) + '...';
+        }
+
+        const copies = fileConfig?.copies || 1;
+        const type = fileConfig?.printType === 'COLOR' ? 'Color' : 'B&W';
+        const size = fileConfig?.paperSize || 'A4';
+        const sides = fileConfig?.sides === 'DOUBLE' ? 'Double' : 'Single';
+        const detailsStr = `${copies}x ${type} (${size}, ${sides})`;
+
+        const rowY = doc.y;
+        doc.fontSize(9).font('Helvetica');
+        doc.text(fileId, 50, rowY);
+        doc.text(displayName, 140, rowY);
+        doc.text(detailsStr, 330, rowY);
+        doc.text(`₹${itemPrice.toFixed(2)}`, 480, rowY, { align: 'right', width: 60 });
+        
+        doc.moveDown(1.2); // space for next row
       });
     }
+
+    doc.moveTo(50, doc.y).lineTo(540, doc.y).stroke();
     doc.moveDown(1);
 
     // Financial Summary

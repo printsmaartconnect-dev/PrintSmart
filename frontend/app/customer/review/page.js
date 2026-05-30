@@ -155,13 +155,15 @@ export default function ReviewPage() {
       config: item.config
     }))
 
+    const resolvedUserId = userId || customerInfo?.userId || null
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
       const response = await fetch(`${apiUrl}/api/orders/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: userId || customerInfo?.userId || null,
+          userId: resolvedUserId,
           shopkeeperId: shopDetails?.id || localStorage.getItem('activeShopId') || null,
           customerName: customerInfo?.name || 'Anonymous Customer',
           phone: customerInfo?.phone || '',
@@ -185,7 +187,7 @@ export default function ReviewPage() {
         shopName: shopDetails?.shopName || 'Shop'
       }))
 
-      router.push(`/customer/order-placed?shopId=${shopId}&userId=${userId}`)
+      router.push(`/customer/order-placed?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
     } catch (err) {
       console.error('Order creation error:', err)
       setError(err.message || t('Error occurred while submitting order details.'))

@@ -3279,17 +3279,29 @@ For managing documents in a scalable SaaS structure, PrintSmart integrates **AWS
   - **Size Limit:** Max file upload size is capped at 50MB.
 
 ### Programmatic DB Push and Generation
-On server startup (`server.js`), the application programmatically synchronizes the database schema and builds the Prisma client:
-```javascript
-const { execSync } = require("child_process");
-console.log("Syncing database schema and generating Prisma client...");
-execSync("npx prisma db push --accept-data-loss", { stdio: "inherit" });
-execSync("npx prisma generate", { stdio: "inherit" });
-```
+On server startup (`server.js`), programmatic schema synchronization and client generation (`npx prisma db push` and `npx prisma generate`) are **disabled by default (commented out)**.
+- **Rationale**: Programmatic CLI processes run on every boot trigger unexpected file locks on `query_engine-windows.dll.node` (leading to `EPERM` operation not permitted errors) and duplicate connection streams on the pooler.
+- **Production Practice**: Run schema migrations and client generations as manual or decoupled build/deployment steps:
+  ```bash
+  npx prisma generate
+  npx prisma db push --accept-data-loss
+  ```
 Additionally, a startup seed script auto-registers a default shopkeeper if the database is empty:
 - **Default Email**: `defaultshop@printsmart.com`
 - **Default Password**: `password123`
 - **Default Shop Slug / ID**: `smart-print-hub`
+
+### Dual-Stack DNS Resolution & IPv6 / NAT64 Workaround
+In environments where local networks resolve dual-stack domains (like Supabase's `aws-1-ap-southeast-2.pooler.supabase.com`) to synthesized IPv6/NAT64 addresses (e.g. `64:ff9b::...` Well-Known Prefix) but lack a functional NAT64 routing gateway, connections to the database can fail or time out (Prisma error `P1001: Can't reach database server`).
+
+- **Workaround (Connection Parameter)**: Specifying the `hostaddr` query parameter in the `DATABASE_URL` bypasses DNS translation entirely by pointing directly to the verified IPv4 pooler IP, while retaining the hostname for TLS SNI certificate validation:
+  ```bash
+  DATABASE_URL="postgresql://[USER]:[PASSWORD]@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres?hostaddr=52.65.247.42"
+  ```
+- **Prisma Client vs Prisma CLI**: 
+  - The **Prisma Client** query engine supports standard connection variables including `hostaddr`.
+  - The **Prisma CLI** (`db push`/`migrate`) uses a Rust engine that ignores `hostaddr` and resolves via DNS. Running migrations in these dual-stack environments should be performed by verifying direct IPv4 resolution or utilizing direct IPv4 connection strings with `?sslaccept=accept_invalid_certs` bypass parameters.
+
 
 ### Directory Structure
 ```
@@ -3655,10 +3667,10 @@ Manages the ordering workflow.
  
  ## Document Version
  
- - **Version:** 2.6.0
- - **Last Updated:** May 28, 2026
+ - **Version:** 2.7.0
+ - **Last Updated:** May 30, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing. Updated with database connection workarounds for Windows dual-stack environments and startup schema synchronization practices).
  
  ---
  

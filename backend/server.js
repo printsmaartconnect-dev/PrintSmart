@@ -76,7 +76,8 @@ app.listen(PORT, async () => {
     console.error('DNS test setup failed:', dnsErr.message);
   }
 
-  // Run db push and prisma generate programmatically to keep schema in sync
+  // Programmatic DB schema sync commented out to avoid DNS/IPv6 startup conflicts
+  /*
   try {
     const { execSync } = require("child_process");
     console.log("Syncing database schema and generating Prisma client...");
@@ -86,6 +87,7 @@ app.listen(PORT, async () => {
   } catch (syncErr) {
     console.warn("Prisma schema sync failed:", syncErr.message);
   }
+  */
 
   // Seed default shopkeeper details on start
   try {
@@ -95,4 +97,4 @@ app.listen(PORT, async () => {
     console.error("Failed to run seed service on startup:", seedErr);
   }
 });
-// Nodemon reload trigger: added client ID to .env
+// Nodemon reload trigger: updated database connection string in .env

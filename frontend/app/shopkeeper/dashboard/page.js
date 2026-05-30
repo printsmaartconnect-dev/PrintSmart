@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import {
   isOnboardingComplete,
   syncLocalStorageFromDb,
@@ -20,6 +21,7 @@ import { bottomDockItems, dashboardStats, recentOrders } from "./_components/moc
 
 export default function ShopkeeperDashboard() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [shopName, setShopName] = useState("");
   const [shopkeeperIdCode, setShopkeeperIdCode] = useState("");
@@ -180,28 +182,28 @@ export default function ShopkeeperDashboard() {
 
   // Compute dynamic stats based on ordersList
   const dynamicStats = (() => {
-    if (!dataLoaded) return dashboardStats;
+    if (!dataLoaded) return dashboardStats.map(s => ({ ...s, label: t(s.label) }));
     return [
-      { key: "pending", label: "Pending Orders", count: String(pendingCount), tone: "orange" },
-      { key: "completed", label: "Completed Orders", count: String(completedCount), tone: "green" },
-      { key: "downloaded", label: "Downloaded Files", count: String(downloadedCount), tone: "blue" },
-      { key: "cancelled", label: "Cancelled Orders", count: String(cancelledCount), tone: "red" },
+      { key: "pending", label: t("Pending Orders"), count: String(pendingCount), tone: "orange" },
+      { key: "completed", label: t("Completed Orders"), count: String(completedCount), tone: "green" },
+      { key: "downloaded", label: t("Downloaded Files"), count: String(downloadedCount), tone: "blue" },
+      { key: "cancelled", label: t("Cancelled Orders"), count: String(cancelledCount), tone: "red" },
     ];
   })();
 
   const dynamicDockItems = (() => {
-    if (!dataLoaded) return bottomDockItems;
+    if (!dataLoaded) return bottomDockItems.map(d => ({ ...d, label: t(d.label) }));
     return [
-      { key: 'profile', label: 'Profile', badge: null, href: '/shopkeeper/profile' },
-      { key: 'settings', label: 'Settings', badge: null, href: '/shopkeeper/settings' },
-      { key: 'subscription', label: 'Subscription', badge: null, href: '/shopkeeper/subscription' },
-      { key: 'allOrders', label: 'Statistics & Analysis', badge: null, href: '/shopkeeper/all-orders' },
-      { key: 'pending', label: 'Pending', badge: String(pendingCount) },
-      { key: 'completed', label: 'Completed', badge: String(completedCount) },
-      { key: 'downloaded', label: 'Downloaded', badge: String(downloadedCount) },
-      { key: 'cancelled', label: 'Cancelled', badge: String(cancelledCount) },
-      { key: 'coupon', label: 'Business network', badge: null, href: '/shopkeeper/business-network' },
-      { key: 'printsmartAi', label: 'PrintSmart AI', badge: null, href: '/shopkeeper/printsmart-ai' },
+      { key: 'profile', label: t('Profile'), badge: null, href: '/shopkeeper/profile' },
+      { key: 'settings', label: t('Settings'), badge: null, href: '/shopkeeper/settings' },
+      { key: 'subscription', label: t('Subscription'), badge: null, href: '/shopkeeper/subscription' },
+      { key: 'allOrders', label: t('Statistics & Analysis'), badge: null, href: '/shopkeeper/all-orders' },
+      { key: 'pending', label: t('Pending'), badge: String(pendingCount) },
+      { key: 'completed', label: t('Completed'), badge: String(completedCount) },
+      { key: 'downloaded', label: t('Downloaded'), badge: String(downloadedCount) },
+      { key: 'cancelled', label: t('Cancelled'), badge: String(cancelledCount) },
+      { key: 'coupon', label: t('Business network'), badge: null, href: '/shopkeeper/business-network' },
+      { key: 'printsmartAi', label: t('PrintSmart AI'), badge: null, href: '/shopkeeper/printsmart-ai' },
     ];
   })();
 
