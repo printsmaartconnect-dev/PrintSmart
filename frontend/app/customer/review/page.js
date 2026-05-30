@@ -135,8 +135,7 @@ export default function ReviewPage() {
   }
 
   const subtotal = calculateSubtotal()
-  const tax = subtotal * 0.18 // GST 18%
-  const total = subtotal + tax
+  const total = subtotal
 
   const handlePlaceOrder = async () => {
     if (filesWithConfig.length === 0) {
@@ -151,7 +150,7 @@ export default function ReviewPage() {
       fileName: item.customFileName || item.originalFileName,
       fileUrl: item.fileUrl,
       fileSize: item.fileSize || 0,
-      price: calculateItemPrice(item) * 1.18, // including tax proportion
+      price: calculateItemPrice(item),
       variant: item.variant || 'standard',
       config: item.config
     }))
@@ -293,10 +292,6 @@ export default function ReviewPage() {
           <div className="flex justify-between items-center text-gray-700 font-medium">
             <span>{t('Subtotal')}</span>
             <span>₹{subtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between items-center text-gray-700 font-medium">
-            <span>{t('GST (18%)')}</span>
-            <span>₹{tax.toFixed(2)}</span>
           </div>
           <div className="flex justify-between items-center pt-3 border-t border-gray-200 font-bold text-lg text-gray-900">
             <span>{t('Total Cost')}</span>

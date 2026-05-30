@@ -147,7 +147,23 @@ export default function OrdersPage() {
       {/* Card Container */}
       <div className="glassmorphism w-full max-w-md sm:max-w-xl lg:max-w-4xl p-6 sm:p-8 lg:p-10">
         <div className="flex items-center justify-between mb-6">
-          <BackButton />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <BackButton />
+            <button
+              onClick={() => router.push('/')}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition"
+            >
+              <Home size={18} />
+              {t('Home')}
+            </button>
+            <button
+              onClick={() => router.push(`/customer/upload?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition"
+            >
+              <Upload size={18} />
+              {t('Upload File')}
+            </button>
+          </div>
           <span className="text-sm font-semibold text-gray-600">{t('Step 7 of 7')}</span>
         </div>
 
@@ -307,24 +323,6 @@ export default function OrdersPage() {
             </div>
           </div>
         )}
-
-        {/* Bottom Navigation */}
-        <div className="flex gap-4 justify-between border-t pt-6 border-gray-150">
-          <button
-            onClick={() => router.push('/')}
-            className="flex-1 py-3 px-4 rounded-xl text-indigo-600 font-bold hover:bg-indigo-50 transition flex items-center justify-center gap-2 border border-indigo-100 text-sm"
-          >
-            <Home size={18} />
-            {t('Home')}
-          </button>
-          <button
-            onClick={() => router.push(`/customer/upload?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
-            className="flex-1 py-3 px-4 rounded-xl text-indigo-600 font-bold hover:bg-indigo-50 transition flex items-center justify-center gap-2 border border-indigo-100 text-sm"
-          >
-            <Upload size={18} />
-            {t('Upload File')}
-          </button>
-        </div>
 
         {/* Reusable help links */}
         <FeedbackLink />
