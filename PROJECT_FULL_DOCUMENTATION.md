@@ -116,6 +116,7 @@ npm run build            # Rebuild
 │  │  - PDFKit Invoice Generation                 │   │
 │  │  - QR Code Slug/UUID Services                │   │
 │  │  - Multer Memory S3 Storage w/ Local Fallback│   │
+│  │  - In-Memory Session Tracking & 2-PC Limit   │   │
 │  │  - Real-time Analytics Statistics Engine     │   │
 │  └──────────────────────────────────────────────┘   │
 └────────────────────────┬────────────────────────────┘
@@ -200,11 +201,12 @@ PrintSmart/
 │   │   ├── statistics.routes.js      # Earnings & counts logs endpoints
 │   │   └── user.routes.js            # Core customer profiles creation
 │   ├── services/                     # Business logic workers
-│   │   ├── invoice.service.js        # PDFKit-based professional billing PDF generator
+│   │   ├── invoice.service.js        # PDFKit-based professional billing PDF generator (supports premium itemized multi-column table)
 │   │   ├── order.service.js          # Custom MMDDYY print-type ID & Estimated wait calculations
 │   │   ├── qr.service.js             # Basic UUID QR codes generator
 │   │   ├── qrcode.service.js         # Base64 Data URL & Slug QR code builder
 │   │   ├── seed.service.js           # Automatic default shopkeeper registers
+│   │   ├── session.service.js        # In-memory concurrent session tracker and 2-PC limit controller [NEW]
 │   │   └── storage.service.js        # AWS S3 file upload with local folder fallback
 │   ├── uploads/                      # Local file fallback directory (git-ignored)
 │   │   ├── invoices/                 # Generated PDF invoices
@@ -421,8 +423,6 @@ module.exports = {
   },
 }
 ```
-
----
 
 ### Core Application Files
 
@@ -1194,8 +1194,6 @@ POST /api/uploads/validate
 - Add 2FA
 - Rate limiting on login attempts
 
----
-
 #### Module 2: Role-Based Routing
 
 **Files Involved:**
@@ -1219,8 +1217,6 @@ POST /api/uploads/validate
 - Middleware-based auth (Next.js middleware)
 - Permission-based access control (RBAC)
 - Audit logging for admin actions
-
----
 
 #### Module 3: File Upload (React Dropzone)
 
@@ -1258,8 +1254,6 @@ const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
 - Pause/resume capability
 - Chunk upload for large files
 - Real-time cost calculation based on page count
-
----
 
 #### Module 4: Shopkeeper Onboarding
 
@@ -1303,8 +1297,6 @@ export function getOnboardingProgress() {
 - Document upload (GST cert, etc.)
 - Phone verification
 - Success email confirmation
-
----
 
 #### Module 5: Dashboard & Reusable Components
 
@@ -3638,6 +3630,8 @@ Manages the ordering workflow.
  2. **Shop Fetching**: `/take-a-print` queries `/api/shopkeeper/by-slug/:shopId`. On success, details are cached in `localStorage` and routing shifts to `/customer/language`.
  3. **Language Selection**: Browser language is auto-detected. Customer selects their preferred language, inputs their details (Name, Phone, Email), which posts to `/api/users/create`, caching the returned `userId` in `localStorage`.
  4. **File Upload**: Customer uploads one or multiple documents on `/customer/upload`.
+    - Multiple file uploads are automatically grouped into a single database Order for unified payment, tracking, and itemized billing.
+    - Each uploaded file receives its own sequential custom ID (e.g. `0526PBW16`, `0526PBW17`, `0526PBW18`), with the final file's ID serving as the primary visible Order ID on the order-placed dashboard.
     - Each file generates a base64 thumbnail (rendering PDF pages using PDF.js CDN, or Canvas for images) cached locally to prevent blank images.
     - Submitting routes files to `/api/files/upload`, returning file storage URLs.
  5. **Print Configuration Choices**: On `/customer/configuration`, the customer is presented with two options at the top:
@@ -3645,32 +3639,38 @@ Manages the ordering workflow.
     - **"I Want to Configure Print Layout"**: Dynamically reveals the document preview sections and configuration fields (Color/BW, copies, paper size, quality, orientation, duplex sides, page range). By default, these configuration details are hidden to keep the landing layout clean.
     - Grayscale CSS renders dynamically on selecting the BW option, and pricing is calculated using the shopkeeper's pricing rates.
  6. **Order Review**: Summarizes shop details, configurations, and pricing. If the customer selected the Talk First option, a talk-specific banner is shown with a ₹0.00 balance. Continuing creates orders via `/api/orders/create`.
- 7. **Order Placed**: Customer views the backend-generated order ID, estimated wait time, and print details. History is accessible via `/customer/orders` with options to cancel pending orders or download invoices from `/api/orders/:id/invoice`.
+ 7. **Order Placed**: Customer views the backend-generated primary order ID, estimated wait time, and print details. History is accessible via `/customer/orders` where all files uploaded in a single transaction are rendered inside a single unified card. The primary order ID sits at the top of the card as the title, and each listed file explicitly mentions its own unique sequential file ID. The customer can also cancel pending orders or download a premium invoice PDF displaying an itemized multi-column table: `Invoice Num | File Name | Price of Print | Amount`.
  
  ### 2. Shopkeeper Dashboard Actions
  1. **Authentication & Session Lifecycle**:
     - Shopkeepers log in or register via `/api/auth/login`, `/api/auth/register`, or Google OAuth (`/api/auth/google`), receiving a JWT.
+    - **Concurrent Login Limit (2 PCs Max)**: The backend strictly enforces a session limit of 2 active devices per shopkeeper. Logging in on a 3rd device automatically invalidates the oldest session token (rolling logout) without locking the user out entirely.
+    - Subsequent requests from the invalidated device receive a `401 Unauthorized` error with a clear error payload: `"Session limit exceeded. You have been logged out because you logged in on another device."`
+    - The in-memory session manager (`session.service.js`) handles server restarts seamlessly, registering existing tokens on-the-fly on first request to prevent mass logouts.
     - The login page does NOT automatically bypass/redirect to the dashboard if a token exists. This allows multiple shopkeepers to log in or switch accounts on the same machine.
     - Shopkeepers can clear their session and log out using the **Logout** button in the dashboard header, which removes `authToken` and user state from `localStorage` and routes back to `/shopkeeper/login`.
- 2. **Onboarding & Setup**:
+ 2. **Global Translations & Accessibility**:
+    - The shopkeeper interface contains fully integrated global translations. Language selections made on the settings screen or login forms propagate instantly across the entire dashboard (including order queues, charts, layout toggles, stats cards, and helper docks).
+    - Global synchronization is driven by localized local storage keys and storage-change window events.
+ 3. **Onboarding & Setup**:
     - New shopkeepers complete step-by-step onboarding (Profile Setup and Pricing Setup) which saves configuration details in the database via `PUT /api/auth/profile`.
     - Onboarding profile updates preserve pricing details, and pricing configurations preserve profile details, preventing accidental nullification.
     - Profile detail rendering uses standard `<img>` tags for logos to support base64 images, relative paths, and unconfigured dynamic URLs without Next.js domain/hostname optimization crashes.
- 3. **Order Management**: Shopkeeper dashboard fetches `/api/orders/shopkeeper/all` to render order queues.
+ 4. **Order Management**: Shopkeeper dashboard fetches `/api/orders/shopkeeper/all` to render order queues.
     - **Premium Layout Toggle**: The dashboard supports switching between a horizontal scrolling **Card View** (with hover micro-animations) and a structured **Table View** presenting active print jobs in a grid.
     - **Quick Actions**: Inline buttons (Preview, Print, Download, Cancel) let shopkeepers process orders instantly.
     - **Database Enum Mapping**: When a shopkeeper downloads a customer file, the status change request is automatically mapped to `COMPLETED` in the backend. This prevents Prisma/PostgreSQL enum constraint errors while keeping the order completion data intact.
- 4. **Real-time Queue & Print**: Shopkeeper updates items to `Completed` which calls the browser's printing service, downloads the invoice, and updates statistics.
- 5. **Dynamic Shop Statistics**: All statistics card counts (Pending, Completed, Downloaded, Cancelled), bottom dock navigation badges, print sizes (A4, A3, etc.), document formats, revenue totals, and customer acquisition bar graphs are computed dynamically in real-time from the database order logs, ensuring exact reflections of database states.
+ 5. **Real-time Queue & Print**: Shopkeeper updates items to `Completed` which calls the browser's printing service, downloads the invoice, and updates statistics.
+ 6. **Dynamic Shop Statistics**: All statistics card counts (Pending, Completed, Downloaded, Cancelled), bottom dock navigation badges, print sizes (A4, A3, etc.), document formats, revenue totals, and customer acquisition bar graphs are computed dynamically in real-time from the database order logs, ensuring exact reflections of database states.
  
  ---
  
  ## Document Version
  
- - **Version:** 2.7.0
+ - **Version:** 2.8.0
  - **Last Updated:** May 30, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing. Updated with database connection workarounds for Windows dual-stack environments and startup schema synchronization practices).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing. Updated with database connection workarounds for Windows dual-stack environments and startup schema synchronization practices. Enhanced with multi-file sequential ID batch uploads, premium itemized invoices, global shopkeeper dashboard translations, and 2-PC concurrent session rolling logout limits).
  
  ---
  

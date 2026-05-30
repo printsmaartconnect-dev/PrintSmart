@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../config/db");
 const qrcodeService = require("../services/qrcode.service");
 const qrService = require("../services/qr.service");
+const sessionService = require("../services/session.service");
 
 const jwtSecret = process.env.JWT_SECRET || "supersecretjwtkeychangeinproduction";
 
@@ -108,6 +109,9 @@ exports.register = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    // Register session with session manager
+    sessionService.registerSession(shopkeeper.id, token);
+
     const returnedShopkeeper = await prisma.shopkeeper.findUnique({
       where: { id: shopkeeper.id },
     });
@@ -156,6 +160,9 @@ exports.login = async (req, res) => {
       jwtSecret,
       { expiresIn: "7d" }
     );
+
+    // Register session with session manager
+    sessionService.registerSession(shopkeeper.id, token);
 
     res.json(createAuthResponse(shopkeeper, token));
   } catch (err) {
@@ -284,6 +291,9 @@ exports.googleAuth = async (req, res) => {
     const token = jwt.sign({ shopkeeper: { id: shopkeeper.id } }, jwtSecret, {
       expiresIn: "7d",
     });
+
+    // Register session with session manager
+    sessionService.registerSession(shopkeeper.id, token);
 
     res.json(createAuthResponse(shopkeeper, token));
   } catch (err) {
