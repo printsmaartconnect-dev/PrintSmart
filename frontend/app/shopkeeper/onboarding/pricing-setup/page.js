@@ -327,7 +327,14 @@ export default function PricingSetupPage() {
           Need Help?
         </div>
         <div className="mt-1 text-xs text-slate-500">We&apos;re here to help you set up your shop.</div>
-        <PrimaryButton type="button" className="mt-3 w-full">Get Support</PrimaryButton>
+        <a
+          href="https://forms.gle/VBK48SwGSWm7prgUA"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+        >
+          Get Support
+        </a>
       </div>
     </div>
   )

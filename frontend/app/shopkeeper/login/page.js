@@ -247,7 +247,9 @@ export default function ShopkeeperLoginPage() {
 
       {/* Help & Support Floating Button */}
       <a
-        href="#"
+        href="https://forms.gle/VBK48SwGSWm7prgUA"
+        target="_blank"
+        rel="noopener noreferrer"
         className="fixed left-5 bottom-5 z-50 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/90 border border-gray-200 text-gray-800 font-semibold shadow-sm hover:bg-white transition"
         aria-label="Help & Support"
       >

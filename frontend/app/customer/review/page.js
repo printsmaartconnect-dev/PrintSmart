@@ -3,11 +3,12 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { FileText, MapPin, Phone, Clock, Store, AlertCircle, ShieldCheck } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import DocumentPreview from '../../components/customer/DocumentPreview'
+import { getActiveShop } from '../../../lib/shop-context'
 
 export default function ReviewPage() {
   const { t } = useTranslation()
@@ -44,9 +45,31 @@ export default function ReviewPage() {
       }
     }
 
-    // Fetch shop details by slug
-    const fetchShop = async () => {
-      if (!shopId) {
+    // Resolve shop from local storage first, then fall back to API lookup by slug
+    const resolveShop = async () => {
+      const activeShop = getActiveShop()
+      if (activeShop) {
+        setShopDetails(activeShop)
+        setFetchingShop(false)
+        return
+      }
+
+      const storedShop = localStorage.getItem('selectedShop')
+      if (storedShop) {
+        try {
+          const parsedShop = JSON.parse(storedShop)
+          if (parsedShop) {
+            setShopDetails(parsedShop)
+            setFetchingShop(false)
+            return
+          }
+        } catch (err) {
+          console.error('Error loading selected shop:', err)
+        }
+      }
+
+      const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
+      if (!resolvedShopId) {
         setError(t('No shop selected.'))
         setFetchingShop(false)
         return
@@ -54,7 +77,7 @@ export default function ReviewPage() {
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-        const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${shopId}`)
+        const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${resolvedShopId}`)
         if (!response.ok) {
           throw new Error(t('Could not find shop keeper details.'))
         }
@@ -68,7 +91,7 @@ export default function ReviewPage() {
       }
     }
 
-    fetchShop()
+    resolveShop()
   }, [shopId])
 
   // Calculate pricing based on shop keeper settings or fallbacks
