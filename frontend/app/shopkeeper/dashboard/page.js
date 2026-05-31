@@ -204,7 +204,7 @@ export default function ShopkeeperDashboard() {
       { key: 'profile', label: t('Profile'), badge: null, href: '/shopkeeper/profile' },
       { key: 'settings', label: t('Settings'), badge: null, href: '/shopkeeper/settings' },
       { key: 'subscription', label: t('Subscription'), badge: null, href: '/shopkeeper/subscription' },
-      { key: 'allOrders', label: t('Statistics & Analysis'), badge: null, href: '/shopkeeper/all-orders' },
+      { key: 'allOrders', label: t('Statistics & Analysis'), badge: null, href: '/shopkeeper/statistics-and-analysis' },
       { key: 'pending', label: t('Pending'), badge: String(pendingCount) },
       { key: 'completed', label: t('Completed'), badge: String(completedCount) },
       { key: 'downloaded', label: t('Downloaded'), badge: String(downloadedCount) },

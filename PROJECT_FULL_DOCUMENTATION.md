@@ -292,8 +292,8 @@ PrintSmart/
     │   │   │   └── page.js           # Multiple login support authentication
     │   │   ├── register/
     │   │   │   └── page.js           # New printer registrations
-    │   │   ├── all-orders/
-    │   │   │   └── page.js           # Detailed order analytics dashboard (Heatmap, trends, print-sizes, order-types) [NEW]
+    │   │   ├── statistics-and-analysis/
+    │   │   │   └── page.js           # Detailed order analytics dashboard (Bar chart, trends, print-sizes, order-types) [NEW]
     │   │   ├── business-network/
     │   │   │   └── page.js           # Premium connections & network layout [NEW]
     │   │   ├── printsmart-ai/
@@ -900,7 +900,7 @@ export function getOnboardingProgress() { /* ... */ }
 
 #### Other Shopkeeper Pages
 
-##### `all-orders/page.js`
+##### `statistics-and-analysis/page.js`
 **Purpose:** Comprehensive interactive orders analytics dashboard for shopkeepers.
 
 **Features:**
@@ -949,7 +949,7 @@ export function getOnboardingProgress() { /* ... */ }
 
 ---
 
-##### `all-orders/page.js`
+##### `statistics-and-analysis/page.js`
 **Purpose:** Shop Statistics & Analysis dashboard for the shopkeeper.
 
 **Sections & Features:**

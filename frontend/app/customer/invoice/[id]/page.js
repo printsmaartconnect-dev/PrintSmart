@@ -145,8 +145,13 @@ export default function InvoicePage() {
       {/* Main Invoice Card */}
       <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden font-sans">
         
-        {/* Decorative Gradient Top Line */}
-        <div className="h-2.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+        {/* Decorative Dark Rainbow Gradient Top Line */}
+        <div 
+          className="h-2.5" 
+          style={{
+            background: 'linear-gradient(to right, #7f1d1d, #9a3412, #92400e, #15803d, #0e7490, #1e40af, #5b21b6, #6b21a8)'
+          }}
+        ></div>
 
         <div className="p-6 sm:p-10">
           
