@@ -2,7 +2,7 @@
 
 ## Project Summary
 
-**PrintSmart** is a modern web application designed to simplify printing workflows for multiple user types (customers, shopkeepers, and administrators). Built with **Next.js 14** and **React 18**, the application provides role-based dashboards and management interfaces with a focus on user experience and accessibility. The platform enables customers to upload and manage print orders, shopkeepers to manage their operations and subscriptions, and administrators to oversee the entire ecosystem. The frontend is styled with **Tailwind CSS** and uses **Lucide React** for iconography, with file handling powered by **React Dropzone**.
+**PrintSmart** is a modern full-stack web application designed to simplify printing workflows for multiple user types (customers, shopkeepers, and administrators). Built with **Next.js 14** and **React 18** on the frontend, and a **Node.js & Express.js** server on the backend with **PostgreSQL** and **Prisma ORM**, the application provides role-based dashboards and management interfaces with a focus on user experience and accessibility. The platform enables customers to upload and manage print orders, shopkeepers to manage their operations and subscriptions, and administrators to oversee the entire ecosystem. The frontend is styled with **Tailwind CSS** and uses **Lucide React** for iconography, with file handling powered by **React Dropzone** and AWS S3 storage integration (with local fallback).
 
 ## Audience & Prerequisites
 
@@ -1020,12 +1020,12 @@ export default function UploadPage() {
 
 ## Data Models & Schema
 
-### Client-Side Data Models
+### Data Architecture Overview
 
-Since this is a frontend-only application, data is managed through:
-1. **React State** (in-memory, session-based)
-2. **localStorage** (browser storage, persistent across sessions)
-3. **URL Search Params** (for navigation state)
+PrintSmart operates a full-stack, state-synchronized database architecture:
+1. **Persistent Backend Storage:** Powered by a PostgreSQL database. Schema queries, relationship controls, and cascades are managed via Prisma ORM.
+2. **Client-Side Caching:** Utilizes `localStorage` to cache user choices, session tokens (JWT), active shop configurations, and active cart/upload state to optimize page load speeds.
+3. **URL Search Params:** Used for role-specific navigation state.
 
 ### LocalStorage Schema
 
@@ -1107,58 +1107,51 @@ localStorage.setItem('uploadCart', JSON.stringify([
 
 ---
 
-## API Reference (Frontend Endpoints)
+## API Reference
 
-This is a **frontend-only application**. For future backend integration, follow these conventions:
+PrintSmart's backend API endpoints are fully active and integrated. All endpoints below are fully operational and hosted on the Node.js/Express server (defaulting to port `5000` in development).
 
-### Authentication Endpoints (To Implement)
-
-```
-POST /api/admin/login
-  Request: { email: string, password: string }
-  Response: { token: string, user: AdminUser }
-
-POST /api/shopkeeper/register
-  Request: { shopName, email, password, phone, ... }
-  Response: { shopId: string, token: string }
-
-POST /api/shopkeeper/login
-  Request: { email: string, password: string }
-  Response: { token: string, user: ShopkeeperUser }
-
-POST /api/auth/logout
-  Response: { success: boolean }
-```
-
-### Order Endpoints (To Implement)
+### Authentication Endpoints
 
 ```
-GET /api/orders
-  Query: { status?, shopkeeperId?, customerId?, limit=10, offset=0 }
-  Response: { data: Order[], total: number, hasMore: boolean }
+POST /api/auth/register
+  Request: { email, phone, password, shopName, shopSlug }
+  Response: { token: string, shopkeeper: Shopkeeper }
 
-POST /api/orders
-  Request: { customerId, shopkeeperId, items: CartItem[], ... }
-  Response: { orderId: string, order: Order }
+POST /api/auth/login
+  Request: { email, password }
+  Response: { token: string, shopkeeper: Shopkeeper }
 
-GET /api/orders/:orderId
-  Response: { order: Order }
-
-PUT /api/orders/:orderId
-  Request: { status?, items?, ... }
-  Response: { order: Order }
+POST /api/auth/google
+  Request: { credential } (Google OAuth token)
+  Response: { token: string, shopkeeper: Shopkeeper }
 ```
 
-### File Upload Endpoints (To Implement)
+### Order Endpoints
 
 ```
-POST /api/uploads/presigned-url
-  Request: { fileName: string, fileType: string }
-  Response: { uploadUrl: string, key: string }
+GET /api/orders/shopkeeper/all
+  Headers: Authorization: Bearer <token>
+  Response: Order[]
 
-POST /api/uploads/validate
-  Request: { fileKey: string }
-  Response: { isValid: boolean, pages: number, cost: number }
+POST /api/orders/create
+  Request: { userId, shopkeeperId, customerName, phone, items: [{ fileName, fileUrl, fileSize, price, config }] }
+  Response: { message: "Order(s) created successfully", orders: Order[] }
+
+GET /api/orders/user/:userId
+  Response: Order[]
+
+DELETE /api/orders/:id
+  Response: { message: "Order deleted successfully" } (Only allowed if status is PENDING)
+```
+
+### File Upload Endpoints
+
+```
+POST /api/files/upload
+  Content-Type: multipart/form-data
+  Request Payload: Form field 'file' containing physical document (PDF/Image)
+  Response: { message: "File uploaded successfully", fileName, fileUrl, fileKey, storageType, sizeBytes, mimeType }
 ```
 
 ---
@@ -1744,7 +1737,7 @@ console.log('Debug message:', data)
 
 ### Current Testing Status
 
-**Note:** This is a **frontend-only application** with no formal test suite configured. For production use, implement tests as described below.
+**Note:** PrintSmart has been developed with deep integration testing between the React/Next.js frontend views and the Express server/PostgreSQL database. Recommended test suites for local unit, integration, and E2E validation are detailed below.
 
 ### Recommended Testing Strategy
 
@@ -2867,18 +2860,18 @@ All notable changes to PrintSmart are documented in this file.
 - Mock data only
 - localStorage limited to browser
 
-## Unreleased (Planned)
+## [3.0.0] - 2026-05-31
 
-### Todo
-- Backend API integration
-- Real database (PostgreSQL)
-- User authentication (JWT)
-- Payment processing (Stripe)
-- Email notifications
-- Real-time notifications (WebSocket)
-- Multi-language support (i18n)
-- Dark mode
-- Mobile app (React Native)
+### Added
+- Complete Express and Node.js backend integration with PostgreSQL database using Prisma ORM.
+- Programmatic fallback storage: physical files automatically write to AWS S3 bucket, with robust local disk uploads fallback.
+- Advanced authentication features: Google OAuth login support, and strict 2-PC concurrent session limit with oldest token rolling logout.
+- Seeding & testing shortcuts: default `smart-print-hub` register seeds and `0000` test bypass code mapping.
+- Custom Order ID sequencer (`MMYYP[BW|C][sequence]`) and queue position/estimated wait time algorithm.
+- PDFKit professional invoice layout generator streaming itemized bills with multi-column tables.
+- Batch multi-file uploading support with individual sequential print ID generation.
+- Responsive, premium multi-step frontend interfaces for Customer flow (Language, Upload, Config, Review, Order Placed, My Orders).
+- Global translations across both frontend customer steps and shopkeeper dashboard interfaces.
 ```
 
 ---
