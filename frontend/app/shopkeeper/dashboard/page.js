@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import {
   isOnboardingComplete,
   syncLocalStorageFromDb,
@@ -20,9 +21,11 @@ import { bottomDockItems, dashboardStats, recentOrders } from "./_components/moc
 
 export default function ShopkeeperDashboard() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [shopName, setShopName] = useState("");
   const [shopkeeperIdCode, setShopkeeperIdCode] = useState("");
+  const [memberSince, setMemberSince] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [ordersList, setOrdersList] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -138,6 +141,9 @@ export default function ShopkeeperDashboard() {
           // Onboarded - proceed
           setShopName(shopkeeper.shopName || "");
           setShopkeeperIdCode(shopkeeper.shopSlug || "");
+          if (shopkeeper.createdAt) {
+            setMemberSince(shopkeeper.createdAt);
+          }
           fetchOrders();
         } else {
           // If profile fetch fails (e.g. invalid token), redirect to login
@@ -161,6 +167,9 @@ export default function ShopkeeperDashboard() {
 
         setShopName(profile.shopName || "");
         setShopkeeperIdCode(profile.shopSlug || "");
+        if (account?.createdAt) {
+          setMemberSince(account.createdAt);
+        }
         fetchOrders();
       }
     };
@@ -180,28 +189,28 @@ export default function ShopkeeperDashboard() {
 
   // Compute dynamic stats based on ordersList
   const dynamicStats = (() => {
-    if (!dataLoaded) return dashboardStats;
+    if (!dataLoaded) return dashboardStats.map(s => ({ ...s, label: t(s.label) }));
     return [
-      { key: "pending", label: "Pending Orders", count: String(pendingCount), tone: "orange" },
-      { key: "completed", label: "Completed Orders", count: String(completedCount), tone: "green" },
-      { key: "downloaded", label: "Downloaded Files", count: String(downloadedCount), tone: "blue" },
-      { key: "cancelled", label: "Cancelled Orders", count: String(cancelledCount), tone: "red" },
+      { key: "pending", label: t("Pending Orders"), count: String(pendingCount), tone: "orange" },
+      { key: "completed", label: t("Completed Orders"), count: String(completedCount), tone: "green" },
+      { key: "downloaded", label: t("Downloaded Files"), count: String(downloadedCount), tone: "blue" },
+      { key: "cancelled", label: t("Cancelled Orders"), count: String(cancelledCount), tone: "red" },
     ];
   })();
 
   const dynamicDockItems = (() => {
-    if (!dataLoaded) return bottomDockItems;
+    if (!dataLoaded) return bottomDockItems.map(d => ({ ...d, label: t(d.label) }));
     return [
-      { key: 'profile', label: 'Profile', badge: null, href: '/shopkeeper/profile' },
-      { key: 'settings', label: 'Settings', badge: null, href: '/shopkeeper/settings' },
-      { key: 'subscription', label: 'Subscription', badge: null, href: '/shopkeeper/subscription' },
-      { key: 'allOrders', label: 'Statistics & Analysis', badge: null, href: '/shopkeeper/all-orders' },
-      { key: 'pending', label: 'Pending', badge: String(pendingCount) },
-      { key: 'completed', label: 'Completed', badge: String(completedCount) },
-      { key: 'downloaded', label: 'Downloaded', badge: String(downloadedCount) },
-      { key: 'cancelled', label: 'Cancelled', badge: String(cancelledCount) },
-      { key: 'coupon', label: 'Business network', badge: null, href: '/shopkeeper/business-network' },
-      { key: 'printsmartAi', label: 'PrintSmart AI', badge: null, href: '/shopkeeper/printsmart-ai' },
+      { key: 'profile', label: t('Profile'), badge: null, href: '/shopkeeper/profile' },
+      { key: 'settings', label: t('Settings'), badge: null, href: '/shopkeeper/settings' },
+      { key: 'subscription', label: t('Subscription'), badge: null, href: '/shopkeeper/subscription' },
+      { key: 'allOrders', label: t('Statistics & Analysis'), badge: null, href: '/shopkeeper/all-orders' },
+      { key: 'pending', label: t('Pending'), badge: String(pendingCount) },
+      { key: 'completed', label: t('Completed'), badge: String(completedCount) },
+      { key: 'downloaded', label: t('Downloaded'), badge: String(downloadedCount) },
+      { key: 'cancelled', label: t('Cancelled'), badge: String(cancelledCount) },
+      { key: 'coupon', label: t('Business network'), badge: null, href: '/shopkeeper/business-network' },
+      { key: 'printsmartAi', label: t('PrintSmart AI'), badge: null, href: '/shopkeeper/printsmart-ai' },
     ];
   })();
 
@@ -214,12 +223,18 @@ export default function ShopkeeperDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#FDFCFD] relative overflow-hidden">
+      {/* Dynamic Purple Wave Background Decorator */}
+      <div className="absolute top-0 right-0 left-0 h-[340px] bg-gradient-to-b from-violet-100/30 via-fuchsia-50/15 to-transparent -z-10 pointer-events-none overflow-hidden">
+        <svg className="absolute top-0 w-full h-full text-violet-200/20" viewBox="0 0 1440 320" fill="none" preserveAspectRatio="none">
+          <path fill="currentColor" d="M0,96L48,112C96,128,192,160,288,186.7C384,213,480,235,576,218.7C672,203,768,149,864,138.7C960,128,1056,160,1152,165.3C1248,171,1344,149,1392,138.7L1440,128L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path>
+        </svg>
+      </div>
       <DashboardHeader shopName={shopName} />
 
       <div className="px-4 sm:px-6 lg:px-8 pb-28">
         <div className="mx-auto max-w-7xl space-y-6">
-          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} />
+          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} memberSince={memberSince} />
           <StatsRow stats={dynamicStats} />
           <RecentOrders orders={displayedOrders} activeFilter={activeFilter} onStatusChange={handleStatusChange} />
         </div>

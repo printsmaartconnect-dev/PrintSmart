@@ -290,7 +290,7 @@ export default function ShopkeeperProfileViewPage() {
                 active={!!isProfileActive}
                 icon={User}
               >
-                Profile Setup
+                Profile
               </SidebarNavItem>
               <SidebarNavItem
                 href="/shopkeeper/profile/pricing"
@@ -315,13 +315,14 @@ export default function ShopkeeperProfileViewPage() {
                   </div>
                 </div>
 
-                <PrimaryButton
-                  type="button"
-                  className="mt-4 w-full"
-                  onClick={() => router.push('/shopkeeper/support')}
+                <a
+                  href="https://forms.gle/VBK48SwGSWm7prgUA"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
                 >
                   Get Support
-                </PrimaryButton>
+                </a>
               </div>
             </div>
           </aside>
@@ -329,7 +330,7 @@ export default function ShopkeeperProfileViewPage() {
           {/* Main content */}
           <section className="flex-1">
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-900">Profile Setup</h1>
+              <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
               <p className="mt-1 text-sm text-slate-500">
                 Tell customers about your business. This information will be visible on your shop profile.
               </p>
@@ -534,9 +535,14 @@ export default function ShopkeeperProfileViewPage() {
                 Need Help?
               </div>
               <div className="mt-1 text-xs text-slate-500">We&apos;re here to help you set up your shop.</div>
-              <PrimaryButton type="button" className="mt-3 w-full" onClick={() => router.push('/shopkeeper/support')}>
+              <a
+                href="https://forms.gle/VBK48SwGSWm7prgUA"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+              >
                 Get Support
-              </PrimaryButton>
+              </a>
             </div>
           </section>
         </div>

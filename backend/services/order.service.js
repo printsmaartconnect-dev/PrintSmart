@@ -18,15 +18,14 @@ async function generateCustomOrderId(printType = 'BW') {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     
-    // Count orders created this month with same print type
-    const thisMonthOrderCount = await prisma.order.count({
+    // Count all printed files this month
+    const thisMonthOrderCount = await prisma.orderFile.count({
       where: {
-        createdAt: {
-          gte: startOfMonth,
-          lt: endOfMonth
-        },
-        printConfiguration: {
-          printType: typeCode === 'C' ? 'COLOR' : 'BW'
+        order: {
+          createdAt: {
+            gte: startOfMonth,
+            lt: endOfMonth
+          }
         }
       }
     });

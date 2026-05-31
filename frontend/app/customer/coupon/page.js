@@ -3,9 +3,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Copy, Gift, X, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import useTranslation from '../../../src/hooks/useTranslation'
 
 export default function CouponPage() {
   const router = useRouter()
+  const { t } = useTranslation()
   const canvasRef = useRef(null)
   const [scratchRevealed, setScratchRevealed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -53,7 +55,7 @@ export default function CouponPage() {
       ctx.textBaseline = 'middle'
       ctx.fillStyle = 'rgba(79, 70, 229, 0.9)'
       ctx.font = '700 20px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
-      ctx.fillText('SCRATCH HERE', canvas.width / 2, canvas.height / 2 + 10)
+      ctx.fillText(t('SCRATCH SURFACE HERE'), canvas.width / 2, canvas.height / 2 + 10)
       ctx.font = '700 44px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
       ctx.fillText('🎁', canvas.width / 2, canvas.height / 2 - 24)
     }
@@ -64,7 +66,7 @@ export default function CouponPage() {
     ro.observe(canvas)
 
     return () => ro.disconnect()
-  }, [])
+  }, [t])
 
   const handleMouseDown = () => {
     setIsDrawing(true)
@@ -137,18 +139,18 @@ export default function CouponPage() {
         </div>
 
         <div className="mt-5 text-center">
-          <h1 className="text-2xl sm:text-3xl font-bold text-black">Scratch Coupon</h1>
-          <p className="mt-2 text-gray-600">Scratch the area below to reveal your reward</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-black">{t('Scratch Coupon')}</h1>
+          <p className="mt-2 text-gray-600">{t('Scratch the area below to reveal your reward')}</p>
         </div>
 
         {/* Scratch Area (reward underlay + scratch canvas overlay) */}
         <div className="mt-6 relative overflow-hidden rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/60">
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center px-6">
-              <p className="text-indigo-600 font-bold text-sm mb-2">Congratulations!</p>
-              <p className="text-black font-black text-3xl sm:text-4xl mb-2">YOU WON</p>
-              <p className="text-indigo-600 font-black text-2xl sm:text-3xl mb-2">Scratch &amp; earn discounts</p>
-              <p className="text-gray-700 text-sm font-medium">ON YOUR NEXT ORDER</p>
+              <p className="text-indigo-600 font-bold text-sm mb-2">{t('Congratulations!')}</p>
+              <p className="text-black font-black text-3xl sm:text-4xl mb-2">{t('YOU WON')}</p>
+              <p className="text-indigo-600 font-black text-2xl sm:text-3xl mb-2">{t('Scratch & earn discounts')}</p>
+              <p className="text-gray-700 text-sm font-medium">{t('ON YOUR NEXT ORDER')}</p>
             </div>
           </div>
 
@@ -173,10 +175,8 @@ export default function CouponPage() {
                 <Gift size={18} className="text-indigo-600" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">How to use:</p>
-                <p className="text-gray-700 text-sm">
-                  Copy the code and apply it at checkout to avail your discount.
-                </p>
+                <p className="font-semibold text-gray-900">{t('How to use:')}</p>
+                <p className="text-gray-700 text-sm">{t('Copy the code and apply it at checkout to avail your discount.')}</p>
               </div>
             </div>
           </div>
@@ -195,7 +195,7 @@ export default function CouponPage() {
                   : 'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50'
               }`}
             >
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? t('Copied') : t('Copy')}
             </button>
           </div>
         )}
@@ -204,14 +204,14 @@ export default function CouponPage() {
         {scratchRevealed && (
           <div className="mt-3 flex items-center justify-center gap-2 text-gray-500 text-xs">
             <Clock size={14} />
-            <span>Valid till 31 May 2025</span>
+            <span>{t('Valid till 31 May 2025')}</span>
           </div>
         )}
 
         {/* Buttons */}
         {scratchRevealed && (
           <button className="mt-6 w-full gradient-button py-4 px-4 rounded-2xl font-semibold transition text-white">
-            Continue Shopping
+            {t('Continue Shopping')}
           </button>
         )}
       </div>

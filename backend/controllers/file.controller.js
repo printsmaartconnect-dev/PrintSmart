@@ -2,13 +2,18 @@ const storageService = require("../services/storage.service");
 const path = require("path");
 
 // Allowed file types configuration
-const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"];
+const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".webp", ".txt", ".csv"];
 const ALLOWED_MIMETYPES = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "image/jpeg",
-  "image/png"
+  "image/png",
+  "image/webp",
+  "text/plain",
+  "text/csv"
 ];
 
 // Rejected executable extensions (additional safety)

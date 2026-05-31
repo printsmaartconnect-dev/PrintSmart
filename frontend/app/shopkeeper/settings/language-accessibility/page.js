@@ -260,7 +260,9 @@ export default function LanguageAccessibilityPage() {
     try {
       const code = LANG_MAP[language] || 'en'
       localStorage.setItem('customerLanguage', code)
+      localStorage.setItem('language', code)
       i18n.changeLanguage(code)
+      window.dispatchEvent(new Event('printsmart-language-change'))
 
       const token = localStorage.getItem('authToken')
       if (!token) return
@@ -367,7 +369,10 @@ export default function LanguageAccessibilityPage() {
     if (storedLang) {
       setAppLanguage(storedLang)
       const code = LANG_MAP[storedLang] || 'en'
+      localStorage.setItem('language', code)
+      localStorage.setItem('customerLanguage', code)
       i18n.changeLanguage(code)
+      window.dispatchEvent(new Event('printsmart-language-change'))
     } else if (initialAuto) {
       detectBrowserLanguage()
     }
@@ -440,16 +445,6 @@ export default function LanguageAccessibilityPage() {
                         <option>हिंदी</option>
                         <option>मराठी</option>
                       </select>
-                    </div>
-                  </SettingsRow>
-
-                  <SettingsRow
-                    icon={SquareUserRound}
-                    title={t('Auto Language Detection')}
-                    description={t('Automatically detect and set language based on device')}
-                  >
-                    <div className="flex justify-end">
-                      <ToggleSwitch enabled={autoDetect} onToggle={() => handleToggleAutoDetect(!autoDetect)} />
                     </div>
                   </SettingsRow>
 
