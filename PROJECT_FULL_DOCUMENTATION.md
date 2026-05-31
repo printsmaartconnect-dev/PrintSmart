@@ -23,50 +23,87 @@
 
 ### Installation & Setup
 
-```bash
-# 1. Clone the repository
-git clone <repository-url>
-cd PrintSmart
+PrintSmart consists of a Next.js frontend and an Express.js backend. You must configure and run both components for the system to function correctly.
 
-# 2. Install dependencies
+#### 1. Backend & Database Setup
+```bash
+# Navigate to backend directory
+cd backend
+
+# Install server-side dependencies
 npm install
 
-# 3. Set up environment variables (see Configuration section)
-cp .env.example .env.local
+# Configure environment variables
+cp .env.example .env
+# Edit .env to set your DATABASE_URL, PORT, JWT_SECRET, and AWS S3 keys
+```
 
-# 4. Run the development server
+#### 2. Run Database Migrations
+Programmatic database push occurs on startup, but you can manually sync schema via:
+```bash
+# Create/apply migrations
+npm run prisma:migrate dev
+
+# Re-generate Prisma Client
+npm run prisma:generate
+```
+
+#### 3. Frontend Setup
+```bash
+# Navigate to frontend directory
+cd ../frontend
+
+# Install client-side dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env.local
+# Verify NEXT_PUBLIC_API_URL points to the backend (default: http://localhost:5000)
+```
+
+#### 4. Run the Development Servers
+Open two terminal windows:
+
+**Run Backend (Port 5000):**
+```bash
+cd backend
 npm run dev
 ```
 
-**Access the application:**
-- Homepage: `http://localhost:3000`
-- Admin Dashboard: `http://localhost:3000/admin`
-- Shopkeeper Login: `http://localhost:3000/shopkeeper/login`
-- Customer Upload: `http://localhost:3000/customer/upload`
+**Run Frontend (Port 3000):**
+```bash
+cd frontend
+npm run dev
+```
+
+**Access Points:**
+- **Customer Homepage**: `http://localhost:3000`
+- **Shopkeeper Portal**: `http://localhost:3000/shopkeeper/login`
+- **Hidden Admin Gateway**: Click the Printsmart logo 5 times on the homepage
 
 > [!NOTE]
-> **Default Test Credentials:**
+> **Default Development Test Credentials:**
 > - Email: `defaultshop@printsmart.com`
 > - Password: `password123`
-> - Shop ID / Shopkeeper ID / shopkeeperIdCode: `smart-print-hub` (both are identical strings)
-> - Manual Test Fallback Code: `0000` (automatically maps to `smart-print-hub` for testing)
+> - Shopkeeper ID / shopkeeperIdCode: `smart-print-hub`
+> - Manual Test Entry Code: `0000` (resolves to `smart-print-hub`)
 
 ### Basic Commands
 
+#### Backend Commands (Inside `backend/`):
 ```bash
-# Development
-npm run dev              # Start dev server on port 3000
+npm run dev                 # Start Express server with nodemon
+npm start                   # Start Express server in production
+npm run prisma:migrate      # Create/run schema migrations
+npm run prisma:generate     # Rebuild Prisma Client models
+```
 
-# Production Build
-npm run build            # Compile Next.js app
-npm start                # Run production server
-
-# Code Quality
-npm run lint             # Run ESLint on all files
-
-# Clean Build
-rm -rf .next             # Remove build cache
-npm run build            # Rebuild
+#### Frontend Commands (Inside `frontend/`):
+```bash
+npm run dev                 # Start Next.js development server
+npm run build               # Build production assets
+npm start                   # Start Next.js production server
+npm run lint                # Run ESLint checking
 ```
 
 ---
@@ -1003,12 +1040,11 @@ export default function UploadPage() {
 
 ## Data Models & Schema
 
-### Client-Side Data Models
+### Application Data Management
 
-Since this is a frontend-only application, data is managed through:
-1. **React State** (in-memory, session-based)
-2. **localStorage** (browser storage, persistent across sessions)
-3. **URL Search Params** (for navigation state)
+PrintSmart is a full-stack relational application. The source of truth is a **PostgreSQL** database managed via **Prisma ORM** (see [Database Architecture](#database-architecture) for the detailed server schema). 
+
+To ensure fast UI transitions, offline robustness, and seamless user experiences, the frontend caches specific session contexts in **localStorage** and synchronizes with the database through RESTful API endpoints.
 
 ### LocalStorage Schema
 
@@ -1090,59 +1126,11 @@ localStorage.setItem('uploadCart', JSON.stringify([
 
 ---
 
-## API Reference (Frontend Endpoints)
+## API Reference (Server Endpoints)
 
-This is a **frontend-only application**. For future backend integration, follow these conventions:
+PrintSmart backend exposes a complete set of REST endpoints for authentication, profile management, file uploads, order lifecycles, real-time queues, feedback, and analytics statistics.
 
-### Authentication Endpoints (To Implement)
-
-```
-POST /api/admin/login
-  Request: { email: string, password: string }
-  Response: { token: string, user: AdminUser }
-
-POST /api/shopkeeper/register
-  Request: { shopName, email, password, phone, ... }
-  Response: { shopId: string, token: string }
-
-POST /api/shopkeeper/login
-  Request: { email: string, password: string }
-  Response: { token: string, user: ShopkeeperUser }
-
-POST /api/auth/logout
-  Response: { success: boolean }
-```
-
-### Order Endpoints (To Implement)
-
-```
-GET /api/orders
-  Query: { status?, shopkeeperId?, customerId?, limit=10, offset=0 }
-  Response: { data: Order[], total: number, hasMore: boolean }
-
-POST /api/orders
-  Request: { customerId, shopkeeperId, items: CartItem[], ... }
-  Response: { orderId: string, order: Order }
-
-GET /api/orders/:orderId
-  Response: { order: Order }
-
-PUT /api/orders/:orderId
-  Request: { status?, items?, ... }
-  Response: { order: Order }
-```
-
-### File Upload Endpoints (To Implement)
-
-```
-POST /api/uploads/presigned-url
-  Request: { fileName: string, fileType: string }
-  Response: { uploadUrl: string, key: string }
-
-POST /api/uploads/validate
-  Request: { fileKey: string }
-  Response: { isValid: boolean, pages: number, cost: number }
-```
+For full technical specifications of all routes, request bodies, query options, and sample JSON payloads, please refer directly to the **[API Endpoint Reference](#api-endpoint-reference)** section located at the end of this documentation.
 
 ---
 
@@ -1516,115 +1504,89 @@ export default function HomePage() {
 
 ### Environment Variables
 
-Create `.env.local` in the project root:
+PrintSmart keeps frontend and backend environment variables isolated in their respective folders.
 
+#### 1. Backend Variables (`backend/.env`)
+
+Configure these values in the server directory:
 ```bash
-# .env.local
+PORT=5000                                   # Express port
+NODE_ENV=development                        # Run mode (development/production)
+DATABASE_URL=postgresql://...               # PostgreSQL Prisma connection string
+JWT_SECRET=supersecretjwtkey...             # Auth token secret key
+FRONTEND_URL=http://localhost:3000          # Client origin for CORS setup
+GOOGLE_CLIENT_ID=43806...                   # Google OAuth client ID
 
-# Application
-NEXT_PUBLIC_APP_NAME=PrintSmart
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# File Storage Configuration (AWS S3)
+AWS_ACCESS_KEY_ID=AKIA...                   # Optional AWS Access Key
+AWS_SECRET_ACCESS_KEY=...                   # Optional AWS Secret Key
+AWS_REGION=us-east-1                        # AWS region
+AWS_S3_BUCKET=printsmart-storage            # S3 bucket name
 
-# Features
-NEXT_PUBLIC_ENABLE_ANALYTICS=false
-NEXT_PUBLIC_MAX_FILE_SIZE=52428800  # 50MB in bytes
+# Local fallback directory
+UPLOAD_DIR=./uploads                        # Folder for local fallback storage
+```
 
-# (Future) Backend API
-# NEXT_PUBLIC_API_URL=http://localhost:5000/api
-# NEXT_PUBLIC_API_KEY=sk_test_xxxx
+#### 2. Frontend Variables (`frontend/.env.local`)
 
-# (Future) Database (not used in frontend)
-# DATABASE_URL=postgresql://user:password@localhost:5432/printsmart
-
-# (Future) Third-party Services
-# STRIPE_PUBLISHABLE_KEY=pk_test_xxxx
-# SENDGRID_API_KEY=SG_xxxx
-# AWS_S3_BUCKET=printsmart-uploads
-# AWS_REGION=us-east-1
+Configure these values in the client directory:
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:5000   # URL of backend Express app
+NEXT_PUBLIC_APP_NAME=PrintSmart             # Display brand name
+NEXT_PUBLIC_MAX_FILE_SIZE=52428800          # Capped file upload size (50MB in bytes)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=43806...       # Google Sign-In client ID matching backend
 ```
 
 ### Environment Variable Descriptions
 
-| Variable | Type | Purpose | Default |
-|----------|------|---------|---------|
-| `NEXT_PUBLIC_APP_NAME` | string | App name in title/headers | "PrintSmart" |
-| `NEXT_PUBLIC_APP_URL` | string | Current site URL | "http://localhost:3000" |
-| `NEXT_PUBLIC_ENABLE_ANALYTICS` | boolean | Enable tracking (Vercel Analytics, etc.) | false |
-| `NEXT_PUBLIC_MAX_FILE_SIZE` | number | Max upload file size (bytes) | 52428800 (50MB) |
-| `NEXT_PUBLIC_API_URL` | string | Backend API base URL | undefined (uses frontend only) |
-| `NEXT_PUBLIC_API_KEY` | string | API auth token | undefined |
-
-**Notes:**
-- `NEXT_PUBLIC_*` variables are exposed to browser (safe for public keys)
-- Private variables (without `NEXT_PUBLIC_`) are server-only (if backend added)
-- Development: `.env.local` (git-ignored)
-- Production: Set via hosting platform (Vercel, Docker env, etc.)
+| Variable | Type | Location | Purpose |
+|----------|------|----------|---------|
+| `DATABASE_URL` | string | Backend | Connection string to PostgreSQL database |
+| `JWT_SECRET` | string | Backend | Cryptographic secret used to sign and verify session JWTs |
+| `AWS_S3_BUCKET` | string | Backend | Target AWS storage bucket. If missing/invalid, fallback local disk is used |
+| `NEXT_PUBLIC_API_URL` | string | Frontend | Base URL of the backend API client routes query |
+| `NEXT_PUBLIC_MAX_FILE_SIZE` | number | Frontend | Capped file size (in bytes) validation boundary |
 
 ---
 
 ## Local Development
 
 ### Prerequisites
+- **Node.js**: v18.0.0+ (v20.0.0+ recommended)
+- **npm**: v9.0.0+ 
+- **PostgreSQL**: Local running instance or a managed Supabase/RDS URL
+- **AWS S3**: Bucket setup (optional - offline fallback to local `./uploads/` works by default)
 
-- **Node.js:** 18+ (check with `node --version`)
-- **npm:** 9+ (comes with Node.js)
-- **Git:** For version control
-- **Code Editor:** VS Code recommended with "ES7+ React/Redux/React-Native snippets" extension
+### Comprehensive Startup Sequence
 
-### Setup Steps
+Follow these steps to spin up the local development environment:
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/yourusername/PrintSmart.git
+# 1. Clone the repository and navigate to root
+git clone <repository-url>
 cd PrintSmart
 
-# 2. Install dependencies
+# 2. Build the Backend
+cd backend
 npm install
+cp .env.example .env
+# Edit credentials in .env (add DATABASE_URL)
+npm run prisma:migrate dev   # Creates schema tables & generates client
+npm run dev                  # Launches server on http://localhost:5000
 
-# 3. Create environment file
+# 3. Build the Frontend (In a separate terminal tab)
+cd ../frontend
+npm install
 cp .env.example .env.local
-
-# 4. Start development server
-npm run dev
-
-# 5. Open browser
-# http://localhost:3000
+# Set NEXT_PUBLIC_API_URL to http://localhost:5000
+npm run dev                  # Launches frontend on http://localhost:3000
 ```
 
-### Development Server Details
+### Development Architecture & Hot Reloading
 
-```bash
-npm run dev
-# Starts: http://localhost:3000
-# Features:
-#   - Hot Module Reloading (HMR) - instant updates
-#   - Fast Refresh - preserves component state
-#   - Automatic file watching
-#   - Build errors shown in browser overlay
-#   - 'q' key in terminal to quit server
-```
-
-### Useful Development Commands
-
-```bash
-# Build for production (verify before deploying)
-npm run build
-
-# Start production build (local)
-npm run build && npm start
-
-# Lint code (check for errors/warnings)
-npm run lint
-
-# Format code (with Prettier - if configured)
-npm run format
-
-# Clean build cache (if stuck)
-rm -rf .next && npm run dev
-
-# Check TypeScript (if using .ts/.tsx)
-npx tsc --noEmit
-```
+- **Frontend Hot Module Replacement (HMR)**: The Next.js dev server automatically updates components in the browser upon saving files without resetting active client states.
+- **Backend Reloading**: Powered by `nodemon`. Any saved changes to backend routers, controllers, or services trigger an instantaneous server restart.
+- **Database Tracking**: Prisma client updates automatically on schema changes. Simply run `npx prisma db push` or `npx prisma migrate dev` in the `backend/` directory.
 
 ### Development Workflow
 
@@ -2793,84 +2755,52 @@ npx prisma studio  # GUI for data management
 
 ## Changelog
 
-### Version Format
-```
-vMAJOR.MINOR.PATCH
+All notable changes to PrintSmart are documented below.
 
-Major: Breaking changes
-Minor: New features (backwards compatible)
-Patch: Bug fixes
-```
+### [2.7.0] - 2026-05-31
 
-### Template Entry
+#### Added
+- **QR-Aware Entry Flow**: Integrated custom homepage QR code detection, auto-fetching shop context and details from backend via slugs.
+- **Manual Bypass**: Added a manual fallback input gateway supporting test code `0000` (resolves to the default seeded shop `smart-print-hub`).
+- **Flexible Language Selection**: Customer details onboarding with auto-detected browser locales and regional language selectors (i18n Context setup).
+- **Print Configuration Flow**: Introduced "Talk to Shopkeeper First" variant (bypassing configs, ₹0.00 subtotal) alongside interactive per-file configs (color grayscale preview, paper size, quality ranges, copies bounds).
 
-```markdown
-## [1.0.0] - 2024-01-15
+#### Documentation Updates
+- Integrated current database/backend architecture setup guides and updated version history for 2.7.0 release.
 
-### Added
-- Shopkeeper dashboard with KPI stats
-- Customer file upload with React Dropzone
-- Admin panel for system overview
+### [2.6.0] - 2026-05-20
 
-### Changed
-- Improved responsive design for mobile
+#### Added
+- **Dynamic Previews**: PDF document thumbnail rendering powered by CDN-loaded `pdf.js` worker scripts drawing page canvases.
+- **Rename Capabilities**: Real-time customer file renaming fields matching original extensions.
+- **Feedback Modules**: Global floating help button modals and layout footer contact links.
 
-### Fixed
-- Fixed localStorage not persisting auth
-- Fixed Tailwind styles not applying in production
+### [2.5.0] - 2026-05-10
 
-### Removed
-- Removed deprecated Login component
+#### Added
+- **Professional Billing Invoices**: PDFKit-based PDF invoice rendering engine with formatted receipts, tabular details, and tax GST breakdown.
+- **Sequential Custom Order IDs**: Short sequential alphanumeric ID sequencing `MMYYP[BW|C][seq]` for shopkeeper processing efficiency.
+- **Analytics Statistics Engine**: Aggregated dashboard tracking overall totals, daily earnings, weekly charts, growth rates, and SVG format distributions.
+- **Estimated Queue Wait-Time Algorithm**: Interactive wait-time formula indexing copies, qualities, duplexing delay multipliers, and active queuing backlogs.
 
-### Security
-- Added input sanitization
-- Enabled HTTPS in production
-```
+#### Security & Storage
+- **AWS S3 File Storage Integration**: Robust storage handler uploading files directly to S3 buckets.
+- **Offline Storage Fallback**: Automatic static filesystem write fallback under `backend/uploads/` if AWS keys are missing or connectivity fails.
+- **Upload Restrictions**: Blocked executable file formats (`.exe`, `.bat`, `.apk`, `.sh`) and verified mimetypes.
 
-### Example Changelog
+### [2.0.0] - 2026-04-18
 
-```markdown
-# Changelog
+#### Added
+- **Full-Stack Architecture**: Migrated mockup static application to a complete decoupled Client-Server Express.js API engine.
+- **Relational PostgreSQL Integration**: Replaced local states with Prisma ORM connecting a relational PostgreSQL database.
+- **JWT Session Security**: Protected shopkeeper settings and dashboard queues via JSON Web Tokens header validation middleware.
 
-All notable changes to PrintSmart are documented in this file.
+### [1.0.0] - 2024-01-15 (Initial Release)
 
-## [1.0.0] - 2024-01-15 (Initial Release)
-
-### Added
-- Complete admin dashboard
-- Shopkeeper onboarding flow
-- Customer upload interface
-- Language selection
-- Order tracking pages
-- Settings and support pages
-- Responsive design (mobile-first)
-- Glassmorphism UI components
-
-### Infrastructure
-- Next.js 14 App Router
-- Tailwind CSS for styling
-- Lucide React icons
-- React Dropzone for file uploads
-- localStorage for session management
-
-### Known Issues
-- No backend API integration yet
-- Mock data only
-- localStorage limited to browser
-
-## Unreleased (Planned)
-
-### Todo
-- Backend API integration
-- Real database (PostgreSQL)
-- User authentication (JWT)
-- Payment processing (Stripe)
-- Email notifications
-- Real-time notifications (WebSocket)
-- Multi-language support (i18n)
-- Dark mode
-- Mobile app (React Native)
-```
+#### Added
+- Initial Next.js 14 frontend project design.
+- Shopkeeper onboarding and admin overview layout views.
+- Tailwind CSS global styles and glassmorphism cards.
 
 ---
 
@@ -3642,7 +3572,7 @@ Manages the ordering workflow.
  ## Document Version
  
  - **Version:** 2.7.0
- - **Last Updated:** May 29, 2026
+ - **Last Updated:** May 31, 2026
  - **Author:** Antigravity AI
  - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration, file validation security rules, multi-language i18n support, and shopkeeper statistics analytics with interactive SVG graphs, heatmaps, and renames).
  
