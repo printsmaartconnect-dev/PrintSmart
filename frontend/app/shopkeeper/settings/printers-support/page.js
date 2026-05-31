@@ -396,13 +396,14 @@ export default function PrintersSupportPage() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => router.push('/shopkeeper/support')}
+                <a
+                  href="https://forms.gle/VBK48SwGSWm7prgUA"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
                 >
                   {t('Get Support')}
-                </button>
+                </a>
               </div>
             </div>
           </aside>

@@ -3,19 +3,13 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import FilePreviewSection from '../../components/customer/FilePreviewSection'
 
 const PAPER_SIZES = ['A4', 'A3', 'A5', 'Legal', 'Letter', 'Executive', 'Ledger', 'Tabloid']
-const QUALITY_OPTIONS = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'NORMAL', label: 'Normal' },
-  { value: 'HIGH', label: 'High' }
-]
-
 export default function ConfigurationPage() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -34,7 +28,6 @@ export default function ConfigurationPage() {
     paperSize: 'A4',
     sides: 'SINGLE',
     orientation: 'PORTRAIT',
-    quality: 'NORMAL',
     pageRange: 'all'
   }
 
@@ -343,28 +336,7 @@ export default function ConfigurationPage() {
                           </div>
                         </div>
 
-                        {/* Print Quality */}
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">
-                            {t('Print Quality')}
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {QUALITY_OPTIONS.map(qual => (
-                              <button
-                                type="button"
-                                key={qual.value}
-                                onClick={() => handleConfigChange(idx, 'quality', qual.value)}
-                                className={`py-3 px-3 rounded-lg font-bold transition border-2 text-sm ${
-                                  configs[idx]?.quality === qual.value
-                                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                                }`}
-                              >
-                                <div>{t(qual.label)}</div>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                        {/* Print Quality removed per requirement */}
 
                         {/* Page Range */}
                         <div>
@@ -377,8 +349,7 @@ export default function ConfigurationPage() {
                             className="w-full py-3 px-4 rounded-lg border border-gray-300 text-gray-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="all">{t('All Pages')}</option>
-                            <option value="odd">{t('Odd Pages Only')}</option>
-                            <option value="even">{t('Even Pages Only')}</option>
+                            <option value="custom">{t('Custom Pages')}</option>
                           </select>
                         </div>
                       </div>

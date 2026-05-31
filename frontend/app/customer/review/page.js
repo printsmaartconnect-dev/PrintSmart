@@ -3,11 +3,12 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { FileText, MapPin, Phone, Clock, Store, AlertCircle, ShieldCheck } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import DocumentPreview from '../../components/customer/DocumentPreview'
+import { getActiveShop } from '../../../lib/shop-context'
 
 export default function ReviewPage() {
   const { t } = useTranslation()
@@ -44,9 +45,31 @@ export default function ReviewPage() {
       }
     }
 
-    // Fetch shop details by slug
-    const fetchShop = async () => {
-      if (!shopId) {
+    // Resolve shop from local storage first, then fall back to API lookup by slug
+    const resolveShop = async () => {
+      const activeShop = getActiveShop()
+      if (activeShop) {
+        setShopDetails(activeShop)
+        setFetchingShop(false)
+        return
+      }
+
+      const storedShop = localStorage.getItem('selectedShop')
+      if (storedShop) {
+        try {
+          const parsedShop = JSON.parse(storedShop)
+          if (parsedShop) {
+            setShopDetails(parsedShop)
+            setFetchingShop(false)
+            return
+          }
+        } catch (err) {
+          console.error('Error loading selected shop:', err)
+        }
+      }
+
+      const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
+      if (!resolvedShopId) {
         setError(t('No shop selected.'))
         setFetchingShop(false)
         return
@@ -54,7 +77,7 @@ export default function ReviewPage() {
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-        const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${shopId}`)
+        const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${resolvedShopId}`)
         if (!response.ok) {
           throw new Error(t('Could not find shop keeper details.'))
         }
@@ -68,7 +91,7 @@ export default function ReviewPage() {
       }
     }
 
-    fetchShop()
+    resolveShop()
   }, [shopId])
 
   // Calculate pricing based on shop keeper settings or fallbacks
@@ -112,8 +135,7 @@ export default function ReviewPage() {
   }
 
   const subtotal = calculateSubtotal()
-  const tax = subtotal * 0.18 // GST 18%
-  const total = subtotal + tax
+  const total = subtotal
 
   const handlePlaceOrder = async () => {
     if (filesWithConfig.length === 0) {
@@ -128,10 +150,20 @@ export default function ReviewPage() {
       fileName: item.customFileName || item.originalFileName,
       fileUrl: item.fileUrl,
       fileSize: item.fileSize || 0,
-      price: calculateItemPrice(item) * 1.18, // including tax proportion
+      price: calculateItemPrice(item),
       variant: item.variant || 'standard',
       config: item.config
     }))
+
+    let resolvedUserId = userId || customerInfo?.userId || null
+    if (resolvedUserId === 'undefined' || resolvedUserId === 'null' || resolvedUserId === '') {
+      resolvedUserId = null
+    }
+
+    let resolvedShopkeeperId = shopDetails?.id || localStorage.getItem('activeShopId') || null
+    if (resolvedShopkeeperId === 'undefined' || resolvedShopkeeperId === 'null' || resolvedShopkeeperId === '') {
+      resolvedShopkeeperId = null
+    }
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
@@ -139,8 +171,8 @@ export default function ReviewPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: userId || customerInfo?.userId || null,
-          shopkeeperId: shopDetails?.id || localStorage.getItem('activeShopId') || null,
+          userId: resolvedUserId,
+          shopkeeperId: resolvedShopkeeperId,
           customerName: customerInfo?.name || 'Anonymous Customer',
           phone: customerInfo?.phone || '',
           items,
@@ -163,7 +195,7 @@ export default function ReviewPage() {
         shopName: shopDetails?.shopName || 'Shop'
       }))
 
-      router.push(`/customer/order-placed?shopId=${shopId}&userId=${userId}`)
+      router.push(`/customer/order-placed?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
     } catch (err) {
       console.error('Order creation error:', err)
       setError(err.message || t('Error occurred while submitting order details.'))
@@ -270,10 +302,6 @@ export default function ReviewPage() {
           <div className="flex justify-between items-center text-gray-700 font-medium">
             <span>{t('Subtotal')}</span>
             <span>₹{subtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between items-center text-gray-700 font-medium">
-            <span>{t('GST (18%)')}</span>
-            <span>₹{tax.toFixed(2)}</span>
           </div>
           <div className="flex justify-between items-center pt-3 border-t border-gray-200 font-bold text-lg text-gray-900">
             <span>{t('Total Cost')}</span>

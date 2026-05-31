@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useTranslation } from 'react-i18next'
+import useTranslation from '../../src/hooks/useTranslation'
 
 export default function FeedbackLink() {
   const { t } = useTranslation()

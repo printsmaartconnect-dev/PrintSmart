@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Shield, AlertCircle, Loader, ArrowLeft } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
@@ -17,19 +17,36 @@ const LANGUAGES = [
 ]
 
 const OTHER_LANGUAGES = [
-  'Bengali', 'Punjabi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Odia', 'Urdu'
+  { code: 'bn', name: 'Bengali', native: 'বাংলা' },
+  { code: 'pa', name: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
+  { code: 'ta', name: 'Tamil', native: 'தமிழ்' },
+  { code: 'te', name: 'Telugu', native: 'తెలుగు' },
+  { code: 'kn', name: 'Kannada', native: 'ಕನ್ನಡ' },
+  { code: 'ml', name: 'Malayalam', native: 'മലയാളം' },
+  { code: 'or', name: 'Odia', native: 'ଓଡ଼ିଆ' },
+  { code: 'ur', name: 'Urdu', native: 'اردو' },
 ]
+
+const LEGACY_OTHER_LANGUAGE_CODES = {
+  Bengali: 'bn',
+  Punjabi: 'pa',
+  Tamil: 'ta',
+  Telugu: 'te',
+  Kannada: 'kn',
+  Malayalam: 'ml',
+  Odia: 'or',
+  Urdu: 'ur',
+}
 
 export default function CustomerLanguagePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const shopId = searchParams.get('shopId')
-  const { t, i18n } = useTranslation()
+  const { t, setLanguage } = useTranslation()
 
   const initialStep = searchParams.get('step') || 'language'
   const [step, setStep] = useState(initialStep) // 'language' or 'details'
   const [selectedLanguage, setSelectedLanguage] = useState(null)
-  const [showOthers, setShowOthers] = useState(false)
   const [selectedOther, setSelectedOther] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -50,9 +67,13 @@ export default function CustomerLanguagePage() {
       if (match) {
         setSelectedLanguage(match.code)
       } else {
-        setSelectedOther(saved)
+        const legacyCode = LEGACY_OTHER_LANGUAGE_CODES[saved]
+        const otherMatch = OTHER_LANGUAGES.find(l => l.code === saved || l.code === legacyCode)
+        if (otherMatch) {
+          setSelectedOther(otherMatch.code)
+        }
       }
-      i18n.changeLanguage(saved)
+      setLanguage(LANGUAGES.some(l => l.code === saved) ? saved : LEGACY_OTHER_LANGUAGE_CODES[saved] || saved)
       return
     }
 
@@ -63,9 +84,9 @@ export default function CustomerLanguagePage() {
     const matched = LANGUAGES.find(l => l.code === langCode)
     if (matched) {
       setSelectedLanguage(matched.code)
-      i18n.changeLanguage(matched.code)
+      setLanguage(matched.code)
     }
-  }, [i18n])
+  }, [setLanguage])
 
   // Validate and store shop details on load
   useEffect(() => {
@@ -118,22 +139,24 @@ export default function CustomerLanguagePage() {
 
   const handleLanguageSelect = (code) => {
     setSelectedLanguage(code)
-    setShowOthers(false)
     setSelectedOther(null)
-    localStorage.setItem('customerLanguage', code)
-    i18n.changeLanguage(code)
+    setLanguage(code)
   }
 
-  const handleOtherLanguageSelect = (lang) => {
-    setSelectedOther(lang)
-    setShowOthers(false)
-    localStorage.setItem('customerLanguage', lang)
+  const handleOtherLanguageSelect = (code) => {
+    if (!code) {
+      setSelectedOther(null)
+      return
+    }
+    setSelectedLanguage(null)
+    setSelectedOther(code)
+    setLanguage(code)
   }
 
   const handleLanguageContinue = () => {
     const finalLanguage = selectedOther || selectedLanguage
     if (finalLanguage) {
-      localStorage.setItem('customerLanguage', finalLanguage)
+      setLanguage(finalLanguage)
       // Check if we have shop from query param or from QR scan localStorage
       const activeShop = getActiveShop()
       if (shopId || activeShop) {
@@ -233,12 +256,20 @@ export default function CustomerLanguagePage() {
           ) : (
             <>
               {shopError && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex gap-3">
-                  <AlertCircle className="text-amber-600 flex-shrink-0 animate-pulse" size={20} />
-                  <div className="text-left">
-                    <p className="font-semibold text-amber-900">{t('Shop Selection Required')}</p>
-                    <p className="text-sm text-amber-700 font-medium">{shopError}</p>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 space-y-3">
+                  <div className="flex gap-3">
+                    <AlertCircle className="text-amber-600 flex-shrink-0 animate-pulse" size={20} />
+                    <div className="text-left">
+                      <p className="font-semibold text-amber-900">{t('Shop Selection Required')}</p>
+                      <p className="text-sm text-amber-700 font-medium">{shopError}</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => router.push('/take-a-print')}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition"
+                  >
+                    {t('Scan QR or Enter Shop ID')}
+                  </button>
                 </div>
               )}
 
@@ -272,46 +303,31 @@ export default function CustomerLanguagePage() {
                       </button>
                     ))}
 
-                    {/* Others Dropdown */}
-                    <button
-                      onClick={() => setShowOthers(!showOthers)}
-                      className={`w-full p-4 text-left rounded-lg border-2 transition ${
-                        selectedOther || showOthers
-                          ? 'border-indigo-600 bg-indigo-50'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {selectedOther ? t(selectedOther) : t('Other Languages')}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {selectedOther ? t(selectedOther) : t('More options')}
-                          </p>
-                        </div>
-                        <span>{showOthers ? '▼' : '▶'}</span>
-                      </div>
-                    </button>
-
                     {/* Other Languages Dropdown */}
-                    {showOthers && (
-                      <div className="grid grid-cols-2 gap-2 mt-3 p-3 bg-gray-50 rounded-lg">
+                    <div className={`rounded-lg border-2 p-4 transition ${
+                      selectedOther
+                        ? 'border-indigo-600 bg-indigo-50'
+                        : 'border-gray-200 bg-white'
+                    }`}>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">
+                        {t('Other Languages')}
+                      </label>
+                      <select
+                        value={selectedOther || ''}
+                        onChange={(event) => handleOtherLanguageSelect(event.target.value)}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                      >
+                        <option value="">{t('Select a language')}</option>
                         {OTHER_LANGUAGES.map((lang) => (
-                          <button
-                            key={lang}
-                            onClick={() => handleOtherLanguageSelect(lang)}
-                            className={`p-2 text-sm rounded border transition ${
-                              selectedOther === lang
-                                ? 'bg-indigo-600 text-white border-indigo-600'
-                                : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
-                            }`}
-                          >
-                            {t(lang)}
-                          </button>
+                          <option key={lang.code} value={lang.code}>
+                            {lang.name} {lang.native ? `(${lang.native})` : ''}
+                          </option>
                         ))}
-                      </div>
-                    )}
+                      </select>
+                      <p className="mt-2 text-xs text-gray-500">
+                        {selectedOther ? t('Selected language will be saved for your next visit') : t('More language options')}
+                      </p>
+                    </div>
 
                     {/* Continue Button */}
                     <button

@@ -251,6 +251,7 @@ export default function ProfileSetupPage() {
       setSocials({ ...socials })
 
       const token = localStorage.getItem('authToken')
+      let success = true
       if (token) {
         try {
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
@@ -282,13 +283,21 @@ export default function ProfileSetupPage() {
             const data = await response.json()
             localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
             localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+          } else {
+            success = false
+            const errData = await response.json().catch(() => ({}))
+            alert(`Failed to save profile: ${errData.message || 'Server error'}`)
           }
         } catch (apiErr) {
+          success = false
           console.warn('Failed to sync profile to backend:', apiErr)
+          alert('Network connection error. Failed to sync profile with database. Please try again.')
         }
       }
 
-      router.push('/shopkeeper/onboarding/pricing-setup')
+      if (success) {
+        router.push('/shopkeeper/onboarding/pricing-setup')
+      }
     } finally {
       setSaving(false)
     }
@@ -727,9 +736,14 @@ export default function ProfileSetupPage() {
           Need Help?
         </div>
         <div className="mt-1 text-xs text-slate-500">We&apos;re here to help you set up your shop.</div>
-        <PrimaryButton type="button" className="mt-3 w-full">
+        <a
+          href="https://forms.gle/VBK48SwGSWm7prgUA"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+        >
           Get Support
-        </PrimaryButton>
+        </a>
       </div>
     </div>
   )

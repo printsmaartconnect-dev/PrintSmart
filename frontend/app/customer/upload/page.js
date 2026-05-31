@@ -4,11 +4,103 @@ import { useState, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import { Cloud, X, FileText, ArrowLeft, Image as ImageIcon, AlertCircle, CheckCircle, MessageCircle } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import FilePreviewSection from '../../components/customer/FilePreviewSection'
+
+const getFileExtension = (name = '') => {
+  const lastDotIndex = name.lastIndexOf('.')
+  return lastDotIndex >= 0 ? name.slice(lastDotIndex).toLowerCase() : ''
+}
+
+const getFileBaseName = (name = '') => {
+  const lastDotIndex = name.lastIndexOf('.')
+  return lastDotIndex >= 0 ? name.slice(0, lastDotIndex) : name
+}
+
+const getPlaceholderTheme = (extension) => {
+  switch (extension) {
+    case '.xls':
+    case '.xlsx':
+      return { label: extension.slice(1).toUpperCase(), primary: '#14804A', secondary: '#DDF6E8', accent: '#0F5C33', pattern: 'grid' }
+    case '.doc':
+    case '.docx':
+      return { label: extension.slice(1).toUpperCase(), primary: '#2563EB', secondary: '#DCEBFF', accent: '#1E40AF', pattern: 'lines' }
+    case '.txt':
+    case '.csv':
+      return { label: extension.slice(1).toUpperCase(), primary: '#D97706', secondary: '#FEF3C7', accent: '#92400E', pattern: 'text' }
+    case '.pdf':
+      return { label: 'PDF', primary: '#DC2626', secondary: '#FEE2E2', accent: '#991B1B', pattern: 'pdf' }
+    default:
+      return { label: extension ? extension.slice(1).toUpperCase() : 'FILE', primary: '#374151', secondary: '#E5E7EB', accent: '#111827', pattern: 'generic' }
+  }
+}
+
+const buildPlaceholderThumbnail = (file) => {
+  const extension = getFileExtension(file.name)
+  const theme = getPlaceholderTheme(extension)
+  const initial = extension ? extension.slice(1).toUpperCase() : 'FILE'
+
+  const gridMarkup = theme.pattern === 'grid'
+    ? `
+      <g opacity="0.9" stroke="${theme.accent}" stroke-width="2">
+        <path d="M74 96h72M74 122h72M74 148h72M74 174h72" />
+        <path d="M82 88v96M106 88v96M130 88v96" />
+      </g>`
+    : theme.pattern === 'lines'
+      ? `
+      <g opacity="0.8" stroke="${theme.accent}" stroke-linecap="round" stroke-width="4">
+        <path d="M72 104h92" />
+        <path d="M72 126h82" />
+        <path d="M72 148h92" />
+        <path d="M72 170h72" />
+      </g>`
+      : theme.pattern === 'text'
+        ? `
+      <g opacity="0.85" fill="${theme.accent}">
+        <rect x="72" y="100" width="92" height="12" rx="6" />
+        <rect x="72" y="122" width="112" height="12" rx="6" />
+        <rect x="72" y="144" width="86" height="12" rx="6" />
+        <rect x="72" y="166" width="68" height="12" rx="6" />
+      </g>`
+        : `
+      <g opacity="0.8" fill="${theme.accent}">
+        <rect x="72" y="98" width="108" height="14" rx="7" />
+        <rect x="72" y="124" width="92" height="14" rx="7" />
+        <rect x="72" y="150" width="76" height="14" rx="7" />
+      </g>`
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="${initial} file preview">
+      <defs>
+        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="${theme.secondary}" />
+          <stop offset="100%" stop-color="#ffffff" />
+        </linearGradient>
+        <linearGradient id="card" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff" />
+          <stop offset="100%" stop-color="${theme.secondary}" stop-opacity="0.7" />
+        </linearGradient>
+      </defs>
+      <rect width="240" height="240" rx="28" fill="url(#bg)" />
+      <rect x="24" y="24" width="192" height="192" rx="22" fill="url(#card)" stroke="${theme.primary}" stroke-width="2.5" />
+      <rect x="44" y="44" width="152" height="34" rx="10" fill="${theme.primary}" opacity="0.12" />
+      <circle cx="62" cy="61" r="8" fill="${theme.primary}" />
+      <rect x="78" y="55" width="52" height="12" rx="6" fill="${theme.primary}" opacity="0.75" />
+      <rect x="150" y="52" width="34" height="18" rx="9" fill="${theme.primary}" opacity="0.2" />
+      <text x="164" y="65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" fill="${theme.primary}">${initial}</text>
+      <rect x="44" y="90" width="152" height="110" rx="18" fill="#ffffff" opacity="0.7" stroke="${theme.primary}" stroke-opacity="0.18" />
+      ${gridMarkup}
+      <rect x="58" y="186" width="124" height="10" rx="5" fill="${theme.primary}" opacity="0.16" />
+      <text x="120" y="208" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="${theme.accent}">${theme.label}</text>
+    </svg>`
+
+  return `data:image/svg+xml;base64,${btoa(svg)}`
+}
+
+const isVisualFile = (file) => file.type.startsWith('image/') || file.type === 'application/pdf' || getFileExtension(file.name) === '.pdf'
 
 const generateThumbnail = async (file) => {
   try {
@@ -81,7 +173,7 @@ const generateThumbnail = async (file) => {
             resolve(canvas.toDataURL('image/jpeg', 0.75));
           } catch (err) {
             console.error('Error generating PDF thumbnail:', err);
-            resolve(null);
+            resolve(buildPlaceholderThumbnail(file));
           }
         };
         reader.onerror = () => resolve(null);
@@ -91,7 +183,8 @@ const generateThumbnail = async (file) => {
   } catch (err) {
     console.error('Error in generateThumbnail:', err);
   }
-  return null;
+
+  return buildPlaceholderThumbnail(file);
 };
 
 export default function UploadPage() {
@@ -111,7 +204,7 @@ export default function UploadPage() {
       file,
       previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       thumbnailUrl: null,
-      isLoadingThumbnail: file.type.startsWith('image/') || file.type === 'application/pdf' || file.name.endsWith('.pdf')
+      isLoadingThumbnail: true
     }))
 
     setFiles((prev) => {
@@ -145,11 +238,17 @@ export default function UploadPage() {
     onDrop,
     accept: {
       'application/pdf': ['.pdf'],
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
       'application/msword': ['.doc'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
+      'text/plain': ['.txt'],
+      'text/csv': ['.csv'],
     },
+    maxSize: 52428800,
   })
 
   // Cleanup object URLs on unmount
@@ -199,12 +298,14 @@ export default function UploadPage() {
       for (let i = 0; i < files.length; i++) {
         const item = files[i]
         const originalName = item.file.name
-        const fileExt = originalName.substring(originalName.lastIndexOf('.'))
+        const fileExt = getFileExtension(originalName)
 
-        let customName = renames[i] || originalName
-        // Ensure the custom name maintains its file extension
-        if (!customName.endsWith(fileExt)) {
-          customName = customName + fileExt
+        const customBaseName = renames[i] !== undefined ? renames[i].trim() : getFileBaseName(originalName)
+        let customName = customBaseName || getFileBaseName(originalName)
+
+        // Ensure the custom name keeps the real extension on the stored payload.
+        if (fileExt && !customName.toLowerCase().endsWith(fileExt.toLowerCase())) {
+          customName = `${customName}${fileExt}`
         }
 
         const formDataPayload = new FormData()
@@ -225,6 +326,7 @@ export default function UploadPage() {
         uploadedFilesData.push({
           originalFileName: originalName,
           customFileName: customName,
+          fileExtension: fileExt,
           fileUrl: result.fileUrl,
           fileSize: item.file.size,
           thumbnailUrl: item.thumbnailUrl || item.previewUrl || result.fileUrl || null,
@@ -232,8 +334,9 @@ export default function UploadPage() {
         })
       }
 
-      // Store complete file metadata in localStorage
+      // Store complete file metadata in localStorage for legacy and current flows.
       localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
+      localStorage.setItem('uploadCart', JSON.stringify(uploadedFilesData))
 
       const nextUrl = shopId
         ? `/customer/configuration?shopId=${shopId}&userId=${userId}`
@@ -363,7 +466,7 @@ export default function UploadPage() {
           <div className="step-number">4</div>
           <div>
             <h1 className="text-3xl font-bold text-black font-brand">{t('Upload Documents')}</h1>
-            <p className="text-gray-600">{t('Please upload files to print (PDF, JPG, PNG, Word)')}</p>
+            <p className="text-gray-600">{t('Please upload files to print (PDF, Word, Excel, Images, TXT, CSV)')}</p>
           </div>
         </div>
       </div>
@@ -409,7 +512,7 @@ export default function UploadPage() {
               <FilePreviewSection
                 key={index}
                 file={{
-                  customFileName: renames[index] !== undefined ? renames[index] : item.file.name.substring(0, item.file.name.lastIndexOf('.')),
+                  customFileName: renames[index] !== undefined ? renames[index] : getFileBaseName(item.file.name),
                   originalFileName: item.file.name
                 }}
                 thumbnailUrl={item.thumbnailUrl}
@@ -425,7 +528,7 @@ export default function UploadPage() {
           <div className="mt-8 space-y-4">
             <p className="text-sm font-bold text-gray-700">{t('Uploaded Files & Rename Options:')}</p>
             {files.map((item, index) => {
-              const fileBaseName = item.file.name.substring(0, item.file.name.lastIndexOf('.'))
+              const fileBaseName = getFileBaseName(item.file.name)
               return (
                 <div
                   key={index}

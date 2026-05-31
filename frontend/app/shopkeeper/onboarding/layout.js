@@ -213,12 +213,14 @@ export default function OnboardingLayout({ children }) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="mt-4 w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+              <a
+                href="https://forms.gle/VBK48SwGSWm7prgUA"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
               >
                 Get Support
-              </button>
+              </a>
             </div>
           </div>
         </aside>

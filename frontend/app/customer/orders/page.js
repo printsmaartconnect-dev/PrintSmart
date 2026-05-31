@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Inbox, Upload, RotateCcw, Download, Trash2, Home, Clock, AlertCircle } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Inbox, Upload, RotateCcw, Download, Trash2, Home, Clock, AlertCircle, FileText } from 'lucide-react'
+import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
@@ -34,6 +34,10 @@ export default function OrdersPage() {
     
     // Resolve user ID from session/localStorage or searchParams
     let resolvedUserId = customerUserId
+    if (resolvedUserId === 'undefined' || resolvedUserId === 'null') {
+      resolvedUserId = null
+    }
+    
     if (!resolvedUserId) {
       const sessionStr = localStorage.getItem('customerSession')
       if (sessionStr) {
@@ -147,7 +151,23 @@ export default function OrdersPage() {
       {/* Card Container */}
       <div className="glassmorphism w-full max-w-md sm:max-w-xl lg:max-w-4xl p-6 sm:p-8 lg:p-10">
         <div className="flex items-center justify-between mb-6">
-          <BackButton />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <BackButton />
+            <button
+              onClick={() => router.push('/')}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition"
+            >
+              <Home size={18} />
+              {t('Home')}
+            </button>
+            <button
+              onClick={() => router.push(`/customer/upload?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition"
+            >
+              <Upload size={18} />
+              {t('Upload File')}
+            </button>
+          </div>
           <span className="text-sm font-semibold text-gray-600">{t('Step 7 of 7')}</span>
         </div>
 
@@ -206,23 +226,58 @@ export default function OrdersPage() {
                 </div>
 
                 {/* File list */}
-                <div className="space-y-2">
-                  {order.orderFiles && order.orderFiles.map((file, fileIdx) => (
-                    <div key={file.id || fileIdx} className="flex items-center justify-between text-sm">
-                      <p className="text-gray-800 font-bold truncate flex-1">{file.customFileName}</p>
-                      <span className="text-xs text-gray-500 font-semibold flex-shrink-0 ml-3">
-                        {order.printConfiguration?.copies} {t('copies')} • {t(order.printConfiguration?.paperSize)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <div className="space-y-3">
+                  {order.orderFiles && order.orderFiles.map((file, fileIdx) => {
+                    let displayName = file.customFileName || file.originalFileName;
+                    let fileConfig = file.config || order.printConfiguration;
+                    let fileOrderId = file.orderId || order.orderId;
 
-                {/* Print Configuration Details */}
-                <div className="text-xs text-gray-500 font-semibold flex flex-wrap gap-x-4 gap-y-1 bg-gray-50 p-2.5 rounded-lg">
-                  <span>{t('Type')}: {order.printConfiguration?.printType === 'COLOR' ? t('Color') : t('B&W')}</span>
-                  <span>{t('Sides')}: {order.printConfiguration?.sides === 'DOUBLE' ? t('Double') : t('Single')}</span>
-                  <span>{t('Orientation')}: {t(order.printConfiguration?.orientation)}</span>
-                  <span>{t('Quality')}: {t(order.printConfiguration?.quality)}</span>
+                    // Fallback parsing just in case
+                    if (displayName && displayName.includes('|')) {
+                      try {
+                        const parts = displayName.split('|');
+                        displayName = parts[0];
+                        const parsed = JSON.parse(parts[1]);
+                        if (parsed) {
+                          fileConfig = parsed || fileConfig;
+                          fileOrderId = parsed.orderId || fileOrderId;
+                        }
+                      } catch (e) {
+                        console.error("Failed to parse config from file name", e);
+                      }
+                    }
+
+                    const copiesCount = fileConfig?.copies || 1;
+                    const sizeLabel = fileConfig?.paperSize || 'A4';
+                    const printTypeLabel = fileConfig?.printType === 'COLOR' ? t('Color') : t('B&W');
+                    const sidesLabel = fileConfig?.sides === 'DOUBLE' ? t('Double-sided') : t('Single-sided');
+
+                    return (
+                      <div key={file.id || fileIdx} className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex flex-col gap-1 text-sm shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
+                        <div className="flex items-center justify-between">
+                          <p className="text-gray-800 font-bold truncate flex-1">
+                            {displayName} <span className="text-indigo-600 font-mono text-xs ml-1 font-extrabold">({fileOrderId})</span>
+                          </p>
+                          <span className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-lg font-bold flex-shrink-0 ml-3">
+                            {copiesCount} {t('copies')}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 font-semibold mt-1">
+                          <span>{t('Size')}: {t(sizeLabel)}</span>
+                          <span>•</span>
+                          <span>{t('Type')}: {printTypeLabel}</span>
+                          <span>•</span>
+                          <span>{t('Sides')}: {sidesLabel}</span>
+                          {fileConfig?.orientation && (
+                            <>
+                              <span>•</span>
+                              <span>{t(fileConfig.orientation)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Footer details & Action buttons */}
@@ -235,8 +290,18 @@ export default function OrdersPage() {
                     </span>
                   </div>
                   
-                  {/* Action Group */}
                   <div className="flex gap-2">
+                    {/* View Invoice */}
+                    {order.invoice && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/customer/invoice/${order.id}`)}
+                        className="px-3 py-2 rounded-lg text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition flex items-center gap-1.5"
+                      >
+                        <FileText size={14} />
+                        {t('View Invoice')}
+                      </button>
+                    )}
                     {/* Invoice Download */}
                     {order.invoice && (
                       <button
@@ -307,24 +372,6 @@ export default function OrdersPage() {
             </div>
           </div>
         )}
-
-        {/* Bottom Navigation */}
-        <div className="flex gap-4 justify-between border-t pt-6 border-gray-150">
-          <button
-            onClick={() => router.push('/')}
-            className="flex-1 py-3 px-4 rounded-xl text-indigo-600 font-bold hover:bg-indigo-50 transition flex items-center justify-center gap-2 border border-indigo-100 text-sm"
-          >
-            <Home size={18} />
-            {t('Home')}
-          </button>
-          <button
-            onClick={() => router.push(`/customer/upload?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
-            className="flex-1 py-3 px-4 rounded-xl text-indigo-600 font-bold hover:bg-indigo-50 transition flex items-center justify-center gap-2 border border-indigo-100 text-sm"
-          >
-            <Upload size={18} />
-            {t('Upload File')}
-          </button>
-        </div>
 
         {/* Reusable help links */}
         <FeedbackLink />

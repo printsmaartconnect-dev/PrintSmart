@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../config/db");
 const qrcodeService = require("../services/qrcode.service");
 const qrService = require("../services/qr.service");
+const sessionService = require("../services/session.service");
 
 const jwtSecret = process.env.JWT_SECRET || "supersecretjwtkeychangeinproduction";
 
@@ -33,6 +34,7 @@ function createAuthResponse(shopkeeper, token) {
       isOnboarded: shopkeeper.isOnboarded,
       profileCompleted: shopkeeper.profileCompleted,
       pricingCompleted: shopkeeper.pricingCompleted,
+      createdAt: shopkeeper.createdAt,
     },
   };
 }
@@ -108,6 +110,9 @@ exports.register = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    // Register session with session manager
+    sessionService.registerSession(shopkeeper.id, token);
+
     const returnedShopkeeper = await prisma.shopkeeper.findUnique({
       where: { id: shopkeeper.id },
     });
@@ -157,6 +162,9 @@ exports.login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    // Register session with session manager
+    sessionService.registerSession(shopkeeper.id, token);
+
     res.json(createAuthResponse(shopkeeper, token));
   } catch (err) {
     console.error(err);
@@ -193,6 +201,7 @@ exports.getProfile = async (req, res) => {
         isOnboarded: true,
         profileCompleted: true,
         pricingCompleted: true,
+        createdAt: true,
       },
     });
 
@@ -285,6 +294,9 @@ exports.googleAuth = async (req, res) => {
       expiresIn: "7d",
     });
 
+    // Register session with session manager
+    sessionService.registerSession(shopkeeper.id, token);
+
     res.json(createAuthResponse(shopkeeper, token));
   } catch (err) {
     console.error("Google auth error:", err);
@@ -327,6 +339,8 @@ exports.updateProfile = async (req, res) => {
     const pricingCompleted = Boolean(pricing && Object.keys(pricing).length > 0);
     const isOnboarded = profileCompleted && pricingCompleted;
 
+    const estYear = businessEstablishedYear ? parseInt(businessEstablishedYear, 10) : null;
+
     let updated = await prisma.shopkeeper.update({
       where: { id: req.shopkeeper.id },
       data: {
@@ -338,7 +352,7 @@ exports.updateProfile = async (req, res) => {
         languagePref: languagePref || undefined,
         gstNumber: gstNumber || null,
         businessDescription: businessDescription || null,
-        businessEstablishedYear: businessEstablishedYear || null,
+        businessEstablishedYear: isNaN(estYear) ? null : estYear,
         website: website || null,
         alternatePhone: alternatePhone || null,
         socials: socials || undefined,

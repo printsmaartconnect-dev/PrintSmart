@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Check, ArrowLeft, Clock, FileText, ShoppingBag } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import useTranslation from '../../../src/hooks/useTranslation'
 import Link from 'next/link'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
