@@ -34,6 +34,7 @@ function createAuthResponse(shopkeeper, token) {
       isOnboarded: shopkeeper.isOnboarded,
       profileCompleted: shopkeeper.profileCompleted,
       pricingCompleted: shopkeeper.pricingCompleted,
+      createdAt: shopkeeper.createdAt,
     },
   };
 }
@@ -200,6 +201,7 @@ exports.getProfile = async (req, res) => {
         isOnboarded: true,
         profileCompleted: true,
         pricingCompleted: true,
+        createdAt: true,
       },
     });
 

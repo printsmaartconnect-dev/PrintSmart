@@ -42,7 +42,15 @@ const formatOrderResponse = (order) => {
 // Create one or more orders (per configured item)
 exports.createOrder = async (req, res) => {
   try {
-    const { userId, shopkeeperId, customerName, phone, items } = req.body;
+    let { userId, shopkeeperId, customerName, phone, items } = req.body;
+
+    // Sanitize string-literal null/undefined/empty values
+    if (userId === "undefined" || userId === "null" || userId === "") {
+      userId = null;
+    }
+    if (shopkeeperId === "undefined" || shopkeeperId === "null" || shopkeeperId === "") {
+      shopkeeperId = null;
+    }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "Invalid order items data" });
@@ -73,17 +81,12 @@ exports.createOrder = async (req, res) => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    // Count existing monthly orders to initialize sequence counters
-    let thisMonthBWCount = await prisma.order.count({
+    // Count existing monthly printed files to initialize the sequence counter
+    let thisMonthOrderCount = await prisma.orderFile.count({
       where: {
-        createdAt: { gte: startOfMonth, lt: endOfMonth },
-        printConfiguration: { printType: 'BW' }
-      }
-    });
-    let thisMonthColorCount = await prisma.order.count({
-      where: {
-        createdAt: { gte: startOfMonth, lt: endOfMonth },
-        printConfiguration: { printType: 'COLOR' }
+        order: {
+          createdAt: { gte: startOfMonth, lt: endOfMonth }
+        }
       }
     });
 
@@ -93,16 +96,8 @@ exports.createOrder = async (req, res) => {
       const itemPrintType = item.config?.printType?.toUpperCase() === "COLOR" ? "COLOR" : "BW";
       const typeCode = itemPrintType === 'COLOR' ? 'C' : 'BW';
       
-      let currentSeq = 0;
-      if (itemPrintType === 'COLOR') {
-        thisMonthColorCount++;
-        currentSeq = thisMonthColorCount;
-      } else {
-        thisMonthBWCount++;
-        currentSeq = thisMonthBWCount;
-      }
-      
-      const sequence = String(currentSeq).padStart(2, '0');
+      thisMonthOrderCount++;
+      const sequence = String(thisMonthOrderCount).padStart(2, '0');
       const itemOrderId = `${monthStr}${yearStr}P${typeCode}${sequence}`;
       fileOrderIds.push(itemOrderId);
     }

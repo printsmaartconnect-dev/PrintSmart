@@ -448,16 +448,6 @@ export default function LanguageAccessibilityPage() {
                     </div>
                   </SettingsRow>
 
-                  <SettingsRow
-                    icon={SquareUserRound}
-                    title={t('Auto Language Detection')}
-                    description={t('Automatically detect and set language based on device')}
-                  >
-                    <div className="flex justify-end">
-                      <ToggleSwitch enabled={autoDetect} onToggle={() => handleToggleAutoDetect(!autoDetect)} />
-                    </div>
-                  </SettingsRow>
-
                   <div className="flex flex-col gap-4 py-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="max-w-[330px]">
                       <div className="text-sm font-semibold text-slate-900">{t('Supported Languages')}</div>

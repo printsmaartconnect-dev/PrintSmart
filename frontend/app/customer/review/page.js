@@ -155,7 +155,15 @@ export default function ReviewPage() {
       config: item.config
     }))
 
-    const resolvedUserId = userId || customerInfo?.userId || null
+    let resolvedUserId = userId || customerInfo?.userId || null
+    if (resolvedUserId === 'undefined' || resolvedUserId === 'null' || resolvedUserId === '') {
+      resolvedUserId = null
+    }
+
+    let resolvedShopkeeperId = shopDetails?.id || localStorage.getItem('activeShopId') || null
+    if (resolvedShopkeeperId === 'undefined' || resolvedShopkeeperId === 'null' || resolvedShopkeeperId === '') {
+      resolvedShopkeeperId = null
+    }
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
@@ -164,7 +172,7 @@ export default function ReviewPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: resolvedUserId,
-          shopkeeperId: shopDetails?.id || localStorage.getItem('activeShopId') || null,
+          shopkeeperId: resolvedShopkeeperId,
           customerName: customerInfo?.name || 'Anonymous Customer',
           phone: customerInfo?.phone || '',
           items,

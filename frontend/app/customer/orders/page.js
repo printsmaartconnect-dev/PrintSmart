@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Inbox, Upload, RotateCcw, Download, Trash2, Home, Clock, AlertCircle } from 'lucide-react'
+import { Inbox, Upload, RotateCcw, Download, Trash2, Home, Clock, AlertCircle, FileText } from 'lucide-react'
 import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
@@ -290,8 +290,18 @@ export default function OrdersPage() {
                     </span>
                   </div>
                   
-                  {/* Action Group */}
                   <div className="flex gap-2">
+                    {/* View Invoice */}
+                    {order.invoice && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/customer/invoice/${order.id}`)}
+                        className="px-3 py-2 rounded-lg text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition flex items-center gap-1.5"
+                      >
+                        <FileText size={14} />
+                        {t('View Invoice')}
+                      </button>
+                    )}
                     {/* Invoice Download */}
                     {order.invoice && (
                       <button

@@ -25,6 +25,7 @@ export default function ShopkeeperDashboard() {
   const [mounted, setMounted] = useState(false);
   const [shopName, setShopName] = useState("");
   const [shopkeeperIdCode, setShopkeeperIdCode] = useState("");
+  const [memberSince, setMemberSince] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [ordersList, setOrdersList] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -140,6 +141,9 @@ export default function ShopkeeperDashboard() {
           // Onboarded - proceed
           setShopName(shopkeeper.shopName || "");
           setShopkeeperIdCode(shopkeeper.shopSlug || "");
+          if (shopkeeper.createdAt) {
+            setMemberSince(shopkeeper.createdAt);
+          }
           fetchOrders();
         } else {
           // If profile fetch fails (e.g. invalid token), redirect to login
@@ -163,6 +167,9 @@ export default function ShopkeeperDashboard() {
 
         setShopName(profile.shopName || "");
         setShopkeeperIdCode(profile.shopSlug || "");
+        if (account?.createdAt) {
+          setMemberSince(account.createdAt);
+        }
         fetchOrders();
       }
     };
@@ -216,12 +223,18 @@ export default function ShopkeeperDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#FDFCFD] relative overflow-hidden">
+      {/* Dynamic Purple Wave Background Decorator */}
+      <div className="absolute top-0 right-0 left-0 h-[340px] bg-gradient-to-b from-violet-100/30 via-fuchsia-50/15 to-transparent -z-10 pointer-events-none overflow-hidden">
+        <svg className="absolute top-0 w-full h-full text-violet-200/20" viewBox="0 0 1440 320" fill="none" preserveAspectRatio="none">
+          <path fill="currentColor" d="M0,96L48,112C96,128,192,160,288,186.7C384,213,480,235,576,218.7C672,203,768,149,864,138.7C960,128,1056,160,1152,165.3C1248,171,1344,149,1392,138.7L1440,128L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path>
+        </svg>
+      </div>
       <DashboardHeader shopName={shopName} />
 
       <div className="px-4 sm:px-6 lg:px-8 pb-28">
         <div className="mx-auto max-w-7xl space-y-6">
-          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} />
+          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} memberSince={memberSince} />
           <StatsRow stats={dynamicStats} />
           <RecentOrders orders={displayedOrders} activeFilter={activeFilter} onStatusChange={handleStatusChange} />
         </div>

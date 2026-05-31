@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock,
   Download,
-  MoveRight,
   XCircle,
 } from 'lucide-react'
 
@@ -52,12 +51,7 @@ function StatCard({ label, count, tone }) {
           <div className={`mt-0.5 text-2xl font-extrabold ${cfg.count}`}>{count}</div>
         </div>
       </div>
-      <button
-        type="button"
-        className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-700"
-      >
-        {t('View details')} <MoveRight size={14} />
-      </button>
+
     </div>
   )
 }

@@ -3,8 +3,21 @@
 import { Crown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-export default function WelcomeBar({ shopName, shopkeeperIdCode }) {
+export default function WelcomeBar({ shopName, shopkeeperIdCode, memberSince }) {
   const { t } = useTranslation()
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '12 Jan 2024'
+    try {
+      const date = new Date(dateString)
+      const day = date.getDate()
+      const month = date.toLocaleString('en-US', { month: 'short' })
+      const year = date.getFullYear()
+      return `${day} ${month} ${year}`
+    } catch (e) {
+      return '12 Jan 2024'
+    }
+  }
 
   return (
     <div className="rounded-2xl bg-white shadow-sm border border-slate-200">
@@ -40,7 +53,7 @@ export default function WelcomeBar({ shopName, shopkeeperIdCode }) {
             </span>
           </div>
           <div className="mt-2 text-xs text-slate-500">{t('Member Since')}</div>
-          <div className="text-sm font-semibold text-slate-800">12 Jan 2024</div>
+          <div className="text-sm font-semibold text-slate-800">{formatDate(memberSince)}</div>
         </div>
       </div>
     </div>

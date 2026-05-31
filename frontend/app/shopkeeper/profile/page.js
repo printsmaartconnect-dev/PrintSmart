@@ -290,7 +290,7 @@ export default function ShopkeeperProfileViewPage() {
                 active={!!isProfileActive}
                 icon={User}
               >
-                Profile Setup
+                Profile
               </SidebarNavItem>
               <SidebarNavItem
                 href="/shopkeeper/profile/pricing"
@@ -330,7 +330,7 @@ export default function ShopkeeperProfileViewPage() {
           {/* Main content */}
           <section className="flex-1">
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-900">Profile Setup</h1>
+              <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
               <p className="mt-1 text-sm text-slate-500">
                 Tell customers about your business. This information will be visible on your shop profile.
               </p>

@@ -31,9 +31,15 @@ export default function PricingSetupEditPage() {
   const [pricing, setPricingState] = useState({
     bwA4: '1.00',
     bwA3: '2.00',
+    bwA5: '1.00',
+    bwLegal: '1.50',
+    bwLetter: '1.00',
     bwDoubleSide: '1.00',
     colorA4: '5.00',
     colorA3: '8.00',
+    colorA5: '4.00',
+    colorLegal: '6.00',
+    colorLetter: '5.00',
     colorDoubleSide: '3.00',
     expressPrint: '10.00',
     autoDeleteAfterHours: '24 hrs',
@@ -107,8 +113,14 @@ export default function PricingSetupEditPage() {
     return {
       bwA4: safe(pricing.bwA4),
       bwA3: safe(pricing.bwA3),
+      bwA5: safe(pricing.bwA5),
+      bwLegal: safe(pricing.bwLegal),
+      bwLetter: safe(pricing.bwLetter),
       colorA4: safe(pricing.colorA4),
       colorA3: safe(pricing.colorA3),
+      colorA5: safe(pricing.colorA5),
+      colorLegal: safe(pricing.colorLegal),
+      colorLetter: safe(pricing.colorLetter),
       bwDoubleSide: safe(pricing.bwDoubleSide),
       colorDoubleSide: safe(pricing.colorDoubleSide),
       expressPrint: safe(pricing.expressPrint),
@@ -205,7 +217,7 @@ export default function PricingSetupEditPage() {
 
             <nav className="px-4 space-y-2">
               <SidebarNavItem href="/shopkeeper/profile" active={false} icon={User}>
-                Profile Setup
+                Profile
               </SidebarNavItem>
               <SidebarNavItem href="/shopkeeper/profile/pricing" active={true} icon={Store}>
                 Pricing Setup
@@ -260,7 +272,7 @@ export default function PricingSetupEditPage() {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               {/* Left: Pricing cards */}
               <div className="xl:col-span-9">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card title="Black & White Printing" icon={Printer}>
                     <div className="space-y-4">
                       <Field label="A4 (Per Page)">
@@ -268,6 +280,15 @@ export default function PricingSetupEditPage() {
                       </Field>
                       <Field label="A3 (Per Page)">
                         <RupeeInput value={pricing.bwA3} onChange={onChange('bwA3')} placeholder="2.00" />
+                      </Field>
+                      <Field label="A5 (Per Page)">
+                        <RupeeInput value={pricing.bwA5 || '1.00'} onChange={onChange('bwA5')} placeholder="1.00" />
+                      </Field>
+                      <Field label="Legal (Per Page)">
+                        <RupeeInput value={pricing.bwLegal || '1.50'} onChange={onChange('bwLegal')} placeholder="1.50" />
+                      </Field>
+                      <Field label="Letter (Per Page)">
+                        <RupeeInput value={pricing.bwLetter || '1.00'} onChange={onChange('bwLetter')} placeholder="1.00" />
                       </Field>
                       <Field label="Double Side (Per Page)">
                         <RupeeInput
@@ -287,6 +308,15 @@ export default function PricingSetupEditPage() {
                       <Field label="A3 (Per Page)">
                         <RupeeInput value={pricing.colorA3} onChange={onChange('colorA3')} placeholder="8.00" />
                       </Field>
+                      <Field label="A5 (Per Page)">
+                        <RupeeInput value={pricing.colorA5 || '4.00'} onChange={onChange('colorA5')} placeholder="4.00" />
+                      </Field>
+                      <Field label="Legal (Per Page)">
+                        <RupeeInput value={pricing.colorLegal || '6.00'} onChange={onChange('colorLegal')} placeholder="6.00" />
+                      </Field>
+                      <Field label="Letter (Per Page)">
+                        <RupeeInput value={pricing.colorLetter || '5.00'} onChange={onChange('colorLetter')} placeholder="5.00" />
+                      </Field>
                       <Field label="Double Side (Per Page)">
                         <RupeeInput
                           value={pricing.colorDoubleSide}
@@ -294,51 +324,6 @@ export default function PricingSetupEditPage() {
                           placeholder="3.00"
                         />
                       </Field>
-                    </div>
-                  </Card>
-
-                  <Card title="Other Settings" icon={Settings2}>
-                    <div className="space-y-4">
-                      <Field label="Express Print (Extra Charges)">
-                        <RupeeInput
-                          value={pricing.expressPrint}
-                          onChange={onChange('expressPrint')}
-                          placeholder="10.00"
-                        />
-                      </Field>
-                      <Field label="Auto Delete After (Hours)">
-                        <SelectInput
-                          value={pricing.autoDeleteAfterHours}
-                          onChange={(e) =>
-                            setPricingState((prev) => ({
-                              ...prev,
-                              autoDeleteAfterHours: e.target.value,
-                            }))
-                          }
-                        >
-                          <option value="1 hrs">1 hrs</option>
-                          <option value="24 hrs">24 hrs</option>
-                          <option value="Custom">Custom</option>
-                        </SelectInput>
-                      </Field>
-
-                      {showCustomAutoDelete ? (
-                        <Field label="Custom Hours">
-                          <TextInput
-                            type="number"
-                            min={1}
-                            value={pricing.customAutoDeleteHours || ''}
-                            onChange={(e) =>
-                              setPricingState((prev) => ({
-                                ...prev,
-                                customAutoDeleteHours: e.target.value,
-                              }))
-                            }
-                            placeholder="Enter hours"
-                            inputMode="numeric"
-                          />
-                        </Field>
-                      ) : null}
                     </div>
                   </Card>
                 </div>
@@ -356,11 +341,16 @@ export default function PricingSetupEditPage() {
                   <div className="space-y-3 text-sm">
                     <SummaryRow label="B&W A4" value={summary.bwA4} />
                     <SummaryRow label="B&W A3" value={summary.bwA3} />
+                    <SummaryRow label="B&W A5" value={summary.bwA5} />
+                    <SummaryRow label="B&W Legal" value={summary.bwLegal} />
+                    <SummaryRow label="B&W Letter" value={summary.bwLetter} />
                     <SummaryRow label="Color A4" value={summary.colorA4} />
                     <SummaryRow label="Color A3" value={summary.colorA3} />
+                    <SummaryRow label="Color A5" value={summary.colorA5} />
+                    <SummaryRow label="Color Legal" value={summary.colorLegal} />
+                    <SummaryRow label="Color Letter" value={summary.colorLetter} />
                     <SummaryRow label="Double Side B&W" value={summary.bwDoubleSide} />
                     <SummaryRow label="Double Side Color" value={summary.colorDoubleSide} />
-                    <SummaryRow label="Express Print" value={summary.expressPrint} />
                   </div>
                 </Card>
               </div>

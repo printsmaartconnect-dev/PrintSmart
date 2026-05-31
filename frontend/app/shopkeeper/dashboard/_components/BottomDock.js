@@ -9,7 +9,7 @@ import {
   FileText,
   Sparkles,
   Settings,
-  Ticket,
+  Home,
   User,
   XCircle,
 } from 'lucide-react'
@@ -23,7 +23,7 @@ const iconMap = {
   completed: CheckCircle2,
   downloaded: Download,
   cancelled: XCircle,
-  coupon: Ticket,
+  coupon: Home,
   printsmartAi: Sparkles,
 }
 
