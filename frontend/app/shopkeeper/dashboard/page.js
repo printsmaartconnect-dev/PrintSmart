@@ -55,6 +55,7 @@ export default function ShopkeeperDashboard() {
           status: o.status ? (o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()) : "Pending",
           customerName: o.customerName || "Anonymous Customer",
           phone: o.phone || "",
+          customerComment: o.customerComment || "",
           fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
           fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
           pages: 1,

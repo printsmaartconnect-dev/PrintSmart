@@ -42,7 +42,7 @@ const formatOrderResponse = (order) => {
 // Create one or more orders (per configured item)
 exports.createOrder = async (req, res) => {
   try {
-    let { userId, shopkeeperId, customerName, phone, items } = req.body;
+    let { userId, shopkeeperId, customerName, phone, customerComment, items } = req.body;
 
     // Sanitize string-literal null/undefined/empty values
     if (userId === "undefined" || userId === "null" || userId === "") {
@@ -151,6 +151,7 @@ exports.createOrder = async (req, res) => {
         shopkeeperId: targetShopkeeperId,
         customerName: customerName || "Anonymous",
         phone: phone || null,
+        customerComment: customerComment || null,
         price: totalAmt,
         subtotal: subtotalAmt,
         tax: taxAmt,

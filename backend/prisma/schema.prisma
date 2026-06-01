@@ -136,6 +136,7 @@ model Order {
 
   customerName         String   @default("Anonymous")
   phone                String?
+  customerComment      String?  // Optional comment from customer during upload
 
   printConfiguration   PrintConfiguration?
   orderFiles          OrderFile[]

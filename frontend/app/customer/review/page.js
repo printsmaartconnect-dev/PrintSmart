@@ -167,6 +167,8 @@ export default function ReviewPage() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const customerComment = localStorage.getItem('customerComment') || null
+      
       const response = await fetch(`${apiUrl}/api/orders/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,6 +177,7 @@ export default function ReviewPage() {
           shopkeeperId: resolvedShopkeeperId,
           customerName: customerInfo?.name || 'Anonymous Customer',
           phone: customerInfo?.phone || '',
+          customerComment: customerComment,
           items,
         }),
       })
