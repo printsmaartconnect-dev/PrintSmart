@@ -566,18 +566,29 @@ body {
 ---
 
 #### `app/admin/dashboard/page.js`
-**Purpose:** Admin dashboard; displays system KPIs and recent orders.
+**Purpose:** Rebuilt Premium Platform Administration Dashboard. Coordinates system stats, shop manager portals, order registers, reward/coupon controls, AI run logs, support ticketing, and settings profiles.
 
-**Components:**
-- **Stats Grid:** Total Orders, Active Shops, Revenue (with icons)
-- **Recent Orders Table:** Order ID, Status, Amount, Timestamp
-- **Header:** Logout button with icon
+**Sub-Components (Located in `_components/`):**
+* **`AdminSidebar.js`:** Sleek, Vercel-style semi-dark navigation featuring 8 tabs. Includes a dynamic **System Health Card** complete with an online ping indicator, live server uptime metrics, and a custom inline green SVG micro-sparkline.
+* **`StatCard.js`:** High-end KPI component representing individual baseline SVG wave sparklines, growth metrics, dynamic color accent overrides, and animated hover effects.
 
-**Key Features:**
-- Responsive grid (1 col mobile, 3 cols desktop)
-- Hover effects on rows
-- Glassmorphism styling for cards
-- Status badges (Pending, Completed, Printing) with color-coding
+**Key Dashboard Sections (8-Tab Views):**
+1. **Overview (Dashboard):** Premium layout hosting 8 top-tier metric cards, dynamic orders trend graph curves (Daily/Weekly/Monthly), an SVG order status donut chart, priority warning alert boxes, and top performing shop lists.
+2. **Shops Directory:** Active listings showing approval and onboarding states, shop contact indexes, subscription types, and a live toggle to instantly onboard/suspend shops by triggering `PUT /api/admin/shops/:id/onboard` API calls.
+3. **Orders History:** Detailed customer logs showing billing margins, order queues, print modes (e.g., standard color vs duplex), and status badges.
+4. **Coupons & Rewards:** Overview of generated active coupons, cost analysis matrices, and mock sparklines for coupon activations.
+5. **AI Telemetry:** Log counters for generated AI backgrounds, banner assets, and poster optimizations, detailing successful runs vs failed queues.
+6. **Support Helpdesk:** Priority tag registries detailing store associations, ticket priorities, and interactive response forms.
+7. **Revenue Tracking:** Platform tax rate indexes, monthly platform margins, and tax-cut metrics.
+8. **Platform Settings:** Interface to toggle platform-wide Commission Fee percentages, Maintenance Locks, and Allowed Upload File Types.
+
+> [!TIP]
+> **Hot-Reloading Static Chunk 404s Resolution:**
+> If Next.js dev server triggers `404` errors on `/admin/dashboard` chunks during simultaneous production builds, clear the cache and restart:
+> ```powershell
+> Remove-Item -Recurse -Force .next
+> npm run dev
+> ```
 
 ---
 
