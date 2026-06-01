@@ -739,14 +739,17 @@ export const mockStats = {
 ---
 
 ##### `_components/BottomDock.js`
-**Purpose:** Floating navigation menu at bottom of page.
+**Purpose:** Floating premium navigation dock at the bottom of the Shopkeeper Dashboard page.
 
-**Navigation Items:**
-- Dashboard (home icon)
-- Orders (list icon)
-- Settings (gear icon)
-- Support (help icon)
-- Logout (exit icon)
+**Navigation Items & Premium Enhancements:**
+- **Profile:** Link to profile details (`/shopkeeper/profile`).
+- **Settings:** Access settings preferences (`/shopkeeper/settings`).
+- **Subscription:** Manage pricing tier schedules (`/shopkeeper/subscription`).
+- **Statistics & Analysis:** Interactive aggregated orders charts.
+- **Filters:** Quick filter buttons for Pending, Completed, Downloaded, and Cancelled queues.
+- **➕ Direct Add Order (Blue Plus Button):** Prominent walk-in order creation gateway (`bg-[#3B82F6]`) styled as a blue rounded-square with a white plus. Triggers a customized customer order flow (`/customer/language?shopkeeperAddOrder=true`) which auto-configures layouts, bypasses customer support talks, and automatically routes the shopkeeper back to their dashboard queue upon completion.
+- **🌐 Business Network (Glow Upgrade):** Enhanced with a solid Indigo gradient (`bg-indigo-600 border-indigo-200`), custom shadow glow (`shadow-[0_0_15px_rgba(99,102,241,0.6)]`), and active top-right ping pulse for beautiful interactive aesthetics.
+- **PrintSmart AI:** Glowing purple AI button with a continuous fuchsia ping pulse.
 
 ---
 

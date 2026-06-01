@@ -13,6 +13,7 @@ import {
   Home,
   User,
   XCircle,
+  Plus,
 } from 'lucide-react'
 
 const iconMap = {
@@ -26,6 +27,7 @@ const iconMap = {
   cancelled: XCircle,
   coupon: Home,
   printsmartAi: Sparkles,
+  addOrder: Plus,
 }
 
 const filterItems = new Set(['pending', 'completed', 'downloaded', 'cancelled'])
@@ -37,22 +39,31 @@ function DockItem({ item, activeFilter, onFilterChange }) {
   const translatedLabel = t(item.label)
   const isActive = isFilterItem && activeFilter === translatedLabel
   const isAiItem = item.key === 'printsmartAi'
+  const isAddOrderItem = item.key === 'addOrder'
+  const isCouponItem = item.key === 'coupon'
 
   const content = (
     <>
       <span
-        className={`relative flex h-10 w-10 items-center justify-center rounded-2xl transition ${
+        className={`relative flex h-10 w-10 items-center justify-center transition ${
           isAiItem
             ? 'rounded-full border border-purple-200 bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.6)]'
-            : isActive
-              ? 'text-violet-600 scale-105'
-              : 'text-slate-600'
+            : isCouponItem
+              ? 'rounded-full border border-indigo-200 bg-indigo-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.6)] scale-105'
+              : isAddOrderItem
+                ? 'rounded-[14px] bg-[#3B82F6] text-white hover:bg-[#2563EB] shadow-[0_4px_10px_rgba(59,130,246,0.3)] scale-105'
+                : isActive
+                  ? 'rounded-2xl text-violet-600 scale-105'
+                  : 'rounded-2xl text-slate-600'
         }`}
       >
         {isAiItem ? (
           <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-fuchsia-200 animate-ping" />
         ) : null}
-        <Icon size={20} className={isAiItem ? 'text-white' : isActive ? 'text-violet-600' : 'text-slate-700'} />
+        {isCouponItem ? (
+          <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-indigo-200 animate-ping" />
+        ) : null}
+        <Icon size={20} className={isAiItem || isAddOrderItem || isCouponItem ? 'text-white' : isActive ? 'text-violet-600' : 'text-slate-700'} />
         {item.badge ? (
           <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm">
             {item.badge}

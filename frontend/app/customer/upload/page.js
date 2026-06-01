@@ -346,9 +346,14 @@ export default function UploadPage() {
         localStorage.removeItem('customerComment')
       }
 
-      const nextUrl = shopId
+      const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
+      let nextUrl = shopId
         ? `/customer/configuration?shopId=${shopId}&userId=${userId}`
         : `/customer/configuration?userId=${userId}`
+
+      if (isShopkeeper) {
+        nextUrl += `&shopkeeperAddOrder=true`
+      }
 
       router.push(nextUrl)
     } catch (err) {

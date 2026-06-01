@@ -16,11 +16,12 @@ export default function ConfigurationPage() {
   const searchParams = useSearchParams()
   const shopId = searchParams.get('shopId')
   const userId = searchParams.get('userId')
+  const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
 
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [configs, setConfigs] = useState([])
   const [loading, setLoading] = useState(false)
-  const [showConfig, setShowConfig] = useState(false)
+  const [showConfig, setShowConfig] = useState(isShopkeeper)
 
   const defaultConfig = {
     printType: 'BW',
@@ -45,6 +46,12 @@ export default function ConfigurationPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (isShopkeeper) {
+      setShowConfig(true)
+    }
+  }, [isShopkeeper])
+
   const handleConfigChange = (docIndex, key, value) => {
     setConfigs(prev => 
       prev.map((cfg, idx) => 
@@ -56,7 +63,11 @@ export default function ConfigurationPage() {
   const handleContinue = async () => {
     if (uploadedFiles.length === 0) {
       alert(t('No files uploaded. Please upload files first.'))
-      router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)
+      let uploadUrl = `/customer/upload?shopId=${shopId}&userId=${userId}`
+      if (isShopkeeper) {
+        uploadUrl += `&shopkeeperAddOrder=true`
+      }
+      router.push(uploadUrl)
       return
     }
 
@@ -71,7 +82,10 @@ export default function ConfigurationPage() {
       localStorage.setItem('printConfigurations', JSON.stringify(fileConfigs))
 
       // Redirect to review page with shop and user info
-      const nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
+      let nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
+      if (isShopkeeper) {
+        nextUrl += `&shopkeeperAddOrder=true`
+      }
       router.push(nextUrl)
     } catch (err) {
       console.error('Error saving configuration:', err)
@@ -84,7 +98,11 @@ export default function ConfigurationPage() {
   const handleTalkFirst = async () => {
     if (uploadedFiles.length === 0) {
       alert(t('No files uploaded. Please upload files first.'))
-      router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)
+      let uploadUrl = `/customer/upload?shopId=${shopId}&userId=${userId}`
+      if (isShopkeeper) {
+        uploadUrl += `&shopkeeperAddOrder=true`
+      }
+      router.push(uploadUrl)
       return
     }
 
@@ -100,7 +118,10 @@ export default function ConfigurationPage() {
       localStorage.setItem('printConfigurations', JSON.stringify(fileConfigs))
 
       // Redirect to review page with shop and user info
-      const nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
+      let nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
+      if (isShopkeeper) {
+        nextUrl += `&shopkeeperAddOrder=true`
+      }
       router.push(nextUrl)
     } catch (err) {
       console.error('Error saving configuration:', err)
@@ -140,32 +161,34 @@ export default function ConfigurationPage() {
           ) : (
             <div className="space-y-10">
               {/* Top Option Selector */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <button
-                  type="button"
-                  onClick={handleTalkFirst}
-                  disabled={loading}
-                  className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-violet-200 bg-violet-50/50 hover:bg-violet-50 text-violet-800 font-bold transition-all transform hover:scale-[1.01] shadow-sm text-center w-full focus:outline-none"
-                >
-                  <span className="text-2xl mb-1.5">💬</span>
-                  <span className="text-sm font-extrabold">{t('I Want to Talk with Shopkeeper First')}</span>
-                  <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Skip layout configuration & talk directly')}</span>
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => setShowConfig(!showConfig)}
-                  className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all transform hover:scale-[1.01] text-center w-full focus:outline-none ${
-                    showConfig 
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-800 shadow-md' 
-                      : 'border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50/60 text-indigo-700/80 hover:text-indigo-800 shadow-sm'
-                  }`}
-                >
-                  <span className="text-2xl mb-1.5">⚙️</span>
-                  <span className="text-sm font-extrabold">{t('I Want to Configure Print Layout')}</span>
-                  <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Set copies, color options, paper size, etc.')}</span>
-                </button>
-              </div>
+              {!isShopkeeper && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <button
+                    type="button"
+                    onClick={handleTalkFirst}
+                    disabled={loading}
+                    className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-violet-200 bg-violet-50/50 hover:bg-violet-50 text-violet-800 font-bold transition-all transform hover:scale-[1.01] shadow-sm text-center w-full focus:outline-none"
+                  >
+                    <span className="text-2xl mb-1.5">💬</span>
+                    <span className="text-sm font-extrabold">{t('I Want to Talk with Shopkeeper First')}</span>
+                    <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Skip layout configuration & talk directly')}</span>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setShowConfig(!showConfig)}
+                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all transform hover:scale-[1.01] text-center w-full focus:outline-none ${
+                      showConfig 
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-800 shadow-md' 
+                        : 'border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50/60 text-indigo-700/80 hover:text-indigo-800 shadow-sm'
+                    }`}
+                  >
+                    <span className="text-2xl mb-1.5">⚙️</span>
+                    <span className="text-sm font-extrabold">{t('I Want to Configure Print Layout')}</span>
+                    <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Set copies, color options, paper size, etc.')}</span>
+                  </button>
+                </div>
+              )}
 
               {showConfig && (
                 <>
@@ -367,7 +390,13 @@ export default function ConfigurationPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)}
+                      onClick={() => {
+                        let uploadUrl = `/customer/upload?shopId=${shopId}&userId=${userId}`
+                        if (isShopkeeper) {
+                          uploadUrl += `&shopkeeperAddOrder=true`
+                        }
+                        router.push(uploadUrl)
+                      }}
                       className="w-full bg-white border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-bold py-3 rounded-xl transition"
                     >
                       {t('Back to Upload')}

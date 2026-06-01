@@ -188,17 +188,12 @@ export default function ReviewPage() {
       }
 
       const result = await response.json()
-      
-      // Store the created order details in localStorage for the Order Placed page
-      const primaryOrder = result.orders[0]
-      localStorage.setItem('currentOrder', JSON.stringify({
-        orderId: primaryOrder.orderId,
-        estimatedTime: primaryOrder.estimatedTime,
-        price: total.toFixed(2),
-        shopName: shopDetails?.shopName || 'Shop'
-      }))
-
-      router.push(`/customer/order-placed?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
+      const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
+      if (isShopkeeper) {
+        router.push('/shopkeeper/dashboard')
+      } else {
+        router.push(`/customer/order-placed?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
+      }
     } catch (err) {
       console.error('Order creation error:', err)
       setError(err.message || t('Error occurred while submitting order details.'))
