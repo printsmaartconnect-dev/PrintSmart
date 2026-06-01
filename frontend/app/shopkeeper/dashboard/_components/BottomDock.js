@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslation } from 'react-i18next'
 import {
   CheckCircle2,
   Clock,
@@ -30,9 +31,11 @@ const iconMap = {
 const filterItems = new Set(['pending', 'completed', 'downloaded', 'cancelled'])
 
 function DockItem({ item, activeFilter, onFilterChange }) {
+  const { t } = useTranslation()
   const Icon = iconMap[item.key] || User
   const isFilterItem = filterItems.has(item.key)
-  const isActive = isFilterItem && activeFilter === item.label
+  const translatedLabel = t(item.label)
+  const isActive = isFilterItem && activeFilter === translatedLabel
   const isAiItem = item.key === 'printsmartAi'
 
   const content = (
@@ -56,8 +59,8 @@ function DockItem({ item, activeFilter, onFilterChange }) {
           </span>
         ) : null}
       </span>
-      <span className={`text-[9.5px] font-bold tracking-tight text-center truncate w-full ${isActive ? 'text-violet-600 font-black' : 'text-slate-600'}`} title={item.label}>
-        {item.label}
+      <span className={`text-[9.5px] font-bold tracking-tight text-center truncate w-full ${isActive ? 'text-violet-600 font-black' : 'text-slate-600'}`} title={translatedLabel}>
+        {translatedLabel}
       </span>
     </>
   )
@@ -69,7 +72,7 @@ function DockItem({ item, activeFilter, onFilterChange }) {
 
   if (item.href) {
     return (
-      <Link href={item.href} className={className} aria-label={item.label}>
+      <Link href={item.href} className={className} aria-label={translatedLabel}>
         {content}
       </Link>
     )
@@ -80,9 +83,9 @@ function DockItem({ item, activeFilter, onFilterChange }) {
       <button
         type="button"
         className={className}
-        aria-label={item.label}
+        aria-label={translatedLabel}
         aria-pressed={isActive}
-        onClick={() => onFilterChange?.(item.label)}
+        onClick={() => onFilterChange?.(translatedLabel)}
       >
         {content}
       </button>
@@ -93,7 +96,7 @@ function DockItem({ item, activeFilter, onFilterChange }) {
     <button
       type="button"
       className={className}
-      aria-label={item.label}
+      aria-label={translatedLabel}
     >
       {content}
     </button>

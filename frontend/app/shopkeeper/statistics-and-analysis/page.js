@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   CalendarDays,
@@ -57,6 +58,7 @@ function Dot({ tone }) {
 
 
 function StatCard({ card }) {
+  const { t } = useTranslation()
   const Icon = card.icon
   return (
     <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
@@ -66,23 +68,24 @@ function StatCard({ card }) {
         </div>
       </div>
 
-      <div className="mt-3 text-sm font-medium text-slate-700">{card.title}</div>
+      <div className="mt-3 text-sm font-medium text-slate-700">{t(card.title)}</div>
       <div className="mt-1 text-[28px] font-extrabold leading-none tracking-tight text-slate-900">{card.count}</div>
 
       <Link href="/shopkeeper/dashboard" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-violet-700">
-        Back to Dashboard <span aria-hidden="true">→</span>
+        {t('Back to Dashboard')} <span aria-hidden="true">→</span>
       </Link>
     </div>
   )
 }
 
 function CardShell({ title, children, headerRight, subtitle }) {
+  const { t } = useTranslation()
   return (
     <section className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900">{title}</h2>
-          {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+          <h2 className="text-lg font-bold tracking-tight text-slate-900">{t(title)}</h2>
+          {subtitle ? <p className="mt-1 text-sm text-slate-500">{t(subtitle)}</p> : null}
         </div>
         {headerRight}
       </div>
@@ -469,6 +472,7 @@ function MainPrintTrendsChart({ orders, timeRange }) {
 }
 
 function OrderDistributionChart({ orders }) {
+  const { t } = useTranslation()
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
   const stats = (() => {
@@ -479,10 +483,10 @@ function OrderDistributionChart({ orders }) {
     const digitalCount = Math.max(0, total - xeroxCount - bwCount - colorCount);
 
     return [
-      { label: "Xerox", count: xeroxCount, color: "#10b981", tone: "emerald" },
-      { label: "Digital Print", count: digitalCount, color: "#3b82f6", tone: "sky" },
-      { label: "B&W Print", count: bwCount, color: "#8b5cf6", tone: "violet" },
-      { label: "Color Print", count: colorCount, color: "#f59e0b", tone: "amber" },
+      { label: t("Xerox"), count: xeroxCount, color: "#10b981", tone: "emerald" },
+      { label: t("Digital Print"), count: digitalCount, color: "#3b82f6", tone: "sky" },
+      { label: t("B&W Print"), count: bwCount, color: "#8b5cf6", tone: "violet" },
+      { label: t("Color Print"), count: colorCount, color: "#f59e0b", tone: "amber" },
     ];
   })();
 
@@ -565,7 +569,7 @@ function OrderDistributionChart({ orders }) {
                 className="text-[10px] font-black uppercase tracking-wider"
                 style={{ color: segments[hoveredIdx].color }}
               >
-                {segments[hoveredIdx].label}
+                {t(segments[hoveredIdx].label)}
               </div>
               <div className="text-2xl font-black text-slate-900 leading-none mt-0.5">
                 {segments[hoveredIdx].count}
@@ -577,13 +581,13 @@ function OrderDistributionChart({ orders }) {
           ) : (
             <>
               <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-                Total Orders
+                {t('Total Orders')}
               </div>
               <div className="text-[28px] font-black text-slate-800 leading-none">
                 {totalOrders}
               </div>
               <div className="mt-1 text-[9px] font-extrabold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
-                Live Data
+                {t('Live Data')}
               </div>
             </>
           )}
@@ -606,7 +610,7 @@ function OrderDistributionChart({ orders }) {
               style={{ backgroundColor: item.color }}
             />
             <span className="truncate">
-              {item.label} ({item.count}) • {totalOrders > 0 ? Math.round((item.count / totalOrders) * 100) : 0}%
+              {t(item.label)} ({item.count}) • {totalOrders > 0 ? Math.round((item.count / totalOrders) * 100) : 0}%
             </span>
           </div>
         ))}
@@ -753,6 +757,7 @@ function RevenueBarChart({ orders }) {
 }
 
 function StatHeaderControls({ activeChannel, setActiveChannel }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
       <button
@@ -760,7 +765,7 @@ function StatHeaderControls({ activeChannel, setActiveChannel }) {
         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
       >
         <CalendarDays size={16} className="text-slate-500" />
-        <span>Today</span>
+        <span>{t('Today')}</span>
         <ChevronDown size={16} className="text-slate-400" />
       </button>
 
@@ -774,7 +779,7 @@ function StatHeaderControls({ activeChannel, setActiveChannel }) {
               activeChannel === tab ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200' : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            {tab}
+            {t(tab)}
           </button>
         ))}
       </div>
@@ -783,12 +788,13 @@ function StatHeaderControls({ activeChannel, setActiveChannel }) {
 }
 
 function LegendRow({ items }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
       {items.map((item) => (
         <span key={item.label} className="inline-flex items-center gap-2">
           <Dot tone={item.tone} />
-          <span>{item.label}</span>
+          <span>{t(item.label)}</span>
         </span>
       ))}
     </div>
@@ -821,6 +827,7 @@ const scratchCardHistory = [
 ]
 
 export default function AllOrdersPage() {
+  const { t } = useTranslation()
   const [ordersList, setOrdersList] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeChannel, setActiveChannel] = useState("Total")
@@ -1005,7 +1012,7 @@ export default function AllOrdersPage() {
             </Link>
             <div>
               <h1 className="text-[32px] font-extrabold tracking-tight text-slate-900 sm:text-[36px]">
-                Shop Statistics &amp; Analysis
+                {t('Shop Statistics & Analysis')}
               </h1>
             </div>
           </div>
@@ -1036,7 +1043,7 @@ export default function AllOrdersPage() {
                             activeTimeRange === tab ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200' : 'text-slate-600 hover:bg-slate-100'
                           }`}
                         >
-                          {tab}
+                          {t(tab)}
                         </button>
                       ))}
                     </div>
@@ -1111,17 +1118,17 @@ export default function AllOrdersPage() {
                 <div className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-sm text-slate-500">Total Revenue</div>
+                      <div className="text-sm text-slate-500">{t('Total Revenue')}</div>
                       <div className="mt-2 text-[30px] font-extrabold tracking-tight text-slate-900">₹{loading ? '...' : totalRevenue.toFixed(2)}</div>
                     </div>
                     <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-sm text-slate-500">Average Order Value</div>
+                      <div className="text-sm text-slate-500">{t('Average Order Value')}</div>
                       <div className="mt-2 text-[30px] font-extrabold tracking-tight text-slate-900">₹{loading ? '...' : Math.round(avgOrderValue)}</div>
                     </div>
                   </div>
 
                   <div>
-                    <div className="mb-3 text-sm font-semibold text-slate-900">Revenue by Hour of Day</div>
+                    <div className="mb-3 text-sm font-semibold text-slate-900">{t('Revenue by Hour of Day')}</div>
                     <RevenueBarChart orders={heatmapOrders} />
                   </div>
                 </div>
@@ -1143,17 +1150,17 @@ export default function AllOrdersPage() {
               >
                 <div className="grid gap-5 lg:grid-cols-2">
                   <div>
-                    <div className="mb-3 text-sm font-semibold text-slate-900">Top 5 Most Printed File Formats</div>
+                    <div className="mb-3 text-sm font-semibold text-slate-900">{t('Top 5 Most Printed File Formats')}</div>
                     <FormatList rows={dynamicFormatRows} />
                   </div>
 
                   <div>
-                    <div className="mb-3 text-sm font-semibold text-slate-900">Top 5 Print Sizes</div>
+                    <div className="mb-3 text-sm font-semibold text-slate-900">{t('Top 5 Print Sizes')}</div>
                     <div className="space-y-3">
                       {dynamicPrintSizeRows.map((row) => (
                         <div key={row.label} className="space-y-1">
                           <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-                            <span>{row.label}</span>
+                            <span>{t(row.label)}</span>
                             <span>{row.value}</span>
                           </div>
                           <div className="h-1.5 w-full rounded-full bg-slate-100">
@@ -1193,11 +1200,11 @@ export default function AllOrdersPage() {
                                 ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                                 : 'bg-rose-50 text-rose-700 border-rose-200'
                           }`}>
-                            {item.status}
+                            {t(item.status)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded border border-violet-100">{item.reward} ({item.code})</span>
+                          <span className="font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded border border-violet-100">{t(item.reward)} ({item.code})</span>
                           <span className="text-slate-400 font-medium">{item.timestamp}</span>
                         </div>
                       </div>
@@ -1205,9 +1212,9 @@ export default function AllOrdersPage() {
                   </div>
 
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-sm font-bold text-slate-900">Rewards Summary</div>
+                    <div className="text-sm font-bold text-slate-900">{t('Rewards Summary')}</div>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                      Customers love discount incentives! Most coupons are claimed directly upon order completion.
+                      {t('Customers love discount incentives! Most coupons are claimed directly upon order completion.')}
                     </p>
                   </div>
                 </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   Sparkles,
   Play,
@@ -73,6 +74,7 @@ const MandalaPattern = () => (
 )
 
 export default function PrintSmartAiPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [shopName, setShopName] = useState('Default Shop')
   const [toasts, setToasts] = useState([])
@@ -690,7 +692,7 @@ export default function PrintSmartAiPage() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => handleTabChange(tab.id, tab.label)}
+                onClick={() => handleTabChange(tab.id, t(tab.label))}
                 className={`p-5 rounded-2xl border text-left transition-all ${isActive
                     ? 'border-[#6366F1] bg-white ring-2 ring-[#6366F1]/20 shadow-md scale-[1.01]'
                     : 'border-slate-200 bg-white hover:border-slate-300 shadow-sm hover:scale-[1.005]'
@@ -699,8 +701,8 @@ export default function PrintSmartAiPage() {
                 <div className={`p-2.5 rounded-xl w-fit ${isActive ? 'bg-[#6366F1] text-white' : 'bg-slate-100 text-[#64748B]'}`}>
                   <TabIcon size={20} />
                 </div>
-                <div className="mt-3.5 font-bold text-sm text-[#1A1A1A]">{tab.label}</div>
-                <div className="text-xs font-semibold text-[#64748B] mt-1">{tab.desc}</div>
+                <div className="mt-3.5 font-bold text-sm text-[#1A1A1A]">{t(tab.label)}</div>
+                <div className="text-xs font-semibold text-[#64748B] mt-1">{t(tab.desc)}</div>
               </button>
             )
           })}
@@ -720,8 +722,8 @@ export default function PrintSmartAiPage() {
               }`}
           >
             <span className="text-2xl mb-1.5">⚙️</span>
-            <span className="text-sm font-extrabold">Manual Creation</span>
-            <span className="text-[10px] text-slate-400 font-normal mt-0.5">Configure print layouts step-by-step manually</span>
+            <span className="text-sm font-extrabold">{t('Manual Creation')}</span>
+            <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Configure print layouts step-by-step manually')}</span>
           </button>
 
           <button
@@ -736,8 +738,8 @@ export default function PrintSmartAiPage() {
               }`}
           >
             <span className="text-2xl mb-1.5">💬</span>
-            <span className="text-sm font-extrabold">Chat Prompting</span>
-            <span className="text-[10px] text-slate-400 font-normal mt-0.5">Generate prints and layouts using natural prompts</span>
+            <span className="text-sm font-extrabold">{t('Chat Prompting')}</span>
+            <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Generate prints and layouts using natural prompts')}</span>
           </button>
         </div>
 
@@ -755,7 +757,7 @@ export default function PrintSmartAiPage() {
               >
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <h2 className="text-lg font-bold text-[#1A1A1A]">
-                    Tell us about what you want to create
+                    {t('Tell us about what you want to create')}
                   </h2>
                   <div className="flex items-center gap-2">
                     <button
@@ -764,7 +766,7 @@ export default function PrintSmartAiPage() {
                       className="text-xs font-bold text-[#6366F1] hover:text-[#8B5CF6] transition flex items-center gap-1.5"
                     >
                       <RotateCcw size={12} />
-                      <span>Reset Form</span>
+                      <span>{t('Reset Form')}</span>
                     </button>
                   </div>
                 </div>
@@ -777,7 +779,7 @@ export default function PrintSmartAiPage() {
                       1
                     </div>
                     <div className="flex-1 space-y-3">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">What do you want to create?</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('What do you want to create?')}</label>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         {['Poster', 'Banner', 'Square Post', 'Custom Size'].map((type) => {
                           const isActive = creationType === type
@@ -794,7 +796,7 @@ export default function PrintSmartAiPage() {
                                   : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                                 }`}
                             >
-                              {type}
+                              {t(type)}
                             </button>
                           )
                         })}
@@ -808,7 +810,7 @@ export default function PrintSmartAiPage() {
                       2
                     </div>
                     <div className="flex-1 space-y-3">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">What is it for? (Choose one)</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('Target Intent')}</label>
                       <div className="flex flex-wrap gap-2">
                         {['Sale / Offer', 'Festival', 'New Arrival', 'Grand Opening', 'Event', 'Other'].map((item) => {
                           const isActive = targetIntent === item
@@ -825,7 +827,7 @@ export default function PrintSmartAiPage() {
                                   : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                                 }`}
                             >
-                              {item}
+                              {t(item)}
                             </button>
                           )
                         })}
@@ -840,7 +842,7 @@ export default function PrintSmartAiPage() {
                     </div>
                     <div className="flex-1 space-y-2">
                       <div className="flex justify-between items-center">
-                        <label className="block text-sm font-bold text-[#1A1A1A]">Main Heading (Headline)</label>
+                        <label className="block text-sm font-bold text-[#1A1A1A]">{t('Headline Text')}</label>
                         <span className="text-[10px] font-bold text-slate-400">
                           {(posterData.headline || '').length}/100
                         </span>
@@ -849,7 +851,7 @@ export default function PrintSmartAiPage() {
                         type="text"
                         value={posterData.headline}
                         onChange={(e) => handleInputChange('headline', e.target.value, 100)}
-                        placeholder="Enter main headline text"
+                        placeholder={t('Headline Text')}
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1]"
                       />
                     </div>
@@ -862,7 +864,7 @@ export default function PrintSmartAiPage() {
                     </div>
                     <div className="flex-1 space-y-2">
                       <div className="flex justify-between items-center">
-                        <label className="block text-sm font-bold text-[#1A1A1A]">Sub Heading (Subheadline)</label>
+                        <label className="block text-sm font-bold text-[#1A1A1A]">{t('Subheadline Text')}</label>
                         <span className="text-[10px] font-bold text-slate-400">
                           {(posterData.subheadline || '').length}/100
                         </span>
@@ -871,7 +873,7 @@ export default function PrintSmartAiPage() {
                         type="text"
                         value={posterData.subheadline}
                         onChange={(e) => handleInputChange('subheadline', e.target.value, 100)}
-                        placeholder="Enter subheadline text"
+                        placeholder={t('Subheadline Text')}
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1]"
                       />
                     </div>
@@ -885,7 +887,7 @@ export default function PrintSmartAiPage() {
                     <div className="flex-1 space-y-2">
                       <div className="flex justify-between items-center">
                         <label className="block text-sm font-bold text-[#1A1A1A]">
-                          Description (Details to display on the poster)
+                          {t('Description / Details')}
                         </label>
                         <span className="text-[10px] font-bold text-slate-400">
                           {(posterData.description || '').length}/500
@@ -895,7 +897,7 @@ export default function PrintSmartAiPage() {
                         rows={3}
                         value={posterData.description}
                         onChange={(e) => handleInputChange('description', e.target.value, 500)}
-                        placeholder="Describe details for AI poster layout"
+                        placeholder={t('Description / Details')}
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] resize-none"
                       />
                     </div>
@@ -909,7 +911,7 @@ export default function PrintSmartAiPage() {
                     <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <label className="block text-xs font-bold text-[#1A1A1A]">Offer Text</label>
+                          <label className="block text-xs font-bold text-[#1A1A1A]">{t('Offer / Discount Text')}</label>
                           <span className="text-[10px] font-bold text-slate-400">
                             {(posterData.offerText || '').length}/50
                           </span>
@@ -918,13 +920,13 @@ export default function PrintSmartAiPage() {
                           type="text"
                           value={posterData.offerText}
                           onChange={(e) => handleInputChange('offerText', e.target.value, 50)}
-                          placeholder="e.g. 50% OFF / Buy 1 Get 1"
+                          placeholder={t('Offer / Discount Text')}
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1]"
                         />
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <label className="block text-xs font-bold text-[#1A1A1A]">Call to Action (CTA)</label>
+                          <label className="block text-xs font-bold text-[#1A1A1A]">{t('Button Call To Action')}</label>
                           <span className="text-[10px] font-bold text-slate-400">
                             {(posterData.cta || '').length}/50
                           </span>
@@ -933,7 +935,7 @@ export default function PrintSmartAiPage() {
                           type="text"
                           value={posterData.cta}
                           onChange={(e) => handleInputChange('cta', e.target.value, 50)}
-                          placeholder="e.g. Order Now / Register Today"
+                          placeholder={t('Button Call To Action')}
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1]"
                         />
                       </div>
@@ -946,7 +948,7 @@ export default function PrintSmartAiPage() {
                       6
                     </div>
                     <div className="flex-1 space-y-3">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">Choose Background</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('Select background swatch')}</label>
 
                       {/* Categories Microgrid */}
                       <div className="flex flex-wrap gap-1.5 bg-slate-50 border border-slate-200 p-2 rounded-2xl max-h-36 overflow-y-auto">
@@ -1008,7 +1010,7 @@ export default function PrintSmartAiPage() {
                       7
                     </div>
                     <div className="flex-1 space-y-3">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">Optional Advanced Integrations</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('Optional Advanced Integrations')}</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                         {/* Option A: Upload Reference */}
@@ -1026,7 +1028,7 @@ export default function PrintSmartAiPage() {
                                 className="absolute inset-0 bg-black/50 text-white flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity font-bold text-xs"
                               >
                                 <Trash2 size={14} />
-                                <span>Remove</span>
+                                <span>{t('Delete Order')}</span>
                               </button>
                             </div>
                           ) : null}
@@ -1041,7 +1043,7 @@ export default function PrintSmartAiPage() {
                           <div className="mx-auto w-fit p-2 rounded-xl bg-slate-200/50 text-slate-500 mb-1.5">
                             <Upload size={18} />
                           </div>
-                          <div className="text-xs font-extrabold text-slate-800">Upload Reference (Optional)</div>
+                          <div className="text-xs font-extrabold text-slate-800">{t('Upload Reference Image')}</div>
                           <div className="text-[10px] font-bold text-slate-400 mt-0.5">PNG, JPG (Max 10MB)</div>
 
                           <div className="text-[9px] font-semibold text-slate-500 mt-2 border-t border-slate-200/60 pt-2">
@@ -1064,7 +1066,7 @@ export default function PrintSmartAiPage() {
                                 className="absolute inset-0 bg-black/50 text-white flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity font-bold text-xs"
                               >
                                 <Trash2 size={14} />
-                                <span>Remove</span>
+                                <span>{t('Delete Order')}</span>
                               </button>
                             </div>
                           ) : null}
@@ -1087,7 +1089,7 @@ export default function PrintSmartAiPage() {
                               <path d="M14 22v.01" />
                             </svg>
                           </div>
-                          <div className="text-xs font-extrabold text-slate-800">Background Remover (Optional)</div>
+                          <div className="text-xs font-extrabold text-slate-800">{t('Remove Background AI')}</div>
                           <div className="text-[10px] font-bold text-slate-400 mt-0.5">Upload image to remove background</div>
 
                           <div className="text-[9px] font-semibold text-slate-500 mt-2 border-t border-slate-200/60 pt-2">
@@ -1105,11 +1107,11 @@ export default function PrintSmartAiPage() {
                       8
                     </div>
                     <div className="flex-1 space-y-4">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">Print Layout Configuration</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('Print Configuration')}</label>
 
                       {/* Print Type */}
                       <div className="space-y-1.5">
-                        <span className="text-xs font-bold text-slate-500">Print Color Mode</span>
+                        <span className="text-xs font-bold text-slate-500">{t('Print Type')}</span>
                         <div className="grid grid-cols-2 gap-3">
                           <button
                             type="button"
@@ -1119,7 +1121,7 @@ export default function PrintSmartAiPage() {
                                 : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                               }`}
                           >
-                            Black &amp; White
+                            {t('Black & White')}
                           </button>
                           <button
                             type="button"
@@ -1129,14 +1131,14 @@ export default function PrintSmartAiPage() {
                                 : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                               }`}
                           >
-                            🎨 Color Print
+                            {t('Color')}
                           </button>
                         </div>
                       </div>
 
                       {/* Copies control */}
                       <div className="space-y-1.5">
-                        <span className="text-xs font-bold text-slate-500">Print Copies (Quantity)</span>
+                        <span className="text-xs font-bold text-slate-500">{t('Copies')}</span>
                         <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl w-fit border border-slate-200">
                           <button
                             type="button"
@@ -1165,21 +1167,21 @@ export default function PrintSmartAiPage() {
 
                       {/* Paper Sizing */}
                       <div className="space-y-1.5">
-                        <span className="text-xs font-bold text-slate-500">Paper Sizing Option</span>
+                        <span className="text-xs font-bold text-slate-500">{t('Paper Size')}</span>
                         <select
                           value={paperSize}
                           onChange={(e) => setPaperSize(e.target.value)}
                           className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                           {PAPER_SIZES.map(size => (
-                            <option key={size} value={size}>{size}</option>
+                            <option key={size} value={size}>{t(size)}</option>
                           ))}
                         </select>
                       </div>
 
                       {/* Sides Duplex selection */}
                       <div className="space-y-1.5">
-                        <span className="text-xs font-bold text-slate-500">Print Duplex Sides</span>
+                        <span className="text-xs font-bold text-slate-500">{t('Print Sides')}</span>
                         <div className="grid grid-cols-2 gap-3">
                           <button
                             type="button"
@@ -1189,7 +1191,7 @@ export default function PrintSmartAiPage() {
                                 : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                               }`}
                           >
-                            Single-sided
+                            {t('Single-sided')}
                           </button>
                           <button
                             type="button"
@@ -1199,7 +1201,7 @@ export default function PrintSmartAiPage() {
                                 : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                               }`}
                           >
-                            Double-sided
+                            {t('Double-sided')}
                           </button>
                         </div>
                       </div>
@@ -1207,7 +1209,7 @@ export default function PrintSmartAiPage() {
                       {/* Orientation & Print Quality */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <span className="text-xs font-bold text-slate-500">Layout Orientation</span>
+                          <span className="text-xs font-bold text-slate-500">{t('Orientation')}</span>
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
@@ -1217,7 +1219,7 @@ export default function PrintSmartAiPage() {
                                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                 }`}
                             >
-                              Portrait
+                              {t('Portrait')}
                             </button>
                             <button
                               type="button"
@@ -1227,13 +1229,13 @@ export default function PrintSmartAiPage() {
                                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                 }`}
                             >
-                              Landscape
+                              {t('Landscape')}
                             </button>
                           </div>
                         </div>
 
                         <div className="space-y-1.5">
-                          <span className="text-xs font-bold text-slate-500">Print Quality Output</span>
+                          <span className="text-xs font-bold text-slate-500">{t('Print Quality')}</span>
                           <div className="grid grid-cols-3 gap-1">
                             {['DRAFT', 'NORMAL', 'HIGH'].map(q => (
                               <button
@@ -1245,7 +1247,7 @@ export default function PrintSmartAiPage() {
                                     : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                   }`}
                               >
-                                {q}
+                                {t(q.charAt(0) + q.slice(1).toLowerCase())}
                               </button>
                             ))}
                           </div>
@@ -1268,7 +1270,7 @@ export default function PrintSmartAiPage() {
                           className="py-3.5 px-4 border border-slate-200 bg-white hover:bg-slate-50 rounded-2xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5"
                         >
                           <RotateCcw size={14} />
-                          <span>Reset</span>
+                          <span>{t('Reset Form')}</span>
                         </button>
                         <button
                           type="submit"
@@ -1279,12 +1281,12 @@ export default function PrintSmartAiPage() {
                           {isGenerating ? (
                             <>
                               <Loader2 size={14} className="animate-spin text-white" />
-                              <span>Generating...</span>
+                              <span>{t('Processing...')}</span>
                             </>
                           ) : (
                             <>
                               <Sparkles size={14} className="text-yellow-200 animate-pulse" />
-                              <span>Generate Poster</span>
+                              <span>{t('Generate Design')}</span>
                             </>
                           )}
                         </button>
@@ -1310,8 +1312,8 @@ export default function PrintSmartAiPage() {
                       <Sparkles size={18} className="animate-pulse" />
                     </span>
                     <div>
-                      <h2 className="text-base font-bold text-[#1A1A1A]">AI Conversational Prompting</h2>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Describe what you want to create and let AI configure it</p>
+                      <h2 className="text-base font-bold text-[#1A1A1A]">{t('Conversational AI Print Setup')}</h2>
+                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{t('Ask PrintSmart AI to setup your prints...')}</p>
                     </div>
                   </div>
                   <button
@@ -1325,7 +1327,7 @@ export default function PrintSmartAiPage() {
 
                 {/* Example Prompts Shelf */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Try these example prompts</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">{t('Example prompts:')}</label>
                   <div className="flex flex-wrap gap-2">
                     {[
                       { text: "Print 50 black and white thesis pages A4 double sided high quality", icon: "✨" },
@@ -1368,13 +1370,13 @@ export default function PrintSmartAiPage() {
                   )}
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-bold text-[#1A1A1A]">What are you printing today?</label>
+                    <label className="block text-sm font-bold text-[#1A1A1A]">{t('Tell us about what you want to create')}</label>
                     <div className="relative">
                       <textarea
                         rows={3}
                         value={promptText}
                         onChange={(e) => setPromptText(e.target.value)}
-                        placeholder='Describe your print job requirements (e.g. "Print 50 copies of A4 size wedding invitation cards, double-sided, color mode, with golden festive theme...")'
+                        placeholder={t('Ask PrintSmart AI to setup your prints...')}
                         className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] resize-none"
                       />
                       <button
@@ -1391,7 +1393,7 @@ export default function PrintSmartAiPage() {
 
                   {/* Drag-Drop Upload Area */}
                   <div className="space-y-2">
-                    <label className="block text-sm font-bold text-[#1A1A1A]">Upload Supporting Files (Optional)</label>
+                    <label className="block text-sm font-bold text-[#1A1A1A]">{t('Upload Reference Image')} ({t('optional')})</label>
 
                     <div
                       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
@@ -1414,8 +1416,8 @@ export default function PrintSmartAiPage() {
                       <div className="p-2.5 bg-slate-200/50 text-slate-500 rounded-xl mb-2">
                         <Upload size={18} />
                       </div>
-                      <div className="text-xs font-extrabold text-slate-800">Drag & Drop Files Here</div>
-                      <div className="text-[10px] font-bold text-slate-400 mt-1">or Click to Browse (PDF, Word, Images up to 10MB)</div>
+                      <div className="text-xs font-extrabold text-slate-800">{t('Drag & Drop files here')}</div>
+                      <div className="text-[10px] font-bold text-slate-400 mt-1">{t('or')} {t('Choose Files')}</div>
                     </div>
 
                     {/* Render Uploaded Files in Chat */}
@@ -1455,7 +1457,7 @@ export default function PrintSmartAiPage() {
                       className="py-3.5 px-4 border border-slate-200 bg-white hover:bg-slate-50 rounded-2xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5"
                     >
                       <X size={14} />
-                      <span>Cancel</span>
+                      <span>{t('Cancel')}</span>
                     </button>
                     <button
                       type="submit"
@@ -1466,12 +1468,12 @@ export default function PrintSmartAiPage() {
                       {isGenerating ? (
                         <>
                           <Loader2 size={14} className="animate-spin text-white" />
-                          <span>Generating...</span>
+                          <span>{t('Processing...')}</span>
                         </>
                       ) : (
                         <>
                           <Sparkles size={14} className="text-yellow-200 animate-pulse" />
-                          <span>Generate Design</span>
+                          <span>{t('Generate Design')}</span>
                         </>
                       )}
                     </button>
@@ -1486,7 +1488,7 @@ export default function PrintSmartAiPage() {
                         <span className="p-1 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
                           <Check size={14} strokeWidth={3} />
                         </span>
-                        <span className="text-xs font-bold text-indigo-800">Active AI Print Configuration</span>
+                        <span className="text-xs font-bold text-indigo-800">{t('Active')} AI {t('Print Configuration')}</span>
                       </div>
                       <button
                         onClick={() => {
@@ -1495,34 +1497,34 @@ export default function PrintSmartAiPage() {
                         }}
                         className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition"
                       >
-                        Clear Card
+                        {t('Clear Card', 'Clear Card')}
                       </button>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       <div className="bg-white p-3 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold block mb-0.5">Copies Count</span>
+                        <span className="text-slate-400 font-bold block mb-0.5">{t('Copies')}</span>
                         <span className="font-extrabold text-slate-800 text-sm">{(generatedConfig.headline || '').substring(0, 35)}...</span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold block mb-0.5">Offer Text</span>
+                        <span className="text-slate-400 font-bold block mb-0.5">{t('Offer / Discount Text')}</span>
                         <span className="font-extrabold text-slate-800 text-xs">
                           {generatedConfig.offerText || 'N/A'}
                         </span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold block mb-0.5">CTA Button</span>
+                        <span className="text-slate-400 font-bold block mb-0.5">{t('Button Call To Action')}</span>
                         <span className="font-extrabold text-slate-800 text-xs">{generatedConfig.cta || 'N/A'}</span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold block mb-0.5">Subheadline</span>
+                        <span className="text-slate-400 font-bold block mb-0.5">{t('Subheadline Text')}</span>
                         <span className="font-extrabold text-slate-800 text-[10px] block truncate">
                           {generatedConfig.subheadline || 'N/A'}
                         </span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-100 col-span-2 flex justify-between items-center">
                         <div>
-                          <span className="text-slate-400 font-bold block mb-0.5">Theme &amp; Details</span>
+                          <span className="text-slate-400 font-bold block mb-0.5">{t('Theme category')}</span>
                           <span className="font-extrabold text-slate-800 text-[10px] block truncate max-w-[200px]">
                             Theme: {generatedConfig.theme || 'Default'} • {generatedConfig.description ? 'Has description' : 'No description'}
                           </span>
@@ -1536,7 +1538,7 @@ export default function PrintSmartAiPage() {
                           className="text-[10px] font-bold text-[#6366F1] hover:text-[#8b5cf6] flex items-center gap-1 transition"
                         >
                           <Sliders size={11} />
-                          <span>Tweak Manually</span>
+                          <span>{t('Configure print layouts step-by-step manually', 'Tweak Manually')}</span>
                         </button>
                       </div>
                     </div>
@@ -1545,7 +1547,7 @@ export default function PrintSmartAiPage() {
 
                 {/* Prompt History List */}
                 <div className="space-y-3 pt-4 border-t border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Prompt Generation History</h3>
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('Prompt History')}</h3>
 
                   {promptHistory.length === 0 ? (
                     <div className="text-center py-6 border border-slate-100 rounded-2xl bg-slate-50/50">
@@ -1556,7 +1558,7 @@ export default function PrintSmartAiPage() {
                       {promptHistory.map((item) => (
                         <div key={item.id} className="p-3 border border-slate-100 bg-slate-50 rounded-xl space-y-2 hover:bg-slate-100/50 transition">
                           <div className="flex justify-between items-start">
-                            <span className="text-[10px] font-bold text-[#6366F1] bg-[#6366F1]/10 px-2 py-0.5 rounded-md font-brand">AI Poster Generated</span>
+                            <span className="text-[10px] font-bold text-[#6366F1] bg-[#6366F1]/10 px-2 py-0.5 rounded-md font-brand">{t('AI Poster & Banner Maker')}</span>
                             <span className="text-[9px] font-bold text-slate-400">{item.timestamp}</span>
                           </div>
                           <p className="text-xs font-bold text-slate-700 leading-normal font-mono">"{item.text}"</p>
@@ -1601,7 +1603,7 @@ export default function PrintSmartAiPage() {
                               className="text-[10px] font-extrabold text-[#6366F1] hover:text-[#8b5cf6] flex items-center gap-1 transition"
                             >
                               <RefreshCw size={10} />
-                              <span>Apply to Panel</span>
+                              <span>{t('Apply to Panel', 'Apply to Panel')}</span>
                             </button>
                             <button
                               type="button"
@@ -1611,7 +1613,7 @@ export default function PrintSmartAiPage() {
                               }}
                               className="text-[10px] font-extrabold text-slate-400 hover:text-rose-600 transition"
                             >
-                              Delete
+                              {t('Delete Order')}
                             </button>
                           </div>
                         </div>
@@ -1626,7 +1628,7 @@ export default function PrintSmartAiPage() {
             {/* QUICK ACTIONS UTILITY BAR */}
             <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-800">Quick Configuration Actions</h3>
+                <h3 className="text-sm font-bold text-slate-800">{t('Interactive Controls')}</h3>
                 <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Manage generation outputs instantly</p>
               </div>
               <div className="flex gap-2">
@@ -1635,14 +1637,14 @@ export default function PrintSmartAiPage() {
                   onClick={handleReset}
                   className="py-2 px-3.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs shadow-sm transition"
                 >
-                  Reset Settings
+                  {t('Reset Form')}
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveConfiguration}
                   className="py-2 px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition"
                 >
-                  Save Layout
+                  {t('Save Configuration')}
                 </button>
               </div>
             </div>
@@ -1654,7 +1656,7 @@ export default function PrintSmartAiPage() {
             <div className="flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
               <h2 className="text-sm font-bold text-[#1A1A1A] flex items-center gap-1.5">
                 <Sliders size={16} className="text-[#6366F1]" />
-                <span>Live Studio Canvas</span>
+                <span>{t('Canvas Preview')}</span>
               </h2>
               <div className="flex items-center gap-1.5">
                 <div className="flex border border-slate-200 rounded-lg overflow-hidden">
@@ -1681,7 +1683,7 @@ export default function PrintSmartAiPage() {
                   className="flex items-center gap-1 border border-slate-200 bg-white hover:bg-slate-50 px-2 py-1.5 rounded-lg text-xs font-bold text-[#64748B] transition"
                 >
                   <Maximize2 size={12} />
-                  <span>Fit</span>
+                  <span>{t('Fit Screen')}</span>
                 </button>
               </div>
             </div>
@@ -1801,7 +1803,7 @@ export default function PrintSmartAiPage() {
                 {isGenerating && (
                   <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white gap-2 transition-all">
                     <Loader2 size={36} className="animate-spin text-[#6366F1]" />
-                    <span className="text-xs font-black tracking-widest text-[#F8F7FF] uppercase">AI Generating...</span>
+                    <span className="text-xs font-black tracking-widest text-[#F8F7FF] uppercase">{t('Processing...')}</span>
                   </div>
                 )}
               </div>
@@ -1815,7 +1817,7 @@ export default function PrintSmartAiPage() {
                 className="flex items-center justify-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 py-3 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95"
               >
                 <Download size={14} />
-                <span>Download</span>
+                <span>{t('Download')}</span>
               </button>
               <button
                 onClick={handleShare}
@@ -1823,7 +1825,7 @@ export default function PrintSmartAiPage() {
                 className="flex items-center justify-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 py-3 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95"
               >
                 <Share2 size={14} />
-                <span>Share</span>
+                <span>{t('Share QR')}</span>
               </button>
 
               {/* Tweak/Configure design mode toggler */}
@@ -1837,7 +1839,7 @@ export default function PrintSmartAiPage() {
                   className="flex items-center justify-center gap-1.5 bg-indigo-50 border border-indigo-100 text-[#6366F1] hover:bg-indigo-100 py-3 rounded-xl text-xs font-bold shadow-sm transition active:scale-95"
                 >
                   <Sliders size={14} />
-                  <span>Configure</span>
+                  <span>{t('Configure printer', 'Configure')}</span>
                 </button>
               ) : (
                 <button
@@ -1846,7 +1848,7 @@ export default function PrintSmartAiPage() {
                   className="flex items-center justify-center gap-1.5 bg-indigo-50 border border-indigo-100 text-[#6366F1] hover:bg-indigo-100 py-3 rounded-xl text-xs font-bold shadow-sm transition active:scale-95"
                 >
                   <RotateCcw size={14} />
-                  <span>Refresh</span>
+                  <span>{t('Refresh Status', 'Refresh')}</span>
                 </button>
               )}
             </div>
@@ -1855,7 +1857,7 @@ export default function PrintSmartAiPage() {
             <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm">
               <span className="text-yellow-500 mt-0.5">💡</span>
               <p className="text-xs font-semibold text-indigo-950 leading-relaxed">
-                AI Tip: Switch between creation styles above. Conversational prompt generation uses real Groq AI processing to prefill configuration settings!
+                {t('💡 Tip:')} {t('AI Tip: Switch between creation styles above. Conversational prompt generation uses real Groq AI processing to prefill configuration settings!', 'Switch between creation styles above. Conversational prompt generation uses real Groq AI processing to prefill configuration settings!')}
               </p>
             </div>
           </div>
@@ -1875,7 +1877,7 @@ export default function PrintSmartAiPage() {
         <div className="bg-white border border-slate-200 rounded-[28px] p-6 sm:p-8 shadow-sm space-y-6">
           <div className="flex items-center gap-2 text-[#6366F1] pb-4 border-b border-slate-100">
             <HelpCircle size={20} />
-            <h2 className="text-base font-bold text-[#1A1A1A]">How PrintSmart AI works?</h2>
+            <h2 className="text-base font-bold text-[#1A1A1A]">{t('How PrintSmart AI works?', 'How PrintSmart AI works?')}</h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1886,8 +1888,8 @@ export default function PrintSmartAiPage() {
                 <Grid size={18} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-[#1A1A1A]">1. Choose Creation Method</h3>
-                <p className="text-xs text-[#64748B] font-semibold mt-1">Configure layout options manually or converse using AI prompting</p>
+                <h3 className="text-sm font-bold text-[#1A1A1A]">{t('1. Choose Creation Method', '1. Choose Creation Method')}</h3>
+                <p className="text-xs text-[#64748B] font-semibold mt-1">{t('Configure layout options manually or converse using AI prompting', 'Configure layout options manually or converse using AI prompting')}</p>
               </div>
             </div>
 
@@ -1897,8 +1899,8 @@ export default function PrintSmartAiPage() {
                 <ClipboardCheck size={18} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-[#1A1A1A]">2. Attach Files &amp; Details</h3>
-                <p className="text-xs text-[#64748B] font-semibold mt-1">Provide sample attachments or descriptions to assist the generation process</p>
+                <h3 className="text-sm font-bold text-[#1A1A1A]">{t('2. Attach Files & Details', '2. Attach Files & Details')}</h3>
+                <p className="text-xs text-[#64748B] font-semibold mt-1">{t('Provide sample attachments or descriptions to assist the generation process', 'Provide sample attachments or descriptions to assist the generation process')}</p>
               </div>
             </div>
 
@@ -1908,8 +1910,8 @@ export default function PrintSmartAiPage() {
                 <Sparkles size={18} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-[#1A1A1A]">3. AI Computes Layout</h3>
-                <p className="text-xs text-[#64748B] font-semibold mt-1">AI engine parses parameters, matches colors, and renders typography instantly</p>
+                <h3 className="text-sm font-bold text-[#1A1A1A]">{t('3. AI Computes Layout', '3. AI Computes Layout')}</h3>
+                <p className="text-xs text-[#64748B] font-semibold mt-1">{t('AI engine parses parameters, matches colors, and renders typography instantly', 'AI engine parses parameters, matches colors, and renders typography instantly')}</p>
               </div>
             </div>
 
@@ -1919,8 +1921,8 @@ export default function PrintSmartAiPage() {
                 <Download size={18} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-[#1A1A1A]">4. Instant Download</h3>
-                <p className="text-xs text-[#64748B] font-semibold mt-1">Download your high-resolution layout and proceed to printing queues</p>
+                <h3 className="text-sm font-bold text-[#1A1A1A]">{t('4. Instant Download', '4. Instant Download')}</h3>
+                <p className="text-xs text-[#64748B] font-semibold mt-1">{t('Download your high-resolution layout and proceed to printing queues', 'Download your high-resolution layout and proceed to printing queues')}</p>
               </div>
             </div>
 
@@ -1929,7 +1931,7 @@ export default function PrintSmartAiPage() {
 
         {/* G. SUB-FOOTER CREDITS */}
         <div className="text-center text-xs font-bold text-[#64748B] pt-4">
-          Powered by PrintSmart AI  •  Made for Indian Print Shops 💜
+          {t('Powered by PrintSmart AI  •  Made for Indian Print Shops 💜', 'Powered by PrintSmart AI  •  Made for Indian Print Shops 💜')}
         </div>
 
       </main>

@@ -179,9 +179,9 @@ export default function ShopkeeperDashboard() {
   }, [router]);
 
   const displayedOrders =
-    activeFilter === "All"
+    (activeFilter === "All" || activeFilter === t("All"))
       ? ordersList
-      : ordersList.filter((order) => order.status === activeFilter);
+      : ordersList.filter((order) => t(order.status) === activeFilter);
 
   const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
   const completedCount = ordersList.filter((o) => o.status === "Completed").length;
