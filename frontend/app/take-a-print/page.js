@@ -55,14 +55,9 @@ export default function TakeAPrintPage() {
 
   const handleContinue = () => {
     if (shopDetails) {
-      // Redirect to customer language page with shop info
+      // Redirect to customer language page with shop info - always show language selection step first
       const shopIdToUse = shopDetails.shopkeeperIdCode || shopDetails.shopSlug || shopDetails.id
-      const hasLanguage = localStorage.getItem('customerLanguage')
-      if (hasLanguage) {
-        router.push(`/customer/language?shopId=${shopIdToUse}&step=details`)
-      } else {
-        router.push(`/customer/language?shopId=${shopIdToUse}`)
-      }
+      router.push(`/customer/language?shopId=${shopIdToUse}`)
     }
   }
 

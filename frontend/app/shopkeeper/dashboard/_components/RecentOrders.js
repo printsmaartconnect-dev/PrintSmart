@@ -2,22 +2,25 @@
 
 import { useState } from 'react'
 import { MoveRight, LayoutGrid, List, Eye, Printer, Download, X, FileText } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import OrderCard from './OrderCard'
 
 function EmptyState({ activeFilter }) {
-  const label = activeFilter === 'All' ? 'orders' : `${activeFilter.toLowerCase()} orders`
+  const { t } = useTranslation()
+  const label = activeFilter === 'All' ? t('orders') : `${t(activeFilter)} ${t('orders')}`
 
   return (
     <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-      <div className="text-base font-extrabold text-slate-800">No {label} found.</div>
+      <div className="text-base font-extrabold text-slate-800">{t('No orders found.')}</div>
       <p className="mt-2 text-sm text-slate-400">
-        Try another filter from the dock to view a different order status.
+        {t('Try another filter from the dock to view a different order status.')}
       </p>
     </div>
   )
 }
 
 function TableStatusPill({ status }) {
+  const { t } = useTranslation()
   const map = {
     Pending: 'bg-amber-50 text-amber-700 border-amber-200/60',
     Completed: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
@@ -28,19 +31,20 @@ function TableStatusPill({ status }) {
 
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cls}`}>
-      {status}
+      {t(status)}
     </span>
   )
 }
 
 export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange }) {
+  const { t } = useTranslation()
   const [viewMode, setViewMode] = useState('table') // default to 'table' for a premium look
 
   const handlePreview = (order) => {
     if (order.fileUrl) {
       window.open(order.fileUrl, '_blank')
     } else {
-      alert('No file URL associated with this order.')
+      alert(t('No file URL associated with this order.'))
     }
   }
 
@@ -51,7 +55,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
         await onStatusChange(order.dbId, 'Completed')
       }
     } else {
-      alert('No file URL associated with this order.')
+      alert(t('No file URL associated with this order.'))
     }
   }
 
@@ -62,12 +66,12 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
         await onStatusChange(order.dbId, 'Downloaded')
       }
     } else {
-      alert('No file URL associated with this order.')
+      alert(t('No file URL associated with this order.'))
     }
   }
 
   const handleCancel = async (order) => {
-    if (confirm('Are you sure you want to cancel this order?')) {
+    if (confirm(t('Are you sure you want to cancel this order?'))) {
       if (onStatusChange && order.dbId) {
         await onStatusChange(order.dbId, 'Cancelled')
       }
@@ -78,8 +82,8 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
     <section className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-base font-extrabold text-slate-800">Recent Orders Queue</h2>
-          <p className="text-xs text-slate-400 font-medium">Manage and process active customer print jobs</p>
+          <h2 className="text-base font-extrabold text-slate-800">{t('Recent Orders Queue')}</h2>
+          <p className="text-xs text-slate-400 font-medium">{t('Manage and process active customer print jobs')}</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -93,7 +97,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                   ? 'bg-white text-violet-700 shadow-sm border border-slate-100' 
                   : 'text-slate-400 hover:text-slate-600'
               }`}
-              title="Table View"
+              title={t('Table View')}
             >
               <List size={16} />
             </button>
@@ -105,7 +109,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                   ? 'bg-white text-violet-700 shadow-sm border border-slate-100' 
                   : 'text-slate-400 hover:text-slate-600'
               }`}
-              title="Grid Card View"
+              title={t('Grid Card View')}
             >
               <LayoutGrid size={16} />
             </button>
@@ -115,7 +119,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
             type="button"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 hover:text-violet-800 hover:underline bg-violet-50/50 px-3 py-2 rounded-xl border border-violet-100"
           >
-            All Orders Analysis <MoveRight size={14} />
+            {t('Statistics & Analysis')} <MoveRight size={14} />
           </button>
         </div>
       </div>
@@ -136,14 +140,14 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="py-3 px-4">Order ID</th>
-                    <th className="py-3 px-4">Customer</th>
-                    <th className="py-3 px-4">Document</th>
-                    <th className="py-3 px-4">Config</th>
-                    <th className="py-3 px-4">Price</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Time</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
+                    <th className="py-3 px-4">{t('Order ID')}</th>
+                    <th className="py-3 px-4">{t('Customer')}</th>
+                    <th className="py-3 px-4">{t('Document')}</th>
+                    <th className="py-3 px-4">{t('Config')}</th>
+                    <th className="py-3 px-4">{t('Price')}</th>
+                    <th className="py-3 px-4">{t('Status')}</th>
+                    <th className="py-3 px-4">{t('Time')}</th>
+                    <th className="py-3 px-4 text-center">{t('Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 text-xs font-semibold text-slate-700">
@@ -182,21 +186,21 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                         <td className="py-3.5 px-4">
                           {isTalk ? (
                             <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider bg-indigo-50 px-2 py-0.5 rounded-full">
-                              Wants to Talk
+                              {t('Wants to Talk')}
                             </span>
                           ) : (
                             <div className="flex flex-wrap gap-1 text-[10px] text-slate-500 font-bold">
                               <span className="bg-slate-100 px-1.5 py-0.5 rounded">
-                                {order.type}
+                                {t(order.type)}
                               </span>
                               <span className="bg-slate-100 px-1.5 py-0.5 rounded">
                                 {order.copies}x
                               </span>
                               <span className="bg-slate-100 px-1.5 py-0.5 rounded">
-                                {order.size}
+                                {t(order.size)}
                               </span>
                               <span className="bg-slate-100 px-1.5 py-0.5 rounded">
-                                {order.side}
+                                {t(order.side)}
                               </span>
                             </div>
                           )}
@@ -224,7 +228,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                             <button
                               onClick={() => handlePreview(order)}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600"
-                              title="Preview Document"
+                              title={t('Preview Document')}
                             >
                               <Eye size={14} />
                             </button>
@@ -233,7 +237,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                             <button
                               onClick={() => handlePrint(order)}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600"
-                              title="Print File"
+                              title={t('Print File')}
                             >
                               <Printer size={14} />
                             </button>
@@ -242,7 +246,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                             <button
                               onClick={() => handleDownload(order)}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-600"
-                              title="Download File"
+                              title={t('Download File')}
                             >
                               <Download size={14} />
                             </button>
@@ -251,7 +255,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                             <button
                               onClick={() => handleCancel(order)}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
-                              title="Cancel Order"
+                              title={t('Cancel Order')}
                             >
                               <X size={14} />
                             </button>

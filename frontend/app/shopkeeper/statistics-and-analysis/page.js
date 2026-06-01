@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   CalendarDays,
@@ -57,6 +58,7 @@ function Dot({ tone }) {
 
 
 function StatCard({ card }) {
+  const { t } = useTranslation()
   const Icon = card.icon
   return (
     <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
@@ -66,23 +68,24 @@ function StatCard({ card }) {
         </div>
       </div>
 
-      <div className="mt-3 text-sm font-medium text-slate-700">{card.title}</div>
+      <div className="mt-3 text-sm font-medium text-slate-700">{t(card.title)}</div>
       <div className="mt-1 text-[28px] font-extrabold leading-none tracking-tight text-slate-900">{card.count}</div>
 
       <Link href="/shopkeeper/dashboard" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-violet-700">
-        Back to Dashboard <span aria-hidden="true">→</span>
+        {t('Back to Dashboard')} <span aria-hidden="true">→</span>
       </Link>
     </div>
   )
 }
 
 function CardShell({ title, children, headerRight, subtitle }) {
+  const { t } = useTranslation()
   return (
     <section className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900">{title}</h2>
-          {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+          <h2 className="text-lg font-bold tracking-tight text-slate-900">{t(title)}</h2>
+          {subtitle ? <p className="mt-1 text-sm text-slate-500">{t(subtitle)}</p> : null}
         </div>
         {headerRight}
       </div>
@@ -469,6 +472,7 @@ function MainPrintTrendsChart({ orders, timeRange }) {
 }
 
 function OrderDistributionChart({ orders }) {
+  const { t } = useTranslation()
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
   const stats = (() => {
@@ -479,10 +483,10 @@ function OrderDistributionChart({ orders }) {
     const digitalCount = Math.max(0, total - xeroxCount - bwCount - colorCount);
 
     return [
-      { label: "Xerox", count: xeroxCount, color: "#10b981", tone: "emerald" },
-      { label: "Digital Print", count: digitalCount, color: "#3b82f6", tone: "sky" },
-      { label: "B&W Print", count: bwCount, color: "#8b5cf6", tone: "violet" },
-      { label: "Color Print", count: colorCount, color: "#f59e0b", tone: "amber" },
+      { label: t("Xerox"), count: xeroxCount, color: "#10b981", tone: "emerald" },
+      { label: t("Digital Print"), count: digitalCount, color: "#3b82f6", tone: "sky" },
+      { label: t("B&W Print"), count: bwCount, color: "#8b5cf6", tone: "violet" },
+      { label: t("Color Print"), count: colorCount, color: "#f59e0b", tone: "amber" },
     ];
   })();
 
@@ -565,7 +569,7 @@ function OrderDistributionChart({ orders }) {
                 className="text-[10px] font-black uppercase tracking-wider"
                 style={{ color: segments[hoveredIdx].color }}
               >
-                {segments[hoveredIdx].label}
+                {t(segments[hoveredIdx].label)}
               </div>
               <div className="text-2xl font-black text-slate-900 leading-none mt-0.5">
                 {segments[hoveredIdx].count}
@@ -577,13 +581,13 @@ function OrderDistributionChart({ orders }) {
           ) : (
             <>
               <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-                Total Orders
+                {t('Total Orders')}
               </div>
               <div className="text-[28px] font-black text-slate-800 leading-none">
                 {totalOrders}
               </div>
               <div className="mt-1 text-[9px] font-extrabold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
-                Live Data
+                {t('Live Data')}
               </div>
             </>
           )}
@@ -606,7 +610,7 @@ function OrderDistributionChart({ orders }) {
               style={{ backgroundColor: item.color }}
             />
             <span className="truncate">
-              {item.label} ({item.count}) • {totalOrders > 0 ? Math.round((item.count / totalOrders) * 100) : 0}%
+              {t(item.label)} ({item.count}) • {totalOrders > 0 ? Math.round((item.count / totalOrders) * 100) : 0}%
             </span>
           </div>
         ))}
@@ -615,111 +619,145 @@ function OrderDistributionChart({ orders }) {
   );
 }
 
-function RevenueSummaryHeatmap({ orders }) {
-  const [hoveredCell, setHoveredCell] = useState(null);
+function RevenueBarChart({ orders }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
 
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const fullDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  const hourLabels = ["0", "2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24"];
-  const hourIntervals = [
-    "12 AM - 2 AM", "2 AM - 4 AM", "4 AM - 6 AM", "6 AM - 8 AM", "8 AM - 10 AM", "10 AM - 12 PM",
-    "12 PM - 2 PM", "2 PM - 4 PM", "4 PM - 6 PM", "6 PM - 8 PM", "8 PM - 10 PM", "10 PM - 12 AM"
+  const allHourIntervals = [
+    "12 AM", "2 AM", "4 AM", "6 AM", "8 AM", "10 AM",
+    "12 PM", "2 PM", "4 PM", "6 PM", "8 PM", "10 PM"
   ];
 
-  // Generate 7x12 matrix initialized to zero
-  const matrix = (() => {
-    const grid = Array.from({ length: 7 }, () => Array(12).fill(0));
+  // Aggregate revenue by hour of day (across all days)
+  const revenueByHour = (() => {
+    const revenue = Array(12).fill(0);
     orders.forEach((o) => {
       const date = new Date(o.createdAt);
-      const day = (date.getDay() + 6) % 7; // Monday index = 0
       const hour = date.getHours();
       const hourIdx = Math.min(11, Math.floor(hour / 2));
-      grid[day][hourIdx]++;
+      revenue[hourIdx] += o.price || 0;
     });
-    return grid;
+    return revenue;
   })();
 
-  const maxVal = Math.max(...matrix.flatMap((row) => row), 1);
+  // Adaptive chunking: if all 12 hours don't fit, show fewer
+  const chunkSize = revenueByHour.length > 8 ? 2 : 1;
+  const chunkedData = [];
+  for (let i = 0; i < revenueByHour.length; i += chunkSize) {
+    const chunk = revenueByHour.slice(i, i + chunkSize);
+    const chunkRevenue = chunk.reduce((a, b) => a + b, 0);
+    const labelStart = allHourIntervals[i];
+    const labelEnd = chunkSize > 1 ? allHourIntervals[Math.min(i + chunkSize, 11)] : labelStart;
+    const label = chunkSize > 1 ? `${labelStart} - ${labelEnd}` : labelStart;
+    
+    chunkedData.push({
+      label,
+      revenue: chunkRevenue,
+      originalIdx: i
+    });
+  }
+
+  const maxRevenue = Math.max(...chunkedData.map(d => d.revenue), 100);
+  const totalRevenue = chunkedData.reduce((sum, d) => sum + d.revenue, 0);
 
   return (
-    <div className="relative w-full select-none bg-white p-1 rounded-2xl">
-      <div className="flex flex-col gap-2">
-        <div className="space-y-1.5 pr-2">
-          {matrix.map((row, dayIdx) => (
-            <div key={dayIdx} className="flex items-center gap-2">
-              {/* Day Label */}
-              <div className="w-8 text-[11px] font-bold text-slate-400">
-                {days[dayIdx]}
+    <div className="w-full bg-white p-4 rounded-2xl">
+      <div className="space-y-4">
+        {/* Horizontal Bar Chart with X-axis and Y-axis */}
+        <div className="flex gap-4">
+          {/* Y-axis labels */}
+          <div className="flex flex-col justify-between pt-6 pb-6 text-xs font-semibold text-slate-600 w-16">
+            {chunkedData.map((_, idx) => (
+              <div key={idx} className="h-6 flex items-center justify-end pr-2 text-right">
+                {chunkedData[idx]?.label}
               </div>
+            ))}
+          </div>
 
-              {/* 12 Hour tiles */}
-              <div className="grid flex-1 grid-cols-12 gap-1">
-                {row.map((count, hourIdx) => {
-                  const intensity = count / maxVal;
-                  const hasData = count > 0;
-                  const isHovered = hoveredCell?.dayIdx === dayIdx && hoveredCell?.hourIdx === hourIdx;
-
-                  return (
-                    <div
-                      key={hourIdx}
-                      onMouseEnter={() => setHoveredCell({ dayIdx, hourIdx, count })}
-                      onMouseLeave={() => setHoveredCell(null)}
-                      className={`h-7 rounded-[4px] border border-white transition-all duration-150 cursor-pointer ${
-                        isHovered ? "ring-2 ring-violet-500 scale-110 z-10 shadow-md" : ""
-                      }`}
-                      style={{
-                        backgroundColor: hasData
-                          ? `rgba(124, 58, 237, ${0.12 + 0.88 * intensity})`
-                          : "rgba(241, 245, 249, 0.65)",
-                      }}
-                    />
-                  );
-                })}
-              </div>
+          {/* Chart area */}
+          <div className="flex-1">
+            {/* X-axis header */}
+            <div className="flex items-end gap-2 mb-2 px-2 h-6 text-xs font-semibold text-slate-600">
+              <span className="ml-auto">₹0</span>
+              <span className="ml-auto">₹{(maxRevenue / 2).toFixed(0)}</span>
+              <span className="ml-auto">₹{maxRevenue.toFixed(0)}</span>
             </div>
-          ))}
+
+            {/* Bars */}
+            <div className="space-y-2">
+              {chunkedData.map((item, idx) => {
+                const percentage = (item.revenue / maxRevenue) * 100;
+                const isHovered = hoveredIdx === idx;
+                
+                return (
+                  <div
+                    key={idx}
+                    onMouseEnter={() => setHoveredIdx(idx)}
+                    onMouseLeave={() => setHoveredIdx(null)}
+                    className="flex items-center gap-2 cursor-pointer group h-6"
+                  >
+                    <div className="flex-1 relative bg-slate-100 rounded-lg overflow-hidden h-6">
+                      <div
+                        className={`h-full rounded-lg transition-all duration-300 flex items-center justify-end pr-3 ${
+                          isHovered 
+                            ? 'bg-gradient-to-r from-violet-500 to-violet-600 shadow-lg' 
+                            : 'bg-gradient-to-r from-violet-400 to-violet-500'
+                        }`}
+                        style={{ width: `${Math.max(percentage, 3)}%` }}
+                      >
+                        {isHovered && percentage > 15 && (
+                          <span className="text-xs font-bold text-white whitespace-nowrap">
+                            ₹{item.revenue.toFixed(0)}
+                          </span>
+                        )}
+                      </div>
+                      {!isHovered && percentage <= 15 && (
+                        <div className="absolute inset-0 flex items-center justify-start pl-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            ₹{item.revenue.toFixed(0)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {isHovered && (
+                      <div className="text-xs font-bold text-slate-700 w-12 text-right">
+                        {((item.revenue / totalRevenue) * 100).toFixed(1)}%
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* X-axis line */}
+            <div className="border-t border-slate-300 mt-2 pt-2 text-xs text-slate-400 font-medium text-center">
+              Revenue (₹)
+            </div>
+          </div>
         </div>
 
-        {/* X Axis Hours */}
-        <div className="flex items-center gap-2">
-          <div className="w-8" />
-          <div className="grid flex-1 grid-cols-12 gap-1 text-center">
-            {hourLabels.slice(0, 12).map((label, idx) => (
-              <span key={idx} className="text-[10px] font-bold text-slate-400">
-                {label}
-              </span>
-            ))}
+        {/* Summary Stats */}
+        <div className="border-t border-slate-100 pt-3 mt-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-slate-50 p-2">
+              <div className="text-xs text-slate-500 font-medium">Total Revenue</div>
+              <div className="mt-1 text-lg font-bold text-slate-900">₹{totalRevenue.toFixed(2)}</div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-2">
+              <div className="text-xs text-slate-500 font-medium">Peak Period</div>
+              <div className="mt-1 text-sm font-bold text-violet-600">
+                {chunkedData[chunkedData.indexOf(chunkedData.reduce((max, d) => d.revenue > max.revenue ? d : max))]?.label}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Tooltip */}
-      {hoveredCell !== null && (
-        <div
-          className="absolute z-20 pointer-events-none rounded-xl border border-slate-100 bg-white/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-150 text-xs"
-          style={{
-            bottom: "105%",
-            left: `${Math.min(85, Math.max(15, 10 + (hoveredCell.hourIdx / 12) * 85))}%`,
-            transform: "translateX(-50%)",
-          }}
-        >
-          <div className="font-extrabold text-slate-800">
-            {fullDays[hoveredCell.dayIdx]}
-          </div>
-          <div className="mt-1 font-semibold text-slate-500">
-            {hourIntervals[hoveredCell.hourIdx]}
-          </div>
-          <div className="mt-1.5 font-bold text-violet-600 flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-violet-500" />
-            Orders placed: <span className="font-extrabold text-slate-900">{hoveredCell.count}</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 function StatHeaderControls({ activeChannel, setActiveChannel }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
       <button
@@ -727,7 +765,7 @@ function StatHeaderControls({ activeChannel, setActiveChannel }) {
         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
       >
         <CalendarDays size={16} className="text-slate-500" />
-        <span>Today</span>
+        <span>{t('Today')}</span>
         <ChevronDown size={16} className="text-slate-400" />
       </button>
 
@@ -741,7 +779,7 @@ function StatHeaderControls({ activeChannel, setActiveChannel }) {
               activeChannel === tab ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200' : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            {tab}
+            {t(tab)}
           </button>
         ))}
       </div>
@@ -750,12 +788,13 @@ function StatHeaderControls({ activeChannel, setActiveChannel }) {
 }
 
 function LegendRow({ items }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
       {items.map((item) => (
         <span key={item.label} className="inline-flex items-center gap-2">
           <Dot tone={item.tone} />
-          <span>{item.label}</span>
+          <span>{t(item.label)}</span>
         </span>
       ))}
     </div>
@@ -788,6 +827,7 @@ const scratchCardHistory = [
 ]
 
 export default function AllOrdersPage() {
+  const { t } = useTranslation()
   const [ordersList, setOrdersList] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeChannel, setActiveChannel] = useState("Total")
@@ -972,7 +1012,7 @@ export default function AllOrdersPage() {
             </Link>
             <div>
               <h1 className="text-[32px] font-extrabold tracking-tight text-slate-900 sm:text-[36px]">
-                Shop Statistics &amp; Analysis
+                {t('Shop Statistics & Analysis')}
               </h1>
             </div>
           </div>
@@ -1003,7 +1043,7 @@ export default function AllOrdersPage() {
                             activeTimeRange === tab ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200' : 'text-slate-600 hover:bg-slate-100'
                           }`}
                         >
-                          {tab}
+                          {t(tab)}
                         </button>
                       ))}
                     </div>
@@ -1078,18 +1118,18 @@ export default function AllOrdersPage() {
                 <div className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-sm text-slate-500">Total Revenue</div>
+                      <div className="text-sm text-slate-500">{t('Total Revenue')}</div>
                       <div className="mt-2 text-[30px] font-extrabold tracking-tight text-slate-900">₹{loading ? '...' : totalRevenue.toFixed(2)}</div>
                     </div>
                     <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-sm text-slate-500">Average Order Value</div>
+                      <div className="text-sm text-slate-500">{t('Average Order Value')}</div>
                       <div className="mt-2 text-[30px] font-extrabold tracking-tight text-slate-900">₹{loading ? '...' : Math.round(avgOrderValue)}</div>
                     </div>
                   </div>
 
                   <div>
-                    <div className="mb-3 text-sm font-semibold text-slate-900">Orders by hour-of-day of the week</div>
-                    <RevenueSummaryHeatmap orders={heatmapOrders} />
+                    <div className="mb-3 text-sm font-semibold text-slate-900">{t('Revenue by Hour of Day')}</div>
+                    <RevenueBarChart orders={heatmapOrders} />
                   </div>
                 </div>
               </CardShell>
@@ -1110,17 +1150,17 @@ export default function AllOrdersPage() {
               >
                 <div className="grid gap-5 lg:grid-cols-2">
                   <div>
-                    <div className="mb-3 text-sm font-semibold text-slate-900">Top 5 Most Printed File Formats</div>
+                    <div className="mb-3 text-sm font-semibold text-slate-900">{t('Top 5 Most Printed File Formats')}</div>
                     <FormatList rows={dynamicFormatRows} />
                   </div>
 
                   <div>
-                    <div className="mb-3 text-sm font-semibold text-slate-900">Top 5 Print Sizes</div>
+                    <div className="mb-3 text-sm font-semibold text-slate-900">{t('Top 5 Print Sizes')}</div>
                     <div className="space-y-3">
                       {dynamicPrintSizeRows.map((row) => (
                         <div key={row.label} className="space-y-1">
                           <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-                            <span>{row.label}</span>
+                            <span>{t(row.label)}</span>
                             <span>{row.value}</span>
                           </div>
                           <div className="h-1.5 w-full rounded-full bg-slate-100">
@@ -1160,11 +1200,11 @@ export default function AllOrdersPage() {
                                 ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                                 : 'bg-rose-50 text-rose-700 border-rose-200'
                           }`}>
-                            {item.status}
+                            {t(item.status)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded border border-violet-100">{item.reward} ({item.code})</span>
+                          <span className="font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded border border-violet-100">{t(item.reward)} ({item.code})</span>
                           <span className="text-slate-400 font-medium">{item.timestamp}</span>
                         </div>
                       </div>
@@ -1172,9 +1212,9 @@ export default function AllOrdersPage() {
                   </div>
 
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-sm font-bold text-slate-900">Rewards Summary</div>
+                    <div className="text-sm font-bold text-slate-900">{t('Rewards Summary')}</div>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                      Customers love discount incentives! Most coupons are claimed directly upon order completion.
+                      {t('Customers love discount incentives! Most coupons are claimed directly upon order completion.')}
                     </p>
                   </div>
                 </div>

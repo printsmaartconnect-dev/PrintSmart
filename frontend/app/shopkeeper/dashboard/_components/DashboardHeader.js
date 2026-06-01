@@ -1,19 +1,71 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Bell, ChevronDown, Store, LogOut, ArrowLeft } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 
+const mockNotifications = [
+  {
+    title: "System Update from Admin",
+    message: "New premium templates are now available for your customer landing page. Configure them in settings!",
+    time: "2 hours ago"
+  },
+  {
+    title: "Onboarding Reminder",
+    message: "Please ensure your alternate contact number is verified to avoid missing system updates.",
+    time: "1 day ago"
+  },
+  {
+    title: "Welcome to PrintSmart",
+    message: "Your shop is fully active. Customers can now scan your QR code and send high-speed print orders instantly!",
+    time: "3 days ago"
+  }
+]
+
 function NotificationButton() {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
   return (
-    <button
-      type="button"
-      className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm border border-slate-200 hover:bg-slate-50"
-      aria-label="Notifications"
-    >
-      <Bell size={18} className="text-slate-600" />
-      <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
-    </button>
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm border border-slate-200 hover:bg-slate-50 transition active:scale-95"
+        aria-label="Notifications"
+      >
+        <Bell size={18} className="text-slate-600" />
+        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl py-3 z-50 animate-scaleIn">
+          <div className="px-4 pb-2 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="font-extrabold text-slate-800 text-sm">Notifications</h3>
+            <span className="text-[10px] bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full font-bold">New</span>
+          </div>
+          <div className="mt-2 max-h-60 overflow-y-auto divide-y divide-slate-50 no-scrollbar">
+            {mockNotifications.map((notif, index) => (
+              <div key={index} className="p-3.5 hover:bg-violet-500/5 transition cursor-pointer text-left">
+                <div className="text-xs font-bold text-slate-800">{notif.title}</div>
+                <div className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed">{notif.message}</div>
+                <div className="text-[9px] text-slate-400 mt-1.5 font-bold">{notif.time}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

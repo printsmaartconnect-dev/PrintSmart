@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslation } from 'react-i18next'
 import {
   CheckCircle2,
   Clock,
@@ -9,9 +10,10 @@ import {
   FileText,
   Sparkles,
   Settings,
-  Ticket,
+  Home,
   User,
   XCircle,
+  Plus,
 } from 'lucide-react'
 
 const iconMap = {
@@ -23,41 +25,53 @@ const iconMap = {
   completed: CheckCircle2,
   downloaded: Download,
   cancelled: XCircle,
-  coupon: Ticket,
+  coupon: Home,
   printsmartAi: Sparkles,
+  addOrder: Plus,
 }
 
 const filterItems = new Set(['pending', 'completed', 'downloaded', 'cancelled'])
 
 function DockItem({ item, activeFilter, onFilterChange }) {
+  const { t } = useTranslation()
   const Icon = iconMap[item.key] || User
   const isFilterItem = filterItems.has(item.key)
-  const isActive = isFilterItem && activeFilter === item.label
+  const translatedLabel = t(item.label)
+  const isActive = isFilterItem && activeFilter === translatedLabel
   const isAiItem = item.key === 'printsmartAi'
+  const isAddOrderItem = item.key === 'addOrder'
+  const isCouponItem = item.key === 'coupon'
 
   const content = (
     <>
       <span
-        className={`relative flex h-10 w-10 items-center justify-center rounded-2xl transition ${
+        className={`relative flex h-10 w-10 items-center justify-center transition ${
           isAiItem
             ? 'rounded-full border border-purple-200 bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.6)]'
-            : isActive
-              ? 'text-violet-600 scale-105'
-              : 'text-slate-600'
+            : isCouponItem
+              ? 'rounded-full border border-indigo-200 bg-indigo-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.6)] scale-105'
+              : isAddOrderItem
+                ? 'rounded-[14px] bg-[#3B82F6] text-white hover:bg-[#2563EB] shadow-[0_4px_10px_rgba(59,130,246,0.3)] scale-105'
+                : isActive
+                  ? 'rounded-2xl text-violet-600 scale-105'
+                  : 'rounded-2xl text-slate-600'
         }`}
       >
         {isAiItem ? (
           <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-fuchsia-200 animate-ping" />
         ) : null}
-        <Icon size={20} className={isAiItem ? 'text-white' : isActive ? 'text-violet-600' : 'text-slate-700'} />
+        {isCouponItem ? (
+          <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-indigo-200 animate-ping" />
+        ) : null}
+        <Icon size={20} className={isAiItem || isAddOrderItem || isCouponItem ? 'text-white' : isActive ? 'text-violet-600' : 'text-slate-700'} />
         {item.badge ? (
           <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm">
             {item.badge}
           </span>
         ) : null}
       </span>
-      <span className={`text-[9.5px] font-bold tracking-tight text-center truncate w-full ${isActive ? 'text-violet-600 font-black' : 'text-slate-600'}`} title={item.label}>
-        {item.label}
+      <span className={`text-[9.5px] font-bold tracking-tight text-center truncate w-full ${isActive ? 'text-violet-600 font-black' : 'text-slate-600'}`} title={translatedLabel}>
+        {translatedLabel}
       </span>
     </>
   )
@@ -69,7 +83,7 @@ function DockItem({ item, activeFilter, onFilterChange }) {
 
   if (item.href) {
     return (
-      <Link href={item.href} className={className} aria-label={item.label}>
+      <Link href={item.href} className={className} aria-label={translatedLabel}>
         {content}
       </Link>
     )
@@ -80,9 +94,9 @@ function DockItem({ item, activeFilter, onFilterChange }) {
       <button
         type="button"
         className={className}
-        aria-label={item.label}
+        aria-label={translatedLabel}
         aria-pressed={isActive}
-        onClick={() => onFilterChange?.(item.label)}
+        onClick={() => onFilterChange?.(translatedLabel)}
       >
         {content}
       </button>
@@ -93,7 +107,7 @@ function DockItem({ item, activeFilter, onFilterChange }) {
     <button
       type="button"
       className={className}
-      aria-label={item.label}
+      aria-label={translatedLabel}
     >
       {content}
     </button>

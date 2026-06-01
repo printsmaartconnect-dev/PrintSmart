@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, FileText, Headphones, MapPin, Printer, Settings2, Store, User } from 'lucide-react'
 
 import DashboardHeader from '../../dashboard/_components/DashboardHeader'
@@ -22,6 +23,7 @@ import {
 import { Card, Field, PrimaryButton, SecondaryButton, SelectInput, RupeeInput, TextInput } from '../../onboarding/_components/ui'
 
 export default function PricingSetupEditPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const summaryRef = useRef(null)
 
@@ -31,9 +33,15 @@ export default function PricingSetupEditPage() {
   const [pricing, setPricingState] = useState({
     bwA4: '1.00',
     bwA3: '2.00',
+    bwA5: '1.00',
+    bwLegal: '1.50',
+    bwLetter: '1.00',
     bwDoubleSide: '1.00',
     colorA4: '5.00',
     colorA3: '8.00',
+    colorA5: '4.00',
+    colorLegal: '6.00',
+    colorLetter: '5.00',
     colorDoubleSide: '3.00',
     expressPrint: '10.00',
     autoDeleteAfterHours: '24 hrs',
@@ -107,8 +115,14 @@ export default function PricingSetupEditPage() {
     return {
       bwA4: safe(pricing.bwA4),
       bwA3: safe(pricing.bwA3),
+      bwA5: safe(pricing.bwA5),
+      bwLegal: safe(pricing.bwLegal),
+      bwLetter: safe(pricing.bwLetter),
       colorA4: safe(pricing.colorA4),
       colorA3: safe(pricing.colorA3),
+      colorA5: safe(pricing.colorA5),
+      colorLegal: safe(pricing.colorLegal),
+      colorLetter: safe(pricing.colorLetter),
       bwDoubleSide: safe(pricing.bwDoubleSide),
       colorDoubleSide: safe(pricing.colorDoubleSide),
       expressPrint: safe(pricing.expressPrint),
@@ -205,7 +219,7 @@ export default function PricingSetupEditPage() {
 
             <nav className="px-4 space-y-2">
               <SidebarNavItem href="/shopkeeper/profile" active={false} icon={User}>
-                Profile Setup
+                Profile
               </SidebarNavItem>
               <SidebarNavItem href="/shopkeeper/profile/pricing" active={true} icon={Store}>
                 Pricing Setup
@@ -219,20 +233,21 @@ export default function PricingSetupEditPage() {
                     <Headphones size={18} className="text-violet-700" />
                   </span>
                   <div>
-                    <div className="text-sm font-semibold text-slate-800">Need Help?</div>
+                    <div className="text-sm font-semibold text-slate-800">{t('Need Help?')}</div>
                     <div className="mt-1 text-xs text-slate-500">
-                      We&apos;re here to help you set up your shop.
+                      {t("We're here to help you set up your shop.")}
                     </div>
                   </div>
                 </div>
 
-                <PrimaryButton
-                  type="button"
-                  className="mt-4 w-full"
-                  onClick={() => router.push('/shopkeeper/support')}
+                <a
+                  href="https://forms.gle/VBK48SwGSWm7prgUA"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
                 >
-                  Get Support
-                </PrimaryButton>
+                  {t('Get Support')}
+                </a>
               </div>
             </div>
           </aside>
@@ -241,9 +256,9 @@ export default function PricingSetupEditPage() {
           <section className="flex-1">
             <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">Pricing Setup</h1>
+                <h1 className="text-2xl font-bold text-slate-900">{t('Pricing Setup')}</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  Set your print pricing and service charges. You can change these anytime.
+                  {t('Set your print pricing and service charges. You can change these anytime.')}
                 </p>
               </div>
               <SecondaryButton
@@ -252,23 +267,32 @@ export default function PricingSetupEditPage() {
                 onClick={() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               >
                 <FileText size={16} />
-                Pricing Summary
+                {t('Pricing Summary')}
               </SecondaryButton>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               {/* Left: Pricing cards */}
               <div className="xl:col-span-9">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <Card title="Black & White Printing" icon={Printer}>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card title={t('Black & White Printing')} icon={Printer}>
                     <div className="space-y-4">
-                      <Field label="A4 (Per Page)">
+                      <Field label={t('A4 (Per Page)')}>
                         <RupeeInput value={pricing.bwA4} onChange={onChange('bwA4')} placeholder="1.00" />
                       </Field>
-                      <Field label="A3 (Per Page)">
+                      <Field label={t('A3 (Per Page)')}>
                         <RupeeInput value={pricing.bwA3} onChange={onChange('bwA3')} placeholder="2.00" />
                       </Field>
-                      <Field label="Double Side (Per Page)">
+                      <Field label={t('A5 (Per Page)')}>
+                        <RupeeInput value={pricing.bwA5 || '1.00'} onChange={onChange('bwA5')} placeholder="1.00" />
+                      </Field>
+                      <Field label={t('Legal (Per Page)')}>
+                        <RupeeInput value={pricing.bwLegal || '1.50'} onChange={onChange('bwLegal')} placeholder="1.50" />
+                      </Field>
+                      <Field label={t('Letter (Per Page)')}>
+                        <RupeeInput value={pricing.bwLetter || '1.00'} onChange={onChange('bwLetter')} placeholder="1.00" />
+                      </Field>
+                      <Field label={t('Double Side (Per Page)')}>
                         <RupeeInput
                           value={pricing.bwDoubleSide}
                           onChange={onChange('bwDoubleSide')}
@@ -278,15 +302,24 @@ export default function PricingSetupEditPage() {
                     </div>
                   </Card>
 
-                  <Card title="Color Printing" icon={Printer}>
+                  <Card title={t('Color Printing')} icon={Printer}>
                     <div className="space-y-4">
-                      <Field label="A4 (Per Page)">
+                      <Field label={t('A4 (Per Page)')}>
                         <RupeeInput value={pricing.colorA4} onChange={onChange('colorA4')} placeholder="5.00" />
                       </Field>
-                      <Field label="A3 (Per Page)">
+                      <Field label={t('A3 (Per Page)')}>
                         <RupeeInput value={pricing.colorA3} onChange={onChange('colorA3')} placeholder="8.00" />
                       </Field>
-                      <Field label="Double Side (Per Page)">
+                      <Field label={t('A5 (Per Page)')}>
+                        <RupeeInput value={pricing.colorA5 || '4.00'} onChange={onChange('colorA5')} placeholder="4.00" />
+                      </Field>
+                      <Field label={t('Legal (Per Page)')}>
+                        <RupeeInput value={pricing.colorLegal || '6.00'} onChange={onChange('colorLegal')} placeholder="6.00" />
+                      </Field>
+                      <Field label={t('Letter (Per Page)')}>
+                        <RupeeInput value={pricing.colorLetter || '5.00'} onChange={onChange('colorLetter')} placeholder="5.00" />
+                      </Field>
+                      <Field label={t('Double Side (Per Page)')}>
                         <RupeeInput
                           value={pricing.colorDoubleSide}
                           onChange={onChange('colorDoubleSide')}
@@ -295,71 +328,31 @@ export default function PricingSetupEditPage() {
                       </Field>
                     </div>
                   </Card>
-
-                  <Card title="Other Settings" icon={Settings2}>
-                    <div className="space-y-4">
-                      <Field label="Express Print (Extra Charges)">
-                        <RupeeInput
-                          value={pricing.expressPrint}
-                          onChange={onChange('expressPrint')}
-                          placeholder="10.00"
-                        />
-                      </Field>
-                      <Field label="Auto Delete After (Hours)">
-                        <SelectInput
-                          value={pricing.autoDeleteAfterHours}
-                          onChange={(e) =>
-                            setPricingState((prev) => ({
-                              ...prev,
-                              autoDeleteAfterHours: e.target.value,
-                            }))
-                          }
-                        >
-                          <option value="1 hrs">1 hrs</option>
-                          <option value="24 hrs">24 hrs</option>
-                          <option value="Custom">Custom</option>
-                        </SelectInput>
-                      </Field>
-
-                      {showCustomAutoDelete ? (
-                        <Field label="Custom Hours">
-                          <TextInput
-                            type="number"
-                            min={1}
-                            value={pricing.customAutoDeleteHours || ''}
-                            onChange={(e) =>
-                              setPricingState((prev) => ({
-                                ...prev,
-                                customAutoDeleteHours: e.target.value,
-                              }))
-                            }
-                            placeholder="Enter hours"
-                            inputMode="numeric"
-                          />
-                        </Field>
-                      ) : null}
-                    </div>
-                  </Card>
                 </div>
 
                 <div className="mt-6 flex justify-end">
                   <PrimaryButton type="button" onClick={handleSave} disabled={saving} className="px-8">
-                    {saving ? 'Saving...' : 'Save Pricing'}
+                    {saving ? t('Saving...') : t('Save Pricing')}
                   </PrimaryButton>
                 </div>
               </div>
 
               {/* Right: Pricing summary */}
               <div className="xl:col-span-3" ref={summaryRef}>
-                <Card title="Pricing Summary" icon={FileText}>
+                <Card title={t('Pricing Summary')} icon={FileText}>
                   <div className="space-y-3 text-sm">
                     <SummaryRow label="B&W A4" value={summary.bwA4} />
                     <SummaryRow label="B&W A3" value={summary.bwA3} />
+                    <SummaryRow label="B&W A5" value={summary.bwA5} />
+                    <SummaryRow label="B&W Legal" value={summary.bwLegal} />
+                    <SummaryRow label="B&W Letter" value={summary.bwLetter} />
                     <SummaryRow label="Color A4" value={summary.colorA4} />
                     <SummaryRow label="Color A3" value={summary.colorA3} />
+                    <SummaryRow label="Color A5" value={summary.colorA5} />
+                    <SummaryRow label="Color Legal" value={summary.colorLegal} />
+                    <SummaryRow label="Color Letter" value={summary.colorLetter} />
                     <SummaryRow label="Double Side B&W" value={summary.bwDoubleSide} />
                     <SummaryRow label="Double Side Color" value={summary.colorDoubleSide} />
-                    <SummaryRow label="Express Print" value={summary.expressPrint} />
                   </div>
                 </Card>
               </div>
@@ -369,21 +362,26 @@ export default function PricingSetupEditPage() {
             <div className="lg:hidden mt-6 rounded-2xl bg-white shadow-sm border border-slate-200 p-4 space-y-4">
               <div className="flex gap-2">
                 <SecondaryButton type="button" className="flex-1" onClick={() => router.push('/shopkeeper/profile')}>
-                  Profile Setup
+                  {t('Profile Setup')}
                 </SecondaryButton>
                 <PrimaryButton type="button" className="flex-1">
-                  Pricing Setup
+                  {t('Pricing Setup')}
                 </PrimaryButton>
               </div>
               <div className="border-t border-slate-100 pt-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                   <MapPin size={16} className="text-violet-700" />
-                  Need Help?
+                  {t('Need Help?')}
                 </div>
-                <div className="mt-1 text-xs text-slate-500">We&apos;re here to help you set up your shop.</div>
-                <PrimaryButton type="button" className="mt-3 w-full" onClick={() => router.push('/shopkeeper/support')}>
-                  Get Support
-                </PrimaryButton>
+                <div className="mt-1 text-xs text-slate-500">{t("We're here to help you set up your shop.")}</div>
+                <a
+                  href="https://forms.gle/VBK48SwGSWm7prgUA"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+                >
+                  {t('Get Support')}
+                </a>
               </div>
             </div>
           </section>
@@ -396,6 +394,7 @@ export default function PricingSetupEditPage() {
 }
 
 function SidebarNavItem({ active, icon: Icon, children, href }) {
+  const { t } = useTranslation()
   const base = active
     ? 'flex items-center gap-3 rounded-xl bg-violet-50 px-3 py-2.5 text-violet-700 font-semibold w-full'
     : 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-slate-600 hover:bg-slate-100 font-semibold w-full'
@@ -405,7 +404,7 @@ function SidebarNavItem({ active, icon: Icon, children, href }) {
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
         <Icon size={18} className={active ? 'text-violet-700' : 'text-slate-500'} />
       </span>
-      <span className="text-sm">{children}</span>
+      <span className="text-sm">{t(children)}</span>
     </>
   )
 
@@ -419,9 +418,10 @@ function SidebarNavItem({ active, icon: Icon, children, href }) {
 }
 
 function SummaryRow({ label, value }) {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center justify-between">
-      <span className="text-slate-600">{label}</span>
+      <span className="text-slate-600">{t(label)}</span>
       <span className="font-semibold text-slate-900">₹{value}</span>
     </div>
   )

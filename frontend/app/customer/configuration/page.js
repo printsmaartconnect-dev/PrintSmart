@@ -3,30 +3,25 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import FilePreviewSection from '../../components/customer/FilePreviewSection'
 
 const PAPER_SIZES = ['A4', 'A3', 'A5', 'Legal', 'Letter', 'Executive', 'Ledger', 'Tabloid']
-const QUALITY_OPTIONS = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'NORMAL', label: 'Normal' },
-  { value: 'HIGH', label: 'High' }
-]
-
 export default function ConfigurationPage() {
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const shopId = searchParams.get('shopId')
   const userId = searchParams.get('userId')
+  const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
 
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [configs, setConfigs] = useState([])
   const [loading, setLoading] = useState(false)
-  const [showConfig, setShowConfig] = useState(false)
+  const [showConfig, setShowConfig] = useState(isShopkeeper)
 
   const defaultConfig = {
     printType: 'BW',
@@ -34,7 +29,6 @@ export default function ConfigurationPage() {
     paperSize: 'A4',
     sides: 'SINGLE',
     orientation: 'PORTRAIT',
-    quality: 'NORMAL',
     pageRange: 'all'
   }
 
@@ -52,6 +46,12 @@ export default function ConfigurationPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (isShopkeeper) {
+      setShowConfig(true)
+    }
+  }, [isShopkeeper])
+
   const handleConfigChange = (docIndex, key, value) => {
     setConfigs(prev => 
       prev.map((cfg, idx) => 
@@ -63,7 +63,11 @@ export default function ConfigurationPage() {
   const handleContinue = async () => {
     if (uploadedFiles.length === 0) {
       alert(t('No files uploaded. Please upload files first.'))
-      router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)
+      let uploadUrl = `/customer/upload?shopId=${shopId}&userId=${userId}`
+      if (isShopkeeper) {
+        uploadUrl += `&shopkeeperAddOrder=true`
+      }
+      router.push(uploadUrl)
       return
     }
 
@@ -78,7 +82,10 @@ export default function ConfigurationPage() {
       localStorage.setItem('printConfigurations', JSON.stringify(fileConfigs))
 
       // Redirect to review page with shop and user info
-      const nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
+      let nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
+      if (isShopkeeper) {
+        nextUrl += `&shopkeeperAddOrder=true`
+      }
       router.push(nextUrl)
     } catch (err) {
       console.error('Error saving configuration:', err)
@@ -91,7 +98,11 @@ export default function ConfigurationPage() {
   const handleTalkFirst = async () => {
     if (uploadedFiles.length === 0) {
       alert(t('No files uploaded. Please upload files first.'))
-      router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)
+      let uploadUrl = `/customer/upload?shopId=${shopId}&userId=${userId}`
+      if (isShopkeeper) {
+        uploadUrl += `&shopkeeperAddOrder=true`
+      }
+      router.push(uploadUrl)
       return
     }
 
@@ -107,7 +118,10 @@ export default function ConfigurationPage() {
       localStorage.setItem('printConfigurations', JSON.stringify(fileConfigs))
 
       // Redirect to review page with shop and user info
-      const nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
+      let nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
+      if (isShopkeeper) {
+        nextUrl += `&shopkeeperAddOrder=true`
+      }
       router.push(nextUrl)
     } catch (err) {
       console.error('Error saving configuration:', err)
@@ -147,32 +161,34 @@ export default function ConfigurationPage() {
           ) : (
             <div className="space-y-10">
               {/* Top Option Selector */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <button
-                  type="button"
-                  onClick={handleTalkFirst}
-                  disabled={loading}
-                  className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-violet-200 bg-violet-50/50 hover:bg-violet-50 text-violet-800 font-bold transition-all transform hover:scale-[1.01] shadow-sm text-center w-full focus:outline-none"
-                >
-                  <span className="text-2xl mb-1.5">💬</span>
-                  <span className="text-sm font-extrabold">{t('I Want to Talk with Shopkeeper First')}</span>
-                  <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Skip layout configuration & talk directly')}</span>
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => setShowConfig(!showConfig)}
-                  className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all transform hover:scale-[1.01] text-center w-full focus:outline-none ${
-                    showConfig 
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-800 shadow-md' 
-                      : 'border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50/60 text-indigo-700/80 hover:text-indigo-800 shadow-sm'
-                  }`}
-                >
-                  <span className="text-2xl mb-1.5">⚙️</span>
-                  <span className="text-sm font-extrabold">{t('I Want to Configure Print Layout')}</span>
-                  <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Set copies, color options, paper size, etc.')}</span>
-                </button>
-              </div>
+              {!isShopkeeper && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <button
+                    type="button"
+                    onClick={handleTalkFirst}
+                    disabled={loading}
+                    className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-violet-200 bg-violet-50/50 hover:bg-violet-50 text-violet-800 font-bold transition-all transform hover:scale-[1.01] shadow-sm text-center w-full focus:outline-none"
+                  >
+                    <span className="text-2xl mb-1.5">💬</span>
+                    <span className="text-sm font-extrabold">{t('I Want to Talk with Shopkeeper First')}</span>
+                    <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Skip layout configuration & talk directly')}</span>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setShowConfig(!showConfig)}
+                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all transform hover:scale-[1.01] text-center w-full focus:outline-none ${
+                      showConfig 
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-800 shadow-md' 
+                        : 'border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50/60 text-indigo-700/80 hover:text-indigo-800 shadow-sm'
+                    }`}
+                  >
+                    <span className="text-2xl mb-1.5">⚙️</span>
+                    <span className="text-sm font-extrabold">{t('I Want to Configure Print Layout')}</span>
+                    <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Set copies, color options, paper size, etc.')}</span>
+                  </button>
+                </div>
+              )}
 
               {showConfig && (
                 <>
@@ -343,28 +359,7 @@ export default function ConfigurationPage() {
                           </div>
                         </div>
 
-                        {/* Print Quality */}
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">
-                            {t('Print Quality')}
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {QUALITY_OPTIONS.map(qual => (
-                              <button
-                                type="button"
-                                key={qual.value}
-                                onClick={() => handleConfigChange(idx, 'quality', qual.value)}
-                                className={`py-3 px-3 rounded-lg font-bold transition border-2 text-sm ${
-                                  configs[idx]?.quality === qual.value
-                                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                                }`}
-                              >
-                                <div>{t(qual.label)}</div>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                        {/* Print Quality removed per requirement */}
 
                         {/* Page Range */}
                         <div>
@@ -377,8 +372,7 @@ export default function ConfigurationPage() {
                             className="w-full py-3 px-4 rounded-lg border border-gray-300 text-gray-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="all">{t('All Pages')}</option>
-                            <option value="odd">{t('Odd Pages Only')}</option>
-                            <option value="even">{t('Even Pages Only')}</option>
+                            <option value="custom">{t('Custom Pages')}</option>
                           </select>
                         </div>
                       </div>
@@ -396,7 +390,13 @@ export default function ConfigurationPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)}
+                      onClick={() => {
+                        let uploadUrl = `/customer/upload?shopId=${shopId}&userId=${userId}`
+                        if (isShopkeeper) {
+                          uploadUrl += `&shopkeeperAddOrder=true`
+                        }
+                        router.push(uploadUrl)
+                      }}
                       className="w-full bg-white border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-bold py-3 rounded-xl transition"
                     >
                       {t('Back to Upload')}

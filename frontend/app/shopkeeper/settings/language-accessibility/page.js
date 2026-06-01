@@ -68,10 +68,10 @@ const supportedLanguages = [
 ]
 
 const previewStats = [
-  { label: 'All Orders', value: '12', tone: 'violet' },
-  { label: 'Pending', value: '8', tone: 'orange' },
-  { label: 'Completed', value: '128', tone: 'green' },
-  { label: 'Downloaded', value: '36', tone: 'blue' },
+  { labelKey: 'allOrders', value: '12', tone: 'violet' },
+  { labelKey: 'pending', value: '8', tone: 'orange' },
+  { labelKey: 'completed', value: '128', tone: 'green' },
+  { labelKey: 'downloaded', value: '36', tone: 'blue' },
 ]
 
 function toneStyles(tone) {
@@ -178,7 +178,10 @@ function SettingsRow({ icon: Icon, title, description, children }) {
   )
 }
 
-function PreviewStat({ label, value, tone }) {
+function PreviewStat({ labelKey, value, tone, language = 'en' }) {
+  const langCode = LANG_MAP[language] || 'en'
+  const label = PREVIEW_TRANSLATIONS[langCode]?.[labelKey] || labelKey
+  
   return (
     <div className={`rounded-2xl border p-3 shadow-sm ${toneStyles(tone)}`}>
       <div className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-80">{label}</div>
@@ -187,7 +190,10 @@ function PreviewStat({ label, value, tone }) {
   )
 }
 
-function PreviewCard() {
+function PreviewCard({ language = 'English' }) {
+  const langCode = LANG_MAP[language] || 'en'
+  const trans = PREVIEW_TRANSLATIONS[langCode] || PREVIEW_TRANSLATIONS.en
+  
   return (
     <div className="rounded-[26px] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:px-5 sm:py-5">
       <div className="flex items-center justify-between">
@@ -205,34 +211,34 @@ function PreviewCard() {
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         {previewStats.map((item) => (
-          <PreviewStat key={item.label} {...item} />
+          <PreviewStat key={item.labelKey} {...item} language={language} />
         ))}
       </div>
 
       <div className="mt-4 rounded-[22px] border border-slate-100 bg-slate-50 p-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold text-slate-900">Recent Order</div>
+          <div className="text-sm font-semibold text-slate-900">{trans.recentOrder}</div>
           <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-600 ring-1 ring-orange-100">
-            Pending
+            {trans.pendingStatus}
           </span>
         </div>
 
         <div className="mt-4 space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">#ORD-00145</div>
-          <div className="text-sm font-semibold text-slate-900">Aman Kumar</div>
-          <div className="text-xs text-slate-500">+91 98765 43210</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{trans.orderId}</div>
+          <div className="text-sm font-semibold text-slate-900">{trans.customerName}</div>
+          <div className="text-xs text-slate-500">{trans.phone}</div>
           <div className="flex items-center gap-2 text-xs text-slate-600">
             <span className="flex h-5 w-5 items-center justify-center rounded-md bg-rose-50 text-rose-500 ring-1 ring-rose-100">
               <FileText size={12} />
             </span>
-            <span>Project_Report.pdf</span>
+            <span>{trans.fileName}</span>
           </div>
           <button
             type="button"
             onClick={() => console.log('open modal')}
             className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(124,58,237,0.25)]"
           >
-            View Details
+            {trans.viewDetails}
           </button>
         </div>
       </div>
@@ -249,6 +255,48 @@ const LANG_MAP = {
   'mr': 'मराठी'
 }
 
+const PREVIEW_TRANSLATIONS = {
+  en: {
+    allOrders: 'ALL ORDERS',
+    pending: 'PENDING',
+    completed: 'COMPLETED',
+    downloaded: 'DOWNLOADED',
+    recentOrder: 'Recent Order',
+    pendingStatus: 'Pending',
+    orderId: '#ORD-00145',
+    customerName: 'Aman Kumar',
+    phone: '+91 98765 43210',
+    fileName: 'Project_Report.pdf',
+    viewDetails: 'View Details'
+  },
+  hi: {
+    allOrders: 'सभी ऑर्डर',
+    pending: 'लंबित',
+    completed: 'पूर्ण',
+    downloaded: 'डाउनलोड किया गया',
+    recentOrder: 'हाल का ऑर्डर',
+    pendingStatus: 'लंबित',
+    orderId: '#ORD-00145',
+    customerName: 'अमन कुमार',
+    phone: '+91 98765 43210',
+    fileName: 'Project_Report.pdf',
+    viewDetails: 'विवरण देखें'
+  },
+  mr: {
+    allOrders: 'सर्व ऑर्डर',
+    pending: 'प्रलंबित',
+    completed: 'पूर्ण',
+    downloaded: 'डाउनलोड केले',
+    recentOrder: 'अलीकडील ऑर्डर',
+    pendingStatus: 'प्रलंबित',
+    orderId: '#ORD-00145',
+    customerName: 'अमन कुमार',
+    phone: '+91 98765 43210',
+    fileName: 'Project_Report.pdf',
+    viewDetails: 'तपशील पहा'
+  }
+}
+
 export default function LanguageAccessibilityPage() {
   const router = useRouter()
   const { t, i18n } = useTranslation()
@@ -260,7 +308,9 @@ export default function LanguageAccessibilityPage() {
     try {
       const code = LANG_MAP[language] || 'en'
       localStorage.setItem('customerLanguage', code)
+      localStorage.setItem('language', code)
       i18n.changeLanguage(code)
+      window.dispatchEvent(new Event('printsmart-language-change'))
 
       const token = localStorage.getItem('authToken')
       if (!token) return
@@ -367,7 +417,10 @@ export default function LanguageAccessibilityPage() {
     if (storedLang) {
       setAppLanguage(storedLang)
       const code = LANG_MAP[storedLang] || 'en'
+      localStorage.setItem('language', code)
+      localStorage.setItem('customerLanguage', code)
       i18n.changeLanguage(code)
+      window.dispatchEvent(new Event('printsmart-language-change'))
     } else if (initialAuto) {
       detectBrowserLanguage()
     }
@@ -443,16 +496,6 @@ export default function LanguageAccessibilityPage() {
                     </div>
                   </SettingsRow>
 
-                  <SettingsRow
-                    icon={SquareUserRound}
-                    title={t('Auto Language Detection')}
-                    description={t('Automatically detect and set language based on device')}
-                  >
-                    <div className="flex justify-end">
-                      <ToggleSwitch enabled={autoDetect} onToggle={() => handleToggleAutoDetect(!autoDetect)} />
-                    </div>
-                  </SettingsRow>
-
                   <div className="flex flex-col gap-4 py-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="max-w-[330px]">
                       <div className="text-sm font-semibold text-slate-900">{t('Supported Languages')}</div>
@@ -489,7 +532,7 @@ export default function LanguageAccessibilityPage() {
                 </p>
 
                 <div className="mt-5 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-                  <PreviewCard />
+                  <PreviewCard language={appLanguage} />
                 </div>
 
                 <div className="mt-5 flex items-start gap-2 text-sm text-slate-500">

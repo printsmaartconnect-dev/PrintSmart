@@ -2,10 +2,55 @@ const prisma = require("../config/db");
 const orderService = require("../services/order.service");
 const invoiceService = require("../services/invoice.service");
 
+// Format orders to clean serialized configs and present them as a dynamic 'config' field
+const formatOrderResponse = (order) => {
+  if (!order) return null;
+
+  if (order.orderFiles && Array.isArray(order.orderFiles)) {
+    order.orderFiles = order.orderFiles.map(file => {
+      let cleanName = file.customFileName;
+      let parsedConfig = null;
+      let fileOrderId = order.orderId; // default to main orderId
+      let filePrice = file.price || 0.0;
+      
+      if (file.customFileName && file.customFileName.includes('|')) {
+        try {
+          const parts = file.customFileName.split('|');
+          cleanName = parts[0];
+          parsedConfig = JSON.parse(parts[1]);
+          if (parsedConfig) {
+            fileOrderId = parsedConfig.orderId || fileOrderId;
+            filePrice = parsedConfig.price !== undefined ? parseFloat(parsedConfig.price) : filePrice;
+          }
+        } catch (e) {
+          console.error("Failed to parse custom file name config in response formatting", e);
+        }
+      }
+      return {
+        ...file,
+        customFileName: cleanName || file.originalFileName,
+        orderId: fileOrderId,
+        price: filePrice,
+        config: parsedConfig
+      };
+    });
+  }
+
+  return order;
+};
+
 // Create one or more orders (per configured item)
 exports.createOrder = async (req, res) => {
   try {
-    const { userId, shopkeeperId, customerName, phone, items } = req.body;
+    let { userId, shopkeeperId, customerName, phone, customerComment, items } = req.body;
+
+    // Sanitize string-literal null/undefined/empty values
+    if (userId === "undefined" || userId === "null" || userId === "") {
+      userId = null;
+    }
+    if (shopkeeperId === "undefined" || shopkeeperId === "null" || shopkeeperId === "") {
+      shopkeeperId = null;
+    }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "Invalid order items data" });
@@ -29,150 +74,213 @@ exports.createOrder = async (req, res) => {
       return res.status(404).json({ message: "Shopkeeper not found" });
     }
 
-    const createdOrders = [];
+    // Determine the month ranges for sequence calculation
+    const now = new Date();
+    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+    const yearStr = String(now.getFullYear()).slice(-2);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    // Process each configured file as its own Order
+    // Count existing monthly printed files to initialize the sequence counter
+    let thisMonthOrderCount = await prisma.orderFile.count({
+      where: {
+        order: {
+          createdAt: { gte: startOfMonth, lt: endOfMonth }
+        }
+      }
+    });
+
+    // 1. Generate sequential unique Order IDs for all items in the batch
+    const fileOrderIds = [];
     for (const item of items) {
-      const { fileName, fileUrl, price, variant, config, fileSize } = item;
-
-      // 1. Determine print type for custom Order ID (default to BW)
-      const configPrintType = config?.printType?.toUpperCase() === "COLOR" ? "COLOR" : "BW";
+      const itemPrintType = item.config?.printType?.toUpperCase() === "COLOR" ? "COLOR" : "BW";
+      const typeCode = itemPrintType === 'COLOR' ? 'C' : 'BW';
       
-      // 2. Generate Custom Sequential Order ID on the backend
-      const customOrderId = await orderService.generateCustomOrderId(configPrintType);
+      thisMonthOrderCount++;
+      const sequence = String(thisMonthOrderCount).padStart(2, '0');
+      const itemOrderId = `${monthStr}${yearStr}P${typeCode}${sequence}`;
+      fileOrderIds.push(itemOrderId);
+    }
 
-      // 3. Calculate wait time
-      const estimatedTime = await orderService.calculateEstimatedTime(targetShopkeeperId, config);
+    // The primary order ID of the customer is set to the last file's sequential ID
+    const customOrderId = fileOrderIds[fileOrderIds.length - 1];
+    const lastItem = items[items.length - 1];
+    const configPrintType = lastItem.config?.printType?.toUpperCase() === "COLOR" ? "COLOR" : "BW";
 
-      // 4. Calculate pricing breakdown (tax, discount, subtotal)
-      const totalAmt = parseFloat(price) || 0.0;
-      const taxRate = 0.18; // 18% GST
-      const subtotalAmt = totalAmt / (1 + taxRate);
-      const taxAmt = totalAmt - subtotalAmt;
+    // 3. Calculate accurate total estimated wait time across all files combined
+    // Base queue size wait time
+    const queueSize = await prisma.queue.count({
+      where: {
+        order: { shopkeeperId: targetShopkeeperId },
+        status: 'WAITING'
+      }
+    });
+    const queueWaitTime = Math.min(queueSize * 2.5, 30);
 
-      // 5. Create Order
-      const order = await prisma.order.create({
-        data: {
-          orderId: customOrderId,
-          userId: userId || null,
-          shopkeeperId: targetShopkeeperId,
-          customerName: customerName || "Anonymous",
-          phone: phone || null,
-          price: totalAmt,
-          subtotal: subtotalAmt,
-          tax: taxAmt,
-          discount: 0,
-          totalAmount: totalAmt,
-          status: "PENDING",
-          estimatedTime,
-        },
+    let totalPrintTimeMinutes = 0;
+    for (const item of items) {
+      let baseTimePerCopy = 5; // seconds
+      if (item.config?.quality === 'HIGH') {
+        baseTimePerCopy = 8;
+      } else if (item.config?.quality === 'DRAFT') {
+        baseTimePerCopy = 3;
+      }
+      if (item.config?.sides === 'DOUBLE') {
+        baseTimePerCopy *= 1.5;
+      }
+      const copies = item.config?.copies ? parseInt(item.config.copies) : 1;
+      totalPrintTimeMinutes += (baseTimePerCopy * copies) / 60;
+    }
+
+    const estimatedTime = Math.max(Math.ceil(totalPrintTimeMinutes + queueWaitTime), 2);
+
+    // 4. Calculate pricing breakdown (tax, discount, subtotal) across all files combined
+    let totalAmt = 0.0;
+    for (const item of items) {
+      totalAmt += parseFloat(item.price) || 0.0;
+    }
+    const taxRate = 0.18; // 18% GST
+    const subtotalAmt = totalAmt / (1 + taxRate);
+    const taxAmt = totalAmt - subtotalAmt;
+
+    // 5. Create the single unified Order
+    const order = await prisma.order.create({
+      data: {
+        orderId: customOrderId,
+        userId: userId || null,
+        shopkeeperId: targetShopkeeperId,
+        customerName: customerName || "Anonymous",
+        phone: phone || null,
+        customerComment: customerComment || null,
+        price: totalAmt,
+        subtotal: subtotalAmt,
+        tax: taxAmt,
+        discount: 0,
+        totalAmount: totalAmt,
+        status: "PENDING",
+        estimatedTime,
+      },
+    });
+
+    // 6. Create PrintConfiguration linked to Order using the last item's configuration
+    const printConfig = await prisma.printConfiguration.create({
+      data: {
+        orderId: order.id,
+        printType: configPrintType,
+        copies: lastItem.config?.copies ? parseInt(lastItem.config.copies) : 1,
+        paperSize: (lastItem.config?.paperSize || "A4").toUpperCase(),
+        sides: lastItem.config?.sides?.toUpperCase() === "DOUBLE" ? "DOUBLE" : "SINGLE",
+        orientation: lastItem.config?.orientation?.toUpperCase() === "LANDSCAPE" ? "LANDSCAPE" : "PORTRAIT",
+        quality: lastItem.config?.quality?.toUpperCase() || "NORMAL",
+        pageRange: lastItem.config?.pageRange || "all",
+      },
+    });
+
+    // 7. Create OrderFiles for each item, serializing their print configurations, sequential IDs, and individual prices inside `customFileName`
+    const orderFiles = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const itemOrderId = fileOrderIds[i];
+      const serializedConfig = JSON.stringify({
+        ...(item.config || {}),
+        orderId: itemOrderId,
+        price: parseFloat(item.price) || 0.0
       });
+      const storedCustomName = `${item.fileName || "Untitled Document"}|${serializedConfig}`;
 
-      // 6. Create PrintConfiguration linked to Order
-      const printConfig = await prisma.printConfiguration.create({
-        data: {
-          orderId: order.id,
-          printType: configPrintType,
-          copies: config?.copies ? parseInt(config.copies) : 1,
-          paperSize: (config?.paperSize || "A4").toUpperCase(),
-          sides: config?.sides?.toUpperCase() === "DOUBLE" ? "DOUBLE" : "SINGLE",
-          orientation: config?.orientation?.toUpperCase() === "LANDSCAPE" ? "LANDSCAPE" : "PORTRAIT",
-          quality: config?.quality?.toUpperCase() || "NORMAL",
-          pageRange: config?.pageRange || "all",
-        },
-      });
-
-      // 7. Create OrderFile linked to Order
       const orderFile = await prisma.orderFile.create({
         data: {
           orderId: order.id,
-          originalFileName: fileName || "Untitled Document",
-          customFileName: fileName || "Untitled Document",
-          fileUrl: fileUrl || "",
-          fileSize: fileSize || 0,
-          thumbnailUrl: fileUrl || null,
+          originalFileName: item.fileName || "Untitled Document",
+          customFileName: storedCustomName,
+          fileUrl: item.fileUrl || "",
+          fileSize: item.fileSize || 0,
+          thumbnailUrl: item.fileUrl || null,
         },
       });
+      orderFiles.push(orderFile);
+    }
 
-      // 8. Queue handling: find next position
-      const maxQueue = await prisma.queue.findFirst({
-        where: {
-          order: { shopkeeperId: targetShopkeeperId },
-          status: { not: "DONE" },
-        },
-        orderBy: { position: "desc" },
-      });
-      const nextPosition = maxQueue ? maxQueue.position + 1 : 1;
+    // 8. Queue handling: find next position
+    const maxQueue = await prisma.queue.findFirst({
+      where: {
+        order: { shopkeeperId: targetShopkeeperId },
+        status: { not: "DONE" },
+      },
+      orderBy: { position: "desc" },
+    });
+    const nextPosition = maxQueue ? maxQueue.position + 1 : 1;
 
-      await prisma.queue.create({
+    await prisma.queue.create({
+      data: {
+        orderId: order.id,
+        position: nextPosition,
+        status: "WAITING",
+        estimatedWaitTime: estimatedTime,
+      },
+    });
+
+    // 9. Invoice PDF Generation
+    try {
+      const invoiceData = {
+        orderId: customOrderId,
+        customerName: customerName || "Anonymous",
+        phone: phone || "N/A",
+        shopName: shopkeeper.shopName,
+        shopAddress: shopkeeper.address,
+        shopPhone: shopkeeper.phone,
+        files: orderFiles,
+        printConfig,
+        subtotal: subtotalAmt,
+        tax: taxAmt,
+        discount: 0,
+        totalAmount: totalAmt,
+        createdAt: order.createdAt,
+      };
+
+      const invoiceResult = await invoiceService.generateInvoicePDF(invoiceData);
+
+      // Save invoice in DB
+      await prisma.invoice.create({
         data: {
           orderId: order.id,
-          position: nextPosition,
-          status: "WAITING",
-          estimatedWaitTime: estimatedTime,
-        },
-      });
-
-      // 9. Invoice PDF Generation
-      try {
-        const invoiceData = {
-          orderId: customOrderId,
-          customerName: customerName || "Anonymous",
-          phone: phone || "N/A",
-          shopName: shopkeeper.shopName,
-          shopAddress: shopkeeper.address,
-          shopPhone: shopkeeper.phone,
-          files: [orderFile],
-          printConfig,
+          invoiceNumber: invoiceResult.invoiceNumber,
+          pdfUrl: invoiceResult.pdfUrl,
           subtotal: subtotalAmt,
           tax: taxAmt,
           discount: 0,
           totalAmount: totalAmt,
-          createdAt: order.createdAt,
-        };
-
-        const invoiceResult = await invoiceService.generateInvoicePDF(invoiceData);
-
-        // Save invoice in DB
-        await prisma.invoice.create({
-          data: {
-            orderId: order.id,
-            invoiceNumber: invoiceResult.invoiceNumber,
-            pdfUrl: invoiceResult.pdfUrl,
-            subtotal: subtotalAmt,
-            tax: taxAmt,
-            discount: 0,
-            totalAmount: totalAmt,
-          },
-        });
-      } catch (invErr) {
-        console.error("Failed to generate invoice during order placement:", invErr);
-      }
-
-      // 10. Update stats (Daily, earnings, overall)
-      await orderService.updateShopkeeperStats(targetShopkeeperId, {
-        totalAmount: totalAmt,
-        printConfig,
-        quantity: printConfig.copies,
-      });
-
-      // Fetch complete populated order
-      const completedOrder = await prisma.order.findUnique({
-        where: { id: order.id },
-        include: {
-          printConfiguration: true,
-          orderFiles: true,
-          queue: true,
-          invoice: true,
         },
       });
-
-      createdOrders.push(completedOrder);
+    } catch (invErr) {
+      console.error("Failed to generate invoice during order placement:", invErr);
     }
 
+    // 10. Update stats (Daily, earnings, overall)
+    let totalCopies = 0;
+    for (const item of items) {
+      totalCopies += parseInt(item.config?.copies || 1);
+    }
+    await orderService.updateShopkeeperStats(targetShopkeeperId, {
+      totalAmount: totalAmt,
+      printConfig,
+      quantity: totalCopies,
+    });
+
+    // Fetch complete populated order
+    const completedOrder = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: {
+        printConfiguration: true,
+        orderFiles: true,
+        queue: true,
+        invoice: true,
+      },
+    });
+
     res.status(201).json({
-      message: "Order(s) created successfully",
-      orders: createdOrders,
+      message: "Order created successfully",
+      orders: [formatOrderResponse(completedOrder)],
     });
   } catch (err) {
     console.error("Create order controller error:", err);
@@ -207,7 +315,7 @@ exports.getCustomerOrders = async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
-    res.status(200).json(orders);
+    res.status(200).json(orders.map(formatOrderResponse));
   } catch (err) {
     console.error("Get customer orders error:", err);
     res.status(500).json({ message: "Server error fetching customer orders", error: err.message });
@@ -241,7 +349,7 @@ exports.getShopkeeperOrders = async (req, res) => {
       },
     });
 
-    res.json(orders);
+    res.json(orders.map(formatOrderResponse));
   } catch (err) {
     console.error("Fetch shopkeeper orders error:", err);
     res.status(500).json({ message: "Server error fetching orders" });
@@ -302,7 +410,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     res.json({
       message: "Order status updated successfully",
-      order: updatedOrder,
+      order: formatOrderResponse(updatedOrder),
     });
   } catch (err) {
     console.error("Update order status error:", err);
@@ -343,10 +451,10 @@ exports.getOrderById = async (req, res) => {
         return res.status(404).json({ message: "Order not found" });
       }
 
-      return res.json(orders[0]);
+      return res.json(formatOrderResponse(orders[0]));
     }
 
-    res.json(order);
+    res.json(formatOrderResponse(order));
   } catch (err) {
     console.error("Get order error:", err);
     res.status(500).json({ message: "Server error fetching order" });
