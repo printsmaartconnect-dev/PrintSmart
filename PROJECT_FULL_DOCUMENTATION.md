@@ -216,6 +216,7 @@ PrintSmart/
 │   ├── config/                       # Configuration modules
 │   │   └── db.js                     # Prisma client initializer instance
 │   ├── controllers/                  # Route controller functions
+│   │   ├── admin.controller.js       # Platform administrator dashboard analytics [NEW]
 │   │   ├── auth.controller.js        # Authentication & Profile management
 │   │   ├── feedback.controller.js    # Customer support submissions & updates
 │   │   ├── file.controller.js        # Multer-to-S3 file uploading bridge
@@ -229,6 +230,7 @@ PrintSmart/
 │   │   ├── dev.db                    # Active SQLite development DB
 │   │   └── schema.prisma             # Entity models & cascades schema
 │   ├── routes/                       # REST endpoint routing mappings
+│   │   ├── admin.routes.js           # Admin stats & dashboard routes [NEW]
 │   │   ├── auth.routes.js            # Auth routing definitions
 │   │   ├── feedback.routes.js        # Customer issues routes
 │   │   ├── file.routes.js            # Multer upload route
@@ -258,6 +260,14 @@ PrintSmart/
     │   ├── page.js                   # Homepage (detects scanned QRs, renders Partner specs)
     │   ├── globals.css               # Tailwind directives & Glassmorphism definitions
     │   ├── I18nProvider.js           # Multi-language i18n translation context provider [NEW]
+    │   │
+    │   ├── api/                      # Client-side backend routes
+    │   │   └── ai/
+    │   │       └── generate-config/
+    │   │           └── route.js      # Groq AI structured poster config endpoint [NEW]
+    │   │
+    │   ├── dashboard/
+    │   │   └── page.js               # Simple redirect to shopkeeper dashboard [NEW]
     │   │
     │   ├── admin/                    # Admin portal pages
     │   │   ├── page.js               # Admin authentication gateway
@@ -3544,12 +3554,19 @@ Tracks ongoing performance metrics for a specific shop.
 ## Core System Workflows
 
 ### 1. QR Code Generation & Entry Flow
-- **Generation**: On shopkeeper registration or manual request via `/api/shopkeeper/regenerate-qr`, the backend creates a QR code image pointing to `${FRONTEND_URL}/take-a-print?shopId=${shopSlug}`.
+- **Generation**: On shopkeeper registration or manual request via `/api/shopkeeper/regenerate-qr`, the backend creates a QR code image pointing to `${FRONTEND_URL}/?shopId=${shopSlug}`.
 - **Service Implementation**:
   - `qrcode.service.js` generates a local PNG file under `/uploads/qrcodes/` and a base64 Data URL using the `qrcode` library.
   - `qr.service.js` creates a QR file under `/uploads/qrs/` containing the UUID of the shop.
-- **Entry Flow**: The customer scans the code, landing on `/take-a-print?shopId=slug`. If the QR scan fails, a manual entry field is provided.
-- **Testing Shortcut**: Entering code `0000` automatically maps to the default seeded shop `smart-print-hub`, bypasses scanning, and fetches database configuration parameters instantly.
+- **Entry Flow (QR-Aware Homepage)**:
+  - When the customer scans the QR code, they land on the homepage `/?shopId=slug`.
+  - The frontend detects the `shopId` parameter in the URL and triggers `fetchShopDetails(shopId)` from `/api/shopkeeper/by-slug/:shopId`.
+  - Upon success, the full shop object is cached in `localStorage.activeShop` (retaining `activeShopId` and `activeShopSlug` for backward compatibility), and the UI displays a verified print partner card.
+  - Clicking "Get Started" routes the user to `/customer/language` without needing URL parameters anymore.
+- **Backward/Legacy Compatibility Flows**:
+  - If a customer opens the homepage without a QR parameter, they see the default "Take a Print" card which routes to `/take-a-print`.
+  - If a legacy QR code points to `/take-a-print?shopId=slug`, it continues to work: the page resolves details and forwards the user to `/customer/language?shopId=slug`.
+- **Testing Shortcut**: Entering code `0000` on `/take-a-print` automatically maps to the default seeded shop `smart-print-hub`, bypasses scanning, and fetches database configuration parameters instantly.
 
 ### 2. Custom Order ID Generation
 To ensure shopkeepers have short, human-readable IDs to track orders, the backend generates IDs using the format `MMYYP[BW|C][sequence]` in `order.service.js`:
@@ -3666,6 +3683,28 @@ Manages the ordering workflow.
 | `/api/statistics/:shopkeeperId/weekly` | `GET` | None | None | `{ weekStart, weekEnd, totalOrders, totalEarnings, growthPercentage, dailyBreakdown: [...] }` |
 | `/api/statistics/:shopkeeperId/monthly/:month/:year?` | `GET` | None | None | `{ month, year, totalRevenue, totalOrders, totalCopies, avgOrderValue, topPaperSize, paperSizeDistribution, printTypeDistribution: { BW, COLOR } }` |
 
+### 8. Admin API Endpoints
+Used by platform administrators to manage the application and monitor statistics.
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/admin/stats` | `GET` | None | None | `{ totalOrders, activeShops, revenue, activeCustomers }` |
+| `/api/admin/recent-orders` | `GET` | None | None | `Order[]` (Each order includes shopkeeper name) |
+| `/api/admin/users` | `GET` | None | None | `User[]` |
+| `/api/admin/shops` | `GET` | None | None | `Shopkeeper[]` (Select fields: id, email, shopName, ownerName, phone, isOnboarded, totalOrders, totalEarnings, createdAt) |
+| `/api/admin/shops/:id/onboard` | `PUT` | None | None | `{ message: "Shop onboarding status updated successfully", shop: Shopkeeper }` |
+| `/api/admin/analytics` | `GET` | None | None | `{ statusDistribution, printTypeDistribution, dailyTrends }` |
+
+### 9. AI Marketing Studio API
+Used by shopkeepers within the AI Marketing Studio to generate content suggestions and create AI-generated designs.
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/ai/suggest-prompt` | `POST` | JWT token | `{ title: string }` | `{ businessDescription, audience, theme, cta, posterType, colorPalette, language }` |
+| `/api/ai/generate` | `POST` | JWT token | `{ title, businessName, description, language, audience, posterType, posterSize, themeStyle, colorPreference, cta }` | `{ id, generatedImageUrl, optimizedPrompt }` |
+| `/api/ai/regenerate` | `POST` | JWT token | `{ title, businessName, description, language, audience, posterType, posterSize, themeStyle, colorPreference, cta }` | `{ id, generatedImageUrl, optimizedPrompt }` |
+| `/api/ai/history` | `GET` | JWT token | None | `AIAsset[]` |
+
 ---
 
 ## Frontend-Backend Integration Walkthrough
@@ -3707,15 +3746,22 @@ Manages the ordering workflow.
     - **Database Enum Mapping**: When a shopkeeper downloads a customer file, the status change request is automatically mapped to `COMPLETED` in the backend. This prevents Prisma/PostgreSQL enum constraint errors while keeping the order completion data intact.
  5. **Real-time Queue & Print**: Shopkeeper updates items to `Completed` which calls the browser's printing service, downloads the invoice, and updates statistics.
  6. **Dynamic Shop Statistics**: All statistics card counts (Pending, Completed, Downloaded, Cancelled), bottom dock navigation badges, print sizes (A4, A3, etc.), document formats, revenue totals, and customer acquisition bar graphs are computed dynamically in real-time from the database order logs, ensuring exact reflections of database states.
+ 7. **AI Marketing Studio**:
+    - Shopkeepers can navigate to the AI Studio (`/shopkeeper/printsmart-ai`) to access a dedicated marketing workshop with 6 distinct tool modes: AI Poster Maker, AI Banner Maker, Offer Flyer Generator, Festival Marketing Generator, Social Media Post Maker, and WhatsApp Promotion Poster.
+    - **Suggest Prompt**: By typing a promotion title and clicking "Suggest Prompt", shopkeepers invoke Google Gemini API (`POST /api/ai/suggest-prompt`) to automatically generate high-converting details and autofill the rest of the form.
+    - **AI Generation**: Clicking "Generate" or "Regenerate" sends form inputs to the backend (`POST /api/ai/generate` or `POST /api/ai/regenerate`), where Gemini optimizes the image prompt. The backend then contacts Pollinations AI (with random seeds for design variations) to generate a completely unique, visually premium poster/banner image, which is saved in S3/local storage and logged in the database (`AIAsset` model).
+    - **Preview & Loading**: The live dynamic preview is removed in favor of a real AI-generated design showcase under a *"✨ Generated by AI"* badge. A premium step-by-step progress loader keeps the user engaged during design computation.
+    - **Print Queue Integration**: Clicking "Print Now" converts the generated asset details and pushes the print job directly into the active order queues (`POST /api/orders/create`), updating shop stats and billing sheets seamlessly.
+    - **Archive**: An archive shelf renders past designs from the database (`GET /api/ai/history`), permitting instant loading and printing of previous assets.
  
  ---
  
  ## Document Version
  
- - **Version:** 2.8.0
- - **Last Updated:** May 30, 2026
+ - **Version:** 3.0.0
+ - **Last Updated:** June 2, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing. Updated with database connection workarounds for Windows dual-stack environments and startup schema synchronization practices. Enhanced with multi-file sequential ID batch uploads, premium itemized invoices, global shopkeeper dashboard translations, and 2-PC concurrent session rolling logout limits).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing. Updated with database connection workarounds for Windows dual-stack environments and startup schema synchronization practices. Enhanced with multi-file sequential ID batch uploads, premium itemized invoices, global shopkeeper dashboard translations, 2-PC concurrent session rolling logout limits, Admin API endpoints, and the PrintSmart AI Studio module).
  
  ---
  
