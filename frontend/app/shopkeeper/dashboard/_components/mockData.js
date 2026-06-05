@@ -109,11 +109,12 @@ export const bottomDockItems = [
   { key: 'profile', label: 'Profile', badge: null, href: '/shopkeeper/profile' },
   { key: 'settings', label: 'Settings', badge: null, href: '/shopkeeper/settings' },
   { key: 'subscription', label: 'Subscription', badge: null, href: '/shopkeeper/subscription' },
-  { key: 'allOrders', label: 'Statistics & Analysis', badge: null, href: '/shopkeeper/all-orders' },
+  { key: 'allOrders', label: 'Statistics & Analysis', badge: null, href: '/shopkeeper/statistics-and-analysis' },
   { key: 'pending', label: 'Pending', badge: '12' },
   { key: 'completed', label: 'Completed', badge: '128' },
   { key: 'downloaded', label: 'Downloaded', badge: '36' },
   { key: 'cancelled', label: 'Cancelled', badge: '08' },
+  { key: 'addOrder', label: 'Add order', badge: null, href: '/customer/language?shopkeeperAddOrder=true' },
   { key: 'coupon', label: 'Business network', badge: null, href: '/shopkeeper/business-network' },
   { key: 'printsmartAi', label: 'PrintSmart AI', badge: null, href: '/shopkeeper/printsmart-ai' },
 ]

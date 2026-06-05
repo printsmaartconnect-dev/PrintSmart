@@ -83,7 +83,8 @@ model Shopkeeper {
   password        String
   phone           String
   shopkeeperIdCode String?  @unique
-
+  upiId           String?
+  paymentQrUrl    String?
   shopName        String
   ownerName       String?
   shopSlug        String   @unique
@@ -137,6 +138,7 @@ model Order {
 
   customerName         String   @default("Anonymous")
   phone                String?
+  customerComment      String?  // Optional comment from customer during upload
 
   printConfiguration   PrintConfiguration?
   orderFiles          OrderFile[]

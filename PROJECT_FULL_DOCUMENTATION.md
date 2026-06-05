@@ -302,8 +302,8 @@ PrintSmart/
     │   │   │   └── page.js           # Multiple login support authentication
     │   │   ├── register/
     │   │   │   └── page.js           # New printer registrations
-    │   │   ├── all-orders/
-    │   │   │   └── page.js           # Detailed order analytics dashboard (Heatmap, trends, print-sizes, order-types) [NEW]
+    │   │   ├── statistics-and-analysis/
+    │   │   │   └── page.js           # Detailed order analytics dashboard (Bar chart, trends, print-sizes, order-types) [NEW]
     │   │   ├── business-network/
     │   │   │   └── page.js           # Premium connections & network layout [NEW]
     │   │   ├── printsmart-ai/
@@ -576,18 +576,29 @@ body {
 ---
 
 #### `app/admin/dashboard/page.js`
-**Purpose:** Admin dashboard; displays system KPIs and recent orders.
+**Purpose:** Rebuilt Premium Platform Administration Dashboard. Coordinates system stats, shop manager portals, order registers, reward/coupon controls, AI run logs, support ticketing, and settings profiles.
 
-**Components:**
-- **Stats Grid:** Total Orders, Active Shops, Revenue (with icons)
-- **Recent Orders Table:** Order ID, Status, Amount, Timestamp
-- **Header:** Logout button with icon
+**Sub-Components (Located in `_components/`):**
+* **`AdminSidebar.js`:** Sleek, Vercel-style semi-dark navigation featuring 8 tabs. Includes a dynamic **System Health Card** complete with an online ping indicator, live server uptime metrics, and a custom inline green SVG micro-sparkline.
+* **`StatCard.js`:** High-end KPI component representing individual baseline SVG wave sparklines, growth metrics, dynamic color accent overrides, and animated hover effects.
 
-**Key Features:**
-- Responsive grid (1 col mobile, 3 cols desktop)
-- Hover effects on rows
-- Glassmorphism styling for cards
-- Status badges (Pending, Completed, Printing) with color-coding
+**Key Dashboard Sections (8-Tab Views):**
+1. **Overview (Dashboard):** Premium layout hosting 8 top-tier metric cards, dynamic orders trend graph curves (Daily/Weekly/Monthly), an SVG order status donut chart, priority warning alert boxes, and top performing shop lists.
+2. **Shops Directory:** Active listings showing approval and onboarding states, shop contact indexes, subscription types, and a live toggle to instantly onboard/suspend shops by triggering `PUT /api/admin/shops/:id/onboard` API calls.
+3. **Orders History:** Detailed customer logs showing billing margins, order queues, print modes (e.g., standard color vs duplex), and status badges.
+4. **Coupons & Rewards:** Overview of generated active coupons, cost analysis matrices, and mock sparklines for coupon activations.
+5. **AI Telemetry:** Log counters for generated AI backgrounds, banner assets, and poster optimizations, detailing successful runs vs failed queues.
+6. **Support Helpdesk:** Priority tag registries detailing store associations, ticket priorities, and interactive response forms.
+7. **Revenue Tracking:** Platform tax rate indexes, monthly platform margins, and tax-cut metrics.
+8. **Platform Settings:** Interface to toggle platform-wide Commission Fee percentages, Maintenance Locks, and Allowed Upload File Types.
+
+> [!TIP]
+> **Hot-Reloading Static Chunk 404s Resolution:**
+> If Next.js dev server triggers `404` errors on `/admin/dashboard` chunks during simultaneous production builds, clear the cache and restart:
+> ```powershell
+> Remove-Item -Recurse -Force .next
+> npm run dev
+> ```
 
 ---
 
@@ -738,14 +749,17 @@ export const mockStats = {
 ---
 
 ##### `_components/BottomDock.js`
-**Purpose:** Floating navigation menu at bottom of page.
+**Purpose:** Floating premium navigation dock at the bottom of the Shopkeeper Dashboard page.
 
-**Navigation Items:**
-- Dashboard (home icon)
-- Orders (list icon)
-- Settings (gear icon)
-- Support (help icon)
-- Logout (exit icon)
+**Navigation Items & Premium Enhancements:**
+- **Profile:** Link to profile details (`/shopkeeper/profile`).
+- **Settings:** Access settings preferences (`/shopkeeper/settings`).
+- **Subscription:** Manage pricing tier schedules (`/shopkeeper/subscription`).
+- **Statistics & Analysis:** Interactive aggregated orders charts.
+- **Filters:** Quick filter buttons for Pending, Completed, Downloaded, and Cancelled queues.
+- **➕ Direct Add Order (Blue Plus Button):** Prominent walk-in order creation gateway (`bg-[#3B82F6]`) styled as a blue rounded-square with a white plus. Triggers a customized customer order flow (`/customer/language?shopkeeperAddOrder=true`) which auto-configures layouts, bypasses customer support talks, and automatically routes the shopkeeper back to their dashboard queue upon completion.
+- **🌐 Business Network (Glow Upgrade):** Enhanced with a solid Indigo gradient (`bg-indigo-600 border-indigo-200`), custom shadow glow (`shadow-[0_0_15px_rgba(99,102,241,0.6)]`), and active top-right ping pulse for beautiful interactive aesthetics.
+- **PrintSmart AI:** Glowing purple AI button with a continuous fuchsia ping pulse.
 
 ---
 
@@ -805,9 +819,11 @@ export const mockStats = {
 - Shop Address
 - Phone Number
 - GST Number
+- **UPI ID** (Mandatory field for receiving payment transfers)
+- **Payment QR Code** (Optional image upload field for display on customer side)
 - Bank Account Details (optional)
 
-**Save:** Stores to localStorage and can send to backend
+**Save:** Stores to localStorage and syncs with backend database
 
 ---
 
@@ -910,7 +926,7 @@ export function getOnboardingProgress() { /* ... */ }
 
 #### Other Shopkeeper Pages
 
-##### `all-orders/page.js`
+##### `statistics-and-analysis/page.js`
 **Purpose:** Comprehensive interactive orders analytics dashboard for shopkeepers.
 
 **Features:**
@@ -959,7 +975,7 @@ export function getOnboardingProgress() { /* ... */ }
 
 ---
 
-##### `all-orders/page.js`
+##### `statistics-and-analysis/page.js`
 **Purpose:** Shop Statistics & Analysis dashboard for the shopkeeper.
 
 **Sections & Features:**
@@ -1010,16 +1026,16 @@ export function getOnboardingProgress() { /* ... */ }
 ---
 
 #### `customer/upload/page.js`
-**Purpose:** Drag-and-drop file upload using React Dropzone.
+**Purpose:** Drag-and-drop file upload using React Dropzone, wrapped in a `<Suspense>` boundary to allow clean build-time static generation.
 
 **Features:**
-- Multi-file drag/drop zone supporting PDF, Word doc/docx, and JPG/JPEG/PNG images
-- Dynamic thumbnail generation:
-  - Images use browser Canvas resize
-  - PDF documents use a CDN-loaded `pdf.js` worker script to render the first page on a canvas context
-- Custom renaming field for each uploaded file (retaining file extensions)
-- Local file size formatting utility
-- Integrates with POST `/api/files/upload` to store files and retrieve URLs
+- Multi-file drag/drop zone supporting PDF, Word doc/docx, and JPG/JPEG/PNG images.
+- Dynamic thumbnail generation (Images use Canvas resize, PDFs use `pdf.js` worker rendering).
+- Custom renaming field for each uploaded file (retaining file extensions).
+- **Full-Screen Loading/Buffering State**: Triggers a premium glassmorphic full-screen backdrop overlay (`backdrop-blur-md bg-slate-900/60`) during file upload loops or "Talk to Shopkeeper" requests.
+- **Dynamic Text Cycling**: Cycles through translation-friendly status messages every 2.5 seconds (e.g. `"Uploading document (1 of 3)..."`, `"Processing print configuration..."`, `"Preparing preview..."`).
+- **Interactive Disabling**: Blurs the entire background page (`filter blur-md`) and blocks pointer events (`pointer-events-none select-none`) while active.
+- Integrates with POST `/api/files/upload` to store files and retrieve URLs.
 
 **Key Code:**
 ```javascript
@@ -1091,13 +1107,15 @@ export default function UploadPage() {
 ---
 
 #### `customer/orders/page.js`
-**Purpose:** Track active order statuses and manage past history.
+**Purpose:** Track active order statuses, manage past history, pay orders, and scratch reward coupons. Wrapped in a `<Suspense>` boundary to prevent build-time bailout warnings.
 
 **Features:**
-- Real-time status cards (Pending, Accepted, Printing, Ready, Completed, Cancelled)
-- Inline button to download invoices (calls `/api/orders/:id/invoice`)
-- Delete order confirmation modal (allowed only if status is `PENDING`)
-- Ascending/descending date sorting filters and status badges
+- Real-time status cards (Pending, Accepted, Printing, Ready, Completed, Cancelled).
+- **UPI ID & Payment QR Code Box**: Centered above the online/offline buttons, displays the shopkeeper's custom payment QR code image if uploaded. Clicking "Pay Online (UPI)" redirects directly to the shopkeeper's registered UPI ID link. Clicking "Pay Offline to Shopkeeper" transitions the order status to `ACCEPTED` directly in the database.
+- **Premium Scratch & Win Card Section**: Positioned directly above the payment details. Invokes `RewardCardModal` showing a Vercel-style interactive silver scratch coupon.
+- Inline button to download invoices (calls `/api/orders/:id/invoice`).
+- Delete order confirmation modal (allowed only if status is `PENDING`).
+- Ascending/descending date sorting filters and status badges.
 
 ---
 
@@ -2919,6 +2937,14 @@ All notable changes to PrintSmart are documented in this file.
 - Mock data only
 - localStorage limited to browser
 
+## [3.1.0] - 2026-06-05
+
+### Added
+- **Full-Screen Upload Loading State**: Premium glassmorphic backdrop loader with backdrop-blur and pointer lock on `/customer/upload`. Status texts rotate dynamically every 2.5 seconds.
+- **UPI & Payment QR Code System**: Mandatory UPI ID field and optional QR image uploads in shopkeeper onboarding and profile edit options. Dynamic QR image rendering on customer orders page.
+- **Google Pay Scratch & Win Cards**: Customer side scratch coupon modals featuring silver texture canvas scratching, touch-coordinates sparkle effects, scale feedback, and 30% scratched auto-reveal.
+- **Suspense Boundaries**: Wrapped customer upload and order tracking pages in React `<Suspense>` to prevent Next.js static build bailout warnings.
+
 ## [3.0.0] - 2026-05-31
 
 ### Added
@@ -3758,10 +3784,10 @@ Used by shopkeepers within the AI Marketing Studio to generate content suggestio
  
  ## Document Version
  
- - **Version:** 3.0.0
- - **Last Updated:** June 2, 2026
+ - **Version:** 3.1.0
+ - **Last Updated:** June 05, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing. Updated with database connection workarounds for Windows dual-stack environments and startup schema synchronization practices. Enhanced with multi-file sequential ID batch uploads, premium itemized invoices, global shopkeeper dashboard translations, 2-PC concurrent session rolling logout limits, Admin API endpoints, and the PrintSmart AI Studio module).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, and interactive Google Pay style Scratch & Win loyalty reward coupon modal).
  
  ---
  

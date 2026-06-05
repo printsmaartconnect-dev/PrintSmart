@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import DashboardHeader from '../dashboard/_components/DashboardHeader'
 import BottomDock from '../dashboard/_components/BottomDock'
 import { bottomDockItems } from '../dashboard/_components/mockData'
@@ -14,6 +15,7 @@ const businessImageCandidates = [
 ]
 
 export default function BusinessNetworkPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [shopName, setShopName] = useState('')
   const [imageIndex, setImageIndex] = useState(0)
@@ -51,20 +53,20 @@ export default function BusinessNetworkPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <DashboardHeader shopName={shopName || 'Business Network'} />
+      <DashboardHeader shopName={shopName || t('Business network')} />
 
       <main className="px-4 sm:px-6 lg:px-8 pb-28 pt-4">
         <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-6 shadow-sm">
           {hasValidImage ? (
             <img
               src={imageSrc}
-              alt="Business Network"
+              alt={t('Business network')}
               className="h-auto w-full rounded-xl object-contain"
               onError={handleImageError}
             />
           ) : (
             <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600">
-              Add your design image to public as Business network.jpeg.
+              {t('Add your design image to public as Business network.jpeg.')}
             </div>
           )}
         </div>

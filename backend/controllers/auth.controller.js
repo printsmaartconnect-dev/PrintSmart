@@ -31,6 +31,8 @@ function createAuthResponse(shopkeeper, token) {
       shopSlug: shopkeeper.shopSlug,
       qrCodeUrl: shopkeeper.qrCodeUrl,
       shopkeeperIdCode: shopkeeper.shopkeeperIdCode,
+      upiId: shopkeeper.upiId,
+      paymentQrUrl: shopkeeper.paymentQrUrl,
       isOnboarded: shopkeeper.isOnboarded,
       profileCompleted: shopkeeper.profileCompleted,
       pricingCompleted: shopkeeper.pricingCompleted,
@@ -198,6 +200,8 @@ exports.getProfile = async (req, res) => {
         shopSlug: true,
         qrCodeUrl: true,
         shopkeeperIdCode: true,
+        upiId: true,
+        paymentQrUrl: true,
         isOnboarded: true,
         profileCompleted: true,
         pricingCompleted: true,
@@ -327,6 +331,8 @@ exports.updateProfile = async (req, res) => {
       pricing,
       logoUrl,
       phone,
+      upiId,
+      paymentQrUrl,
     } = req.body;
 
     const profileCompleted = Boolean(
@@ -334,7 +340,8 @@ exports.updateProfile = async (req, res) => {
       languagePref &&
       businessDescription &&
       address &&
-      phone
+      phone &&
+      upiId
     );
     const pricingCompleted = Boolean(pricing && Object.keys(pricing).length > 0);
     const isOnboarded = profileCompleted && pricingCompleted;
@@ -359,6 +366,8 @@ exports.updateProfile = async (req, res) => {
         pricing: pricing || undefined,
         logoUrl: logoUrl || null,
         phone: phone || undefined,
+        upiId: upiId !== undefined ? upiId : undefined,
+        paymentQrUrl: paymentQrUrl !== undefined ? paymentQrUrl : undefined,
         profileCompleted,
         pricingCompleted,
         isOnboarded,
@@ -416,6 +425,8 @@ exports.getShopkeeperBySlug = async (req, res) => {
       pricing: true,
       shopSlug: true,
       shopkeeperIdCode: true,
+      upiId: true,
+      paymentQrUrl: true,
     };
 
     if (isUuid) {

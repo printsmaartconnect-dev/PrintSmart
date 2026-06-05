@@ -55,6 +55,7 @@ export default function ShopkeeperDashboard() {
           status: o.status ? (o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()) : "Pending",
           customerName: o.customerName || "Anonymous Customer",
           phone: o.phone || "",
+          customerComment: o.customerComment || "",
           fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
           fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
           pages: 1,
@@ -178,9 +179,9 @@ export default function ShopkeeperDashboard() {
   }, [router]);
 
   const displayedOrders =
-    activeFilter === "All"
+    (activeFilter === "All" || activeFilter === t("All"))
       ? ordersList
-      : ordersList.filter((order) => order.status === activeFilter);
+      : ordersList.filter((order) => t(order.status) === activeFilter);
 
   const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
   const completedCount = ordersList.filter((o) => o.status === "Completed").length;
@@ -204,11 +205,12 @@ export default function ShopkeeperDashboard() {
       { key: 'profile', label: t('Profile'), badge: null, href: '/shopkeeper/profile' },
       { key: 'settings', label: t('Settings'), badge: null, href: '/shopkeeper/settings' },
       { key: 'subscription', label: t('Subscription'), badge: null, href: '/shopkeeper/subscription' },
-      { key: 'allOrders', label: t('Statistics & Analysis'), badge: null, href: '/shopkeeper/all-orders' },
+      { key: 'allOrders', label: t('Statistics & Analysis'), badge: null, href: '/shopkeeper/statistics-and-analysis' },
       { key: 'pending', label: t('Pending'), badge: String(pendingCount) },
       { key: 'completed', label: t('Completed'), badge: String(completedCount) },
       { key: 'downloaded', label: t('Downloaded'), badge: String(downloadedCount) },
       { key: 'cancelled', label: t('Cancelled'), badge: String(cancelledCount) },
+      { key: 'addOrder', label: t('Add order'), badge: null, href: `/customer/language?shopkeeperAddOrder=true&shopId=${shopkeeperIdCode}` },
       { key: 'coupon', label: t('Business network'), badge: null, href: '/shopkeeper/business-network' },
       { key: 'printsmartAi', label: t('PrintSmart AI'), badge: null, href: '/shopkeeper/printsmart-ai' },
     ];

@@ -211,10 +211,15 @@ export default function CustomerLanguagePage() {
       }))
 
       // Redirect to upload page
+      const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
       const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
-      const nextUrl = resolvedShopId 
+      let nextUrl = resolvedShopId 
         ? `/customer/upload?shopId=${resolvedShopId}&userId=${userId}`
         : `/customer/upload?userId=${userId}`
+      
+      if (isShopkeeper) {
+        nextUrl += `&shopkeeperAddOrder=true`
+      }
       
       router.push(nextUrl)
     } catch (err) {
@@ -223,6 +228,8 @@ export default function CustomerLanguagePage() {
       setLoading(false)
     }
   }
+
+  const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
 
   return (
     <div className="wave-bg min-h-screen flex flex-col">
@@ -233,6 +240,15 @@ export default function CustomerLanguagePage() {
             onClick={() => setStep('language')}
             className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors font-medium"
             aria-label="Go back to language selection"
+          >
+            <ArrowLeft size={18} />
+            <span>{t('Go Back')}</span>
+          </button>
+        ) : isShopkeeper ? (
+          <button
+            onClick={() => router.push('/shopkeeper/dashboard')}
+            className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors font-medium"
+            aria-label="Go back to dashboard"
           >
             <ArrowLeft size={18} />
             <span>{t('Go Back')}</span>
