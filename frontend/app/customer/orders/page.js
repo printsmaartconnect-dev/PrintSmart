@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Inbox, Upload, RotateCcw, Download, Trash2, Home, Clock, AlertCircle, FileText } from 'lucide-react'
+import { Inbox, Upload, RotateCcw, Download, Trash2, Home, Clock, AlertCircle, FileText, Gift } from 'lucide-react'
 import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
+import RewardCardModal from '../../components/customer/RewardCardModal'
 
 export default function OrdersPage() {
   const { t } = useTranslation()
@@ -27,6 +28,7 @@ export default function OrdersPage() {
   // Scratch Coupon State
   const [scratchRevealed, setScratchRevealed] = useState(false)
   const canvasRef = useCanvasRef(scratchRevealed, setScratchRevealed)
+  const [showRewardModal, setShowRewardModal] = useState(false)
 
   const fetchOrders = async () => {
     setLoading(true)
@@ -110,6 +112,29 @@ export default function OrdersPage() {
     }
   }
 
+  const handlePayOffline = async (orderId) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/orders/${orderId}/customer-status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'ACCEPTED' }),
+      })
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.message || 'Failed to update order status')
+      }
+
+      await fetchOrders()
+    } catch (err) {
+      console.error('Pay offline error:', err)
+      alert(err.message || t('Could not transition to the next step.'))
+    }
+  }
+
   const handleDownloadInvoice = (orderId) => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
     window.open(`${apiUrl}/api/orders/${orderId}/invoice`, '_blank')
@@ -171,33 +196,95 @@ export default function OrdersPage() {
           <span className="text-sm font-semibold text-gray-600">{t('Step 7 of 7')}</span>
         </div>
 
-        {/* Scratch Coupon Section */}
+        {/* Premium Scratch & Win Section */}
         {orders.length > 0 && (
-          <div className="mb-8 p-4 bg-white/70 border border-purple-200 rounded-xl">
-            <p className="text-center text-gray-700 text-sm font-bold mb-3">
-              {t('🎉 Scratch below to reveal your coupon discount!')}
+          <div className="mb-8 p-5 bg-white border border-violet-100 rounded-2xl shadow-[0_4px_20px_rgba(139,92,246,0.05)]">
+            <h3 className="font-bold text-slate-800 text-sm mb-1 flex items-center gap-1.5">
+              <Gift size={16} className="text-violet-600" />
+              {t('Scratch & Win')}
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mb-4">
+              {t('Scratch the card and win exciting rewards!')}
             </p>
-            <div
-              className="relative w-full h-32 rounded-lg border-2 border-purple-300 border-dashed bg-purple-50 flex items-center justify-center overflow-hidden cursor-crosshair"
+            <button
+              type="button"
+              onClick={() => setShowRewardModal(true)}
+              className="w-full h-32 rounded-xl border-2 border-violet-300 border-dashed bg-violet-50/50 hover:bg-violet-50 hover:border-violet-400 transition flex flex-col items-center justify-center gap-2 group cursor-pointer"
             >
-              <canvas
-                ref={canvasRef}
-                className="absolute inset-0 w-full h-full scratch-canvas"
-              />
-              {!scratchRevealed && (
-                <div className="text-center z-10 pointer-events-none select-none">
-                  <RotateCcw size={28} className="mx-auto text-purple-600 mb-2 animate-spin-slow" />
-                  <p className="text-purple-700 font-bold text-sm">{t('SCRATCH SURFACE HERE')}</p>
-                </div>
-              )}
-              {scratchRevealed && (
-                <div className="text-center z-10 animate-fade-in">
-                  <p className="text-2xl font-bold text-purple-700">{t('Flat 15% OFF on Next Print!')}</p>
-                  <p className="text-xs text-purple-500 font-semibold mt-1">{t('Code: SMARTPRINT15')}</p>
-                </div>
-              )}
-            </div>
+              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center border border-violet-100 shadow-sm transition group-hover:scale-110">
+                <Gift size={20} className="text-violet-600 animate-pulse" />
+              </div>
+              <span className="text-xs font-bold text-violet-700 tracking-wide uppercase">
+                {t('Tap to scratch')}
+              </span>
+            </button>
           </div>
+        )}
+
+        {/* Payment Box Section */}
+        {orders.length > 0 && orders.some(o => o.status === 'PENDING') && (
+          (() => {
+            const latestPendingOrder = orders.find(o => o.status === 'PENDING')
+            const upiId = latestPendingOrder?.shopkeeper?.upiId
+            const paymentQrUrl = latestPendingOrder?.shopkeeper?.paymentQrUrl
+            const upiLink = upiId ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(latestPendingOrder.shopkeeper?.shopName || 'Shopkeeper')}&am=${latestPendingOrder.totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('PrintSmart Order ' + latestPendingOrder.orderId)}` : '#'
+
+            return (
+              <div className="mb-8 p-5 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl space-y-4 shadow-sm animate-fade-in flex flex-col">
+                <div className="space-y-1 text-center">
+                  <h3 className="font-bold text-slate-800 text-sm">{t('Payment Options for Order')} <span className="text-indigo-600 font-mono">({latestPendingOrder.orderId})</span></h3>
+                  <p className="text-xs text-gray-500 font-semibold">
+                    {t('If you are paying online then click on this upi link or paying offline then ignore')}
+                  </p>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-4 items-end">
+                  {/* Pay Online column with optional QR Code directly above button */}
+                  <div className="flex-1 flex flex-col items-center gap-3 w-full">
+                    {paymentQrUrl && (
+                      <div className="flex flex-col items-center justify-center p-2 bg-white rounded-xl border border-indigo-100 max-w-[150px] shadow-sm">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{t('Scan to Pay')}</p>
+                        <div className="w-28 h-28 relative flex items-center justify-center bg-slate-50 border border-slate-100 rounded-lg overflow-hidden">
+                          <img
+                            src={paymentQrUrl.startsWith('http') ? paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${paymentQrUrl}`}
+                            alt="Shop Payment QR"
+                            className="max-w-full max-h-full object-contain cursor-pointer transition hover:scale-105"
+                            onClick={() => window.open(paymentQrUrl.startsWith('http') ? paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${paymentQrUrl}`, '_blank')}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {upiId ? (
+                      <a
+                        href={upiLink}
+                        className="w-full inline-flex items-center justify-center gap-2 text-center py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm"
+                      >
+                        💳 {t('Pay Online (UPI)')}
+                      </a>
+                    ) : (
+                      <button
+                        disabled
+                        className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed"
+                      >
+                        💳 {t('Online Payment Unavailable')}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Pay Offline column */}
+                  <div className="flex-1 w-full">
+                    <button
+                      type="button"
+                      onClick={() => handlePayOffline(latestPendingOrder.id)}
+                      className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 transition shadow-sm h-[48px] flex items-center justify-center"
+                    >
+                      🏪 {t('Pay Offline to Shopkeeper')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })()
         )}
 
         {/* Error/Loading */}
@@ -378,6 +465,10 @@ export default function OrdersPage() {
       </div>
 
       <FeedbackButton />
+      
+      {showRewardModal && (
+        <RewardCardModal onClose={() => setShowRewardModal(false)} />
+      )}
     </div>
   )
 }

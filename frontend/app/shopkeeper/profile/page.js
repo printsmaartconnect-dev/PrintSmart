@@ -33,7 +33,7 @@ import {
   syncLocalStorageFromDb,
 } from '../onboarding/_components/onboardingStorage'
 
-import { Card, Field, PrimaryButton, SecondaryButton } from '../onboarding/_components/ui'
+import { Card, Field, PrimaryButton, SecondaryButton, TextInput } from '../onboarding/_components/ui'
 import { ReadOnlyBox, ReadOnlyIconBox, ReadOnlyTextarea } from './_components/ReadOnlyField'
 
 const DEFAULT_PROFILE = {
@@ -48,6 +48,8 @@ const DEFAULT_PROFILE = {
   logoDataUrl: '',
   shopkeeperIdCode: '',
   shopSlug: '',
+  upiId: '',
+  paymentQrUrl: '',
 }
 
 const DEFAULT_CONTACT = {
@@ -113,6 +115,9 @@ export default function ShopkeeperProfileViewPage() {
     qrValue: ''
   })
   const [regenerating, setRegenerating] = useState(false)
+  const [editingUpi, setEditingUpi] = useState(false)
+  const [upiValue, setUpiValue] = useState('')
+  const [savingUpi, setSavingUpi] = useState(false)
 
   useEffect(() => {
     const loggedIn = getLoggedInShopkeeper()
@@ -121,7 +126,42 @@ export default function ShopkeeperProfileViewPage() {
       return
     }
 
-    // Sync database shopkeeper details to local storage
+    const fetchFreshProfile = async () => {
+      const token = localStorage.getItem("authToken")
+      if (!token) return
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/auth/profile`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        })
+        if (response.ok) {
+          const dbShopkeeper = await response.json()
+          localStorage.setItem('loggedInShopkeeper', JSON.stringify(dbShopkeeper))
+          localStorage.setItem('shopkeeper', JSON.stringify(dbShopkeeper))
+          syncLocalStorageFromDb(dbShopkeeper)
+          
+          const p = getProfile()
+          const c = getContact()
+          const s = getSocials()
+
+          setProfileState(p)
+          setUpiValue(p.upiId || '')
+          setContactState({
+            ...c,
+            phoneNumber: c.phoneNumber || dbShopkeeper.phone || '',
+            emailAddress: c.emailAddress || dbShopkeeper.email || '',
+          })
+          setSocialsState(s)
+          setQrCodeUrl(dbShopkeeper.qrCodeUrl || '')
+        }
+      } catch (err) {
+        console.error("Failed to fetch fresh profile from DB:", err)
+      }
+    }
+
+    // Initialize with local storage values first
     syncLocalStorageFromDb(loggedIn)
 
     const p = getProfile()
@@ -129,6 +169,7 @@ export default function ShopkeeperProfileViewPage() {
     const s = getSocials()
 
     setProfileState(p)
+    setUpiValue(p.upiId || '')
     setContactState({
       ...c,
       phoneNumber: c.phoneNumber || loggedIn.phone || '',
@@ -136,6 +177,9 @@ export default function ShopkeeperProfileViewPage() {
     })
     setSocialsState(s)
     setQrCodeUrl(loggedIn.qrCodeUrl || '')
+
+    // Fetch fresh profile details from DB
+    fetchFreshProfile()
 
     // Fetch QR Details from backend
     const fetchQrDetails = async () => {
@@ -263,6 +307,175 @@ export default function ShopkeeperProfileViewPage() {
       alert("Error regenerating QR code.")
     } finally {
       setRegenerating(false)
+    }
+  }
+
+  const handleUpdateUpi = async () => {
+    if (!upiValue.trim()) {
+      alert(t("UPI ID cannot be empty."))
+      return
+    }
+    setSavingUpi(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) return
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          shopName: profile.shopName,
+          ownerName: profile.shopOwnerName,
+          address: contact.shopAddress,
+          category: profile.businessCategory,
+          subCategory: profile.subCategory,
+          languagePref: profile.languagePreference,
+          gstNumber: profile.gstNumber,
+          businessDescription: profile.businessDescription,
+          businessEstablishedYear: profile.businessEstablishedYear,
+          website: contact.website,
+          alternatePhone: contact.alternatePhone,
+          socials,
+          logoUrl: profile.logoDataUrl || null,
+          phone: contact.phoneNumber,
+          upiId: upiValue,
+          paymentQrUrl: profile.paymentQrUrl || null,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+        localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+        syncLocalStorageFromDb(data.shopkeeper)
+        setProfileState(prev => ({ ...prev, upiId: upiValue }))
+        setEditingUpi(false)
+        alert(t("UPI ID updated successfully!"))
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        alert(`${t("Failed to update UPI ID")}: ${errData.message || 'Server error'}`)
+      }
+    } catch (err) {
+      console.error("Error updating UPI ID:", err)
+      alert(t("Error updating UPI ID. Please try again."))
+    } finally {
+      setSavingUpi(false)
+    }
+  }
+
+  const onPickPaymentQr = async (file) => {
+    if (!file) return
+    const token = localStorage.getItem('authToken')
+    if (!token) return
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const uploadResponse = await fetch(`${uploadUrl}/api/files/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      if (uploadResponse.ok) {
+        const uploadData = await uploadResponse.json()
+        const newQrUrl = uploadData.fileUrl || ''
+        
+        const response = await fetch(`${uploadUrl}/api/auth/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            shopName: profile.shopName,
+            ownerName: profile.shopOwnerName,
+            address: contact.shopAddress,
+            category: profile.businessCategory,
+            subCategory: profile.subCategory,
+            languagePref: profile.languagePreference,
+            gstNumber: profile.gstNumber,
+            businessDescription: profile.businessDescription,
+            businessEstablishedYear: profile.businessEstablishedYear,
+            website: contact.website,
+            alternatePhone: contact.alternatePhone,
+            socials,
+            logoUrl: profile.logoDataUrl || null,
+            phone: contact.phoneNumber,
+            upiId: profile.upiId,
+            paymentQrUrl: newQrUrl,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+          localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+          syncLocalStorageFromDb(data.shopkeeper)
+          setProfileState(prev => ({ ...prev, paymentQrUrl: newQrUrl }))
+          alert(t("Payment QR Code updated successfully!"))
+        } else {
+          alert(t("Failed to update profile with new QR URL."))
+        }
+      }
+    } catch (err) {
+      console.error("Error uploading payment QR:", err)
+      alert(t("Error uploading payment QR code."))
+    }
+  }
+
+  const handleRemovePaymentQr = async () => {
+    const token = localStorage.getItem('authToken')
+    if (!token) return
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          shopName: profile.shopName,
+          ownerName: profile.shopOwnerName,
+          address: contact.shopAddress,
+          category: profile.businessCategory,
+          subCategory: profile.subCategory,
+          languagePref: profile.languagePreference,
+          gstNumber: profile.gstNumber,
+          businessDescription: profile.businessDescription,
+          businessEstablishedYear: profile.businessEstablishedYear,
+          website: contact.website,
+          alternatePhone: contact.alternatePhone,
+          socials,
+          logoUrl: profile.logoDataUrl || null,
+          phone: contact.phoneNumber,
+          upiId: profile.upiId,
+          paymentQrUrl: null,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+        localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+        syncLocalStorageFromDb(data.shopkeeper)
+        setProfileState(prev => ({ ...prev, paymentQrUrl: '' }))
+        alert(t("Payment QR Code removed successfully!"))
+      } else {
+        alert(t("Failed to remove payment QR code."))
+      }
+    } catch (err) {
+      console.error("Error removing payment QR:", err)
+      alert(t("Error removing payment QR code."))
     }
   }
 
@@ -427,6 +640,81 @@ export default function ShopkeeperProfileViewPage() {
 
                     <Field label={t('Email Address')} required>
                       <ReadOnlyIconBox icon={Mail} value={contact.emailAddress} placeholder="—" />
+                    </Field>
+
+                    <Field label={t('UPI ID')} required>
+                      {!editingUpi ? (
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1">
+                            <ReadOnlyBox value={profile.upiId || '—'} />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUpiValue(profile.upiId || '')
+                              setEditingUpi(true)
+                            }}
+                            className="px-3 py-2 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-xl transition"
+                          >
+                            {t('Edit')}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <TextInput
+                            value={upiValue}
+                            onChange={(e) => setUpiValue(e.target.value)}
+                            placeholder="e.g. shopname@upi"
+                          />
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              type="button"
+                              onClick={handleUpdateUpi}
+                              disabled={savingUpi}
+                              className="flex-1 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-xl transition disabled:opacity-50"
+                            >
+                              {savingUpi ? t('Saving...') : t('Save')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingUpi(false)}
+                              disabled={savingUpi}
+                              className="flex-1 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition disabled:opacity-50"
+                            >
+                              {t('Cancel')}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </Field>
+
+                    <Field label={t('Payment QR Code (Optional)')}>
+                      <div className="flex flex-col gap-2">
+                        {profile.paymentQrUrl ? (
+                          <div className="relative w-24 h-24 border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
+                            <img
+                              src={profile.paymentQrUrl.startsWith('http') ? profile.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${profile.paymentQrUrl}`}
+                              alt="Payment QR"
+                              className="max-h-full max-w-full object-contain"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleRemovePaymentQr}
+                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-[10px] w-5 h-5 flex items-center justify-center hover:bg-red-700 transition"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-500 italic">{t('No payment QR uploaded.')}</span>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => onPickPaymentQr(e.target.files?.[0])}
+                          className="block w-full text-xs text-slate-550 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 file:cursor-pointer hover:file:bg-violet-100"
+                        />
+                      </div>
                     </Field>
 
                     <Field label={t('Website (Optional)')}>

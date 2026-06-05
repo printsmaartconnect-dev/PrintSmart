@@ -9,6 +9,7 @@ router.get("/user/:userId", orderController.getCustomerOrders);
 router.get("/:id", orderController.getOrderById);
 router.delete("/:id", orderController.deleteOrder);
 router.get("/:id/invoice", orderController.downloadInvoice);
+router.put("/:id/customer-status", orderController.updateOrderStatusByCustomer);
 
 // Shopkeeper routes (Protected)
 router.get("/shopkeeper/all", authMiddleware, orderController.getShopkeeperOrders);
