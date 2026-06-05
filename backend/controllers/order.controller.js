@@ -309,6 +309,8 @@ exports.getCustomerOrders = async (req, res) => {
             shopName: true,
             address: true,
             phone: true,
+            upiId: true,
+            paymentQrUrl: true,
           },
         },
       },
@@ -528,6 +530,52 @@ exports.downloadInvoice = async (req, res) => {
   } catch (err) {
     console.error("Download invoice error:", err);
     res.status(500).json({ message: "Server error downloading invoice" });
+  }
+};
+
+exports.updateOrderStatusByCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || status !== "ACCEPTED") {
+      return res.status(400).json({ message: "Invalid status transition" });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { queue: true },
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: { status: "ACCEPTED" },
+      include: {
+        printConfiguration: true,
+        orderFiles: true,
+        queue: true,
+        invoice: true,
+      },
+    });
+
+    if (order.queue) {
+      await prisma.queue.update({
+        where: { orderId: id },
+        data: { status: "WAITING" },
+      });
+    }
+
+    res.json({
+      message: "Order status updated by customer to ACCEPTED",
+      order: formatOrderResponse(updatedOrder),
+    });
+  } catch (err) {
+    console.error("Update customer order status error:", err);
+    res.status(500).json({ message: "Server error updating status" });
   }
 };
 

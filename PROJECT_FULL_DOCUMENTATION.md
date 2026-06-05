@@ -809,9 +809,11 @@ export const mockStats = {
 - Shop Address
 - Phone Number
 - GST Number
+- **UPI ID** (Mandatory field for receiving payment transfers)
+- **Payment QR Code** (Optional image upload field for display on customer side)
 - Bank Account Details (optional)
 
-**Save:** Stores to localStorage and can send to backend
+**Save:** Stores to localStorage and syncs with backend database
 
 ---
 
@@ -1014,16 +1016,16 @@ export function getOnboardingProgress() { /* ... */ }
 ---
 
 #### `customer/upload/page.js`
-**Purpose:** Drag-and-drop file upload using React Dropzone.
+**Purpose:** Drag-and-drop file upload using React Dropzone, wrapped in a `<Suspense>` boundary to allow clean build-time static generation.
 
 **Features:**
-- Multi-file drag/drop zone supporting PDF, Word doc/docx, and JPG/JPEG/PNG images
-- Dynamic thumbnail generation:
-  - Images use browser Canvas resize
-  - PDF documents use a CDN-loaded `pdf.js` worker script to render the first page on a canvas context
-- Custom renaming field for each uploaded file (retaining file extensions)
-- Local file size formatting utility
-- Integrates with POST `/api/files/upload` to store files and retrieve URLs
+- Multi-file drag/drop zone supporting PDF, Word doc/docx, and JPG/JPEG/PNG images.
+- Dynamic thumbnail generation (Images use Canvas resize, PDFs use `pdf.js` worker rendering).
+- Custom renaming field for each uploaded file (retaining file extensions).
+- **Full-Screen Loading/Buffering State**: Triggers a premium glassmorphic full-screen backdrop overlay (`backdrop-blur-md bg-slate-900/60`) during file upload loops or "Talk to Shopkeeper" requests.
+- **Dynamic Text Cycling**: Cycles through translation-friendly status messages every 2.5 seconds (e.g. `"Uploading document (1 of 3)..."`, `"Processing print configuration..."`, `"Preparing preview..."`).
+- **Interactive Disabling**: Blurs the entire background page (`filter blur-md`) and blocks pointer events (`pointer-events-none select-none`) while active.
+- Integrates with POST `/api/files/upload` to store files and retrieve URLs.
 
 **Key Code:**
 ```javascript
@@ -1095,13 +1097,15 @@ export default function UploadPage() {
 ---
 
 #### `customer/orders/page.js`
-**Purpose:** Track active order statuses and manage past history.
+**Purpose:** Track active order statuses, manage past history, pay orders, and scratch reward coupons. Wrapped in a `<Suspense>` boundary to prevent build-time bailout warnings.
 
 **Features:**
-- Real-time status cards (Pending, Accepted, Printing, Ready, Completed, Cancelled)
-- Inline button to download invoices (calls `/api/orders/:id/invoice`)
-- Delete order confirmation modal (allowed only if status is `PENDING`)
-- Ascending/descending date sorting filters and status badges
+- Real-time status cards (Pending, Accepted, Printing, Ready, Completed, Cancelled).
+- **UPI ID & Payment QR Code Box**: Centered above the online/offline buttons, displays the shopkeeper's custom payment QR code image if uploaded. Clicking "Pay Online (UPI)" redirects directly to the shopkeeper's registered UPI ID link. Clicking "Pay Offline to Shopkeeper" transitions the order status to `ACCEPTED` directly in the database.
+- **Premium Scratch & Win Card Section**: Positioned directly above the payment details. Invokes `RewardCardModal` showing a Vercel-style interactive silver scratch coupon.
+- Inline button to download invoices (calls `/api/orders/:id/invoice`).
+- Delete order confirmation modal (allowed only if status is `PENDING`).
+- Ascending/descending date sorting filters and status badges.
 
 ---
 
@@ -2923,6 +2927,14 @@ All notable changes to PrintSmart are documented in this file.
 - Mock data only
 - localStorage limited to browser
 
+## [3.1.0] - 2026-06-05
+
+### Added
+- **Full-Screen Upload Loading State**: Premium glassmorphic backdrop loader with backdrop-blur and pointer lock on `/customer/upload`. Status texts rotate dynamically every 2.5 seconds.
+- **UPI & Payment QR Code System**: Mandatory UPI ID field and optional QR image uploads in shopkeeper onboarding and profile edit options. Dynamic QR image rendering on customer orders page.
+- **Google Pay Scratch & Win Cards**: Customer side scratch coupon modals featuring silver texture canvas scratching, touch-coordinates sparkle effects, scale feedback, and 30% scratched auto-reveal.
+- **Suspense Boundaries**: Wrapped customer upload and order tracking pages in React `<Suspense>` to prevent Next.js static build bailout warnings.
+
 ## [3.0.0] - 2026-05-31
 
 ### Added
@@ -3726,10 +3738,10 @@ Manages the ordering workflow.
  
  ## Document Version
  
- - **Version:** 2.8.0
- - **Last Updated:** May 30, 2026
+ - **Version:** 3.1.0
+ - **Last Updated:** June 05, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing. Updated with database connection workarounds for Windows dual-stack environments and startup schema synchronization practices. Enhanced with multi-file sequential ID batch uploads, premium itemized invoices, global shopkeeper dashboard translations, and 2-PC concurrent session rolling logout limits).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, and interactive Google Pay style Scratch & Win loyalty reward coupon modal).
  
  ---
  

@@ -227,10 +227,42 @@ export default function ProfileSetupPage() {
           })
           if (uploadResponse.ok) {
             const uploadData = await uploadResponse.json()
-            setForm((prev) => ({ ...prev, logoUrl: uploadData.url || prev.logoUrl }))
+            setForm((prev) => ({ ...prev, logoUrl: uploadData.fileUrl || prev.logoUrl }))
           }
         } catch (uploadErr) {
           console.warn('Logo upload failed:', uploadErr)
+        }
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const onPickPaymentQr = async (file) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const result = typeof reader.result === 'string' ? reader.result : ''
+      setForm((prev) => ({ ...prev, paymentQrUrl: result }))
+
+      const token = localStorage.getItem('authToken')
+      if (token) {
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+          const uploadResponse = await fetch(`${uploadUrl}/api/files/upload`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          })
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json()
+            setForm((prev) => ({ ...prev, paymentQrUrl: uploadData.fileUrl || prev.paymentQrUrl }))
+          }
+        } catch (uploadErr) {
+          console.warn('Payment QR upload failed:', uploadErr)
         }
       }
     }
@@ -277,6 +309,8 @@ export default function ProfileSetupPage() {
               pricing: null,
               logoUrl: form.logoUrl || form.logoDataUrl || null,
               phone: contact.phoneNumber,
+              upiId: form.upiId,
+              paymentQrUrl: form.paymentQrUrl || null,
             }),
           })
           if (response.ok) {
@@ -593,6 +627,41 @@ export default function ProfileSetupPage() {
                   onChange={onContactChange('emailAddress')}
                   placeholder="you@domain.com"
                 />
+              </Field>
+
+              <Field label="UPI ID (for payments)" required>
+                <TextInput
+                  value={form.upiId || ''}
+                  onChange={onFormChange('upiId')}
+                  placeholder="e.g. shopname@upi"
+                />
+              </Field>
+
+              <Field label="Payment QR Code (Optional)">
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onPickPaymentQr(e.target.files?.[0])}
+                    className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 file:cursor-pointer hover:file:bg-violet-100"
+                  />
+                  {form.paymentQrUrl && (
+                    <div className="mt-2 relative w-24 h-24 border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
+                      <img
+                        src={form.paymentQrUrl.startsWith('http') || form.paymentQrUrl.startsWith('data:') ? form.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${form.paymentQrUrl}`}
+                        alt="Payment QR Preview"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, paymentQrUrl: '' }))}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-[10px] w-5 h-5 flex items-center justify-center hover:bg-red-700 transition"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
               </Field>
 
               <Field label="Website (Optional)">
