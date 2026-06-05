@@ -833,6 +833,7 @@ export default function AllOrdersPage() {
   const [activeChannel, setActiveChannel] = useState("Total")
   const [activeTimeRange, setActiveTimeRange] = useState("Last 30 days")
   const [revenueFilter, setRevenueFilter] = useState("Month")
+  const [rewardStats, setRewardStats] = useState(null)
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -868,6 +869,29 @@ export default function AllOrdersPage() {
     };
 
     fetchOrders();
+  }, []);
+
+  useEffect(() => {
+    const fetchRewardStats = async () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+
+      try {
+        const response = await fetch("http://localhost:5000/api/rewards/shopkeeper/stats", {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setRewardStats(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch shopkeeper reward stats:", err);
+      }
+    };
+
+    fetchRewardStats();
   }, []);
 
   // Compute filtered orders list based on both channel filter and time range selection
@@ -1176,45 +1200,78 @@ export default function AllOrdersPage() {
 
             <div className="xl:col-span-2">
               <CardShell
-                title="Scratch Card History"
-                headerRight={
-                  <button
-                    type="button"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm"
-                    aria-label="Filter scratch cards"
-                  >
-                    <Filter size={18} />
-                  </button>
-                }
+                title="Scratch Card Engagement"
+                subtitle="Coupons & Astro/Fact Cards Activity"
               >
                 <div className="space-y-4">
-                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-                    {scratchCardHistory.map((item, idx) => (
-                      <div key={idx} className="flex flex-col gap-1.5 rounded-xl bg-slate-50 p-3 border border-slate-100/80">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-slate-800">{item.customer}</span>
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide border ${
-                            item.status === 'Claimed'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : item.status === 'Active'
-                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                          }`}>
-                            {t(item.status)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded border border-violet-100">{t(item.reward)} ({item.code})</span>
-                          <span className="text-slate-400 font-medium">{item.timestamp}</span>
-                        </div>
+                  {/* Grid layout for numerical statistics */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 shadow-sm">
+                      <div className="text-xs font-bold text-slate-500">{t('Generated Today')}</div>
+                      <div className="mt-1 text-2xl font-black text-slate-800">
+                        {rewardStats ? rewardStats.rewardsGeneratedToday : '0'}
                       </div>
-                    ))}
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 shadow-sm">
+                      <div className="text-xs font-bold text-slate-500">{t('Engagement Level')}</div>
+                      <div className="mt-1">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-wide border ${
+                          rewardStats?.customerEngagementLevel === 'High'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : rewardStats?.customerEngagementLevel === 'Medium'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                        }`}>
+                          {rewardStats ? t(rewardStats.customerEngagementLevel) : '...'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 shadow-sm">
+                      <div className="text-xs font-bold text-slate-500">{t('Free Prints Claimed')}</div>
+                      <div className="mt-1 text-2xl font-black text-emerald-600">
+                        {rewardStats ? rewardStats.freePrintRewardsUsed : '0'}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 shadow-sm">
+                      <div className="text-xs font-bold text-slate-500">{t('50% Off Claimed')}</div>
+                      <div className="mt-1 text-2xl font-black text-blue-600">
+                        {rewardStats ? rewardStats.discountRewardsUsed : '0'}
+                      </div>
+                    </div>
                   </div>
 
+                  {/* Scratched Ratio Progress Bar */}
+                  {rewardStats && (
+                    <div className="space-y-1.5 rounded-2xl border border-violet-100 bg-violet-50/20 p-4 shadow-sm">
+                      <div className="flex items-center justify-between text-xs font-black text-slate-700">
+                        <span>{t('Overall Scratch Rate')}</span>
+                        <span>
+                          {rewardStats.totalGenerated > 0 
+                            ? Math.round((rewardStats.totalScratched / rewardStats.totalGenerated) * 100)
+                            : 0}%
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-slate-200/60 overflow-hidden">
+                        <div 
+                          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 transition-all duration-500" 
+                          style={{ 
+                            width: `${rewardStats.totalGenerated > 0 
+                              ? Math.round((rewardStats.totalScratched / rewardStats.totalGenerated) * 100) 
+                              : 0}%` 
+                          }} 
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                        <span>{rewardStats.totalScratched} {t('Scratched')}</span>
+                        <span>{rewardStats.totalGenerated} {t('Total Cards')}</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-sm font-bold text-slate-900">{t('Rewards Summary')}</div>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      {t('Customers love discount incentives! Most coupons are claimed directly upon order completion.')}
+                    <div className="text-sm font-bold text-slate-900">{t('Coupons & Engagement')}</div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {t('Monetary rewards (Free print, 50% discount) apply instantly to orders on completion. Non-monetary rewards (Astro & Fun Facts) boost engagement and platform repeat usage.')}
                     </p>
                   </div>
                 </div>

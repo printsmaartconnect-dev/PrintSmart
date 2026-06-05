@@ -222,6 +222,7 @@ PrintSmart/
 │   │   ├── file.controller.js        # Multer-to-S3 file uploading bridge
 │   │   ├── order.controller.js       # Placement, queues, and invoices
 │   │   ├── queue.controller.js       # Queue lists & positions editor
+│   │   ├── reward.controller.js      # Random rewards & scratch persistence logic [NEW]
 │   │   ├── statistics.controller.js  # Shop analytics compiling engine
 │   │   └── user.controller.js        # Client profile onboarding sync
 │   ├── middleware/                   # Request filters
@@ -236,6 +237,7 @@ PrintSmart/
 │   │   ├── file.routes.js            # Multer upload route
 │   │   ├── order.routes.js           # Client & Shopkeeper order management
 │   │   ├── queue.routes.js           # Position checking endpoints
+│   │   ├── reward.routes.js          # Customer reward & shopkeeper stats routes [NEW]
 │   │   ├── shopkeeper.routes.js      # Public shop specs & QR tools
 │   │   ├── statistics.routes.js      # Earnings & counts logs endpoints
 │   │   └── user.routes.js            # Core customer profiles creation
@@ -245,7 +247,7 @@ PrintSmart/
 │   │   ├── qr.service.js             # Basic UUID QR codes generator
 │   │   ├── qrcode.service.js         # Base64 Data URL & Slug QR code builder
 │   │   ├── seed.service.js           # Automatic default shopkeeper registers
-│   │   ├── session.service.js        # In-memory concurrent session tracker and 2-PC limit controller [NEW]
+│   │   ├── session.service.js        # Database-backed concurrent session tracker and 2-PC limit controller [NEW]
 │   │   └── storage.service.js        # AWS S3 file upload with local folder fallback
 │   ├── uploads/                      # Local file fallback directory (git-ignored)
 │   │   ├── invoices/                 # Generated PDF invoices
@@ -3731,6 +3733,16 @@ Used by shopkeepers within the AI Marketing Studio to generate content suggestio
 | `/api/ai/regenerate` | `POST` | JWT token | `{ title, businessName, description, language, audience, posterType, posterSize, themeStyle, colorPreference, cta }` | `{ id, generatedImageUrl, optimizedPrompt }` |
 | `/api/ai/history` | `GET` | JWT token | None | `AIAsset[]` |
 
+### 10. Scratch Card Reward System
+Used to manage the order-specific customer scratch loyalty cards and aggregate metrics.
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/rewards/order/:orderId` | `GET` | None | None | `{ id, orderId, shopId, rewardType, rewardCategory, scratched, applied, rewardMessage, customerSession }` (Fetches or initializes a card for a completed order) |
+| `/api/rewards/:id/scratch` | `POST` | None | None | `{ id, orderId, shopId, rewardType, rewardCategory, scratched: true, applied: true/false, ... }` (Marks card as scratched & applies coupon) |
+| `/api/rewards/shopkeeper/stats` | `GET` | JWT token | None | `{ rewardsGeneratedToday, freePrintRewardsUsed, discountRewardsUsed, customerEngagementLevel, totalScratched, totalGenerated }` |
+| `/api/rewards/admin/stats` | `GET` | None | None | `{ totalScratches, monetaryRewardsUsed, nonMonetaryRewardsViewed, scratchRate, totalCardsGenerated }` |
+
 ---
 
 ## Frontend-Backend Integration Walkthrough
@@ -3756,7 +3768,7 @@ Used by shopkeepers within the AI Marketing Studio to generate content suggestio
     - Shopkeepers log in or register via `/api/auth/login`, `/api/auth/register`, or Google OAuth (`/api/auth/google`), receiving a JWT.
     - **Concurrent Login Limit (2 PCs Max)**: The backend strictly enforces a session limit of 2 active devices per shopkeeper. Logging in on a 3rd device automatically invalidates the oldest session token (rolling logout) without locking the user out entirely.
     - Subsequent requests from the invalidated device receive a `401 Unauthorized` error with a clear error payload: `"Session limit exceeded. You have been logged out because you logged in on another device."`
-    - The in-memory session manager (`session.service.js`) handles server restarts seamlessly, registering existing tokens on-the-fly on first request to prevent mass logouts.
+    - The database-backed session manager (`session.service.js`) handles server restarts seamlessly, persisting active logins in the database and registering existing tokens on-the-fly on first request to prevent mass logouts.
     - The login page does NOT automatically bypass/redirect to the dashboard if a token exists. This allows multiple shopkeepers to log in or switch accounts on the same machine.
     - Shopkeepers can clear their session and log out using the **Logout** button in the dashboard header, which removes `authToken` and user state from `localStorage` and routes back to `/shopkeeper/login`.
  2. **Global Translations & Accessibility**:
@@ -3779,15 +3791,21 @@ Used by shopkeepers within the AI Marketing Studio to generate content suggestio
     - **Preview & Loading**: The live dynamic preview is removed in favor of a real AI-generated design showcase under a *"✨ Generated by AI"* badge. A premium step-by-step progress loader keeps the user engaged during design computation.
     - **Print Queue Integration**: Clicking "Print Now" converts the generated asset details and pushes the print job directly into the active order queues (`POST /api/orders/create`), updating shop stats and billing sheets seamlessly.
     - **Archive**: An archive shelf renders past designs from the database (`GET /api/ai/history`), permitting instant loading and printing of previous assets.
- 
+ 8. **Scratch Card Loyalty Program & Gemini Key Overrides**:
+    - **Google Gemini v3.5-Flash**: The AI Poster Studio runs on the updated `gemini-3.5-flash` model, resolving 404 retired model exceptions.
+    - **Customer-Supplied API Keys**: Shopkeepers can input their own Gemini API keys in the header panel. The key is saved locally in the browser context and forwarded in headers as `X-Gemini-API-Key`. The backend reads this header first, executing model queries against the user's personal API key quota, before falling back to server environment variables.
+    - **Order-Triggered Scratch Cards**: When a shopkeeper sets an order status to `COMPLETED`, a background trigger automatically calls `rewardController.generateReward` to initialize a single unique card tied to the order ID.
+    - **Customer Scratch Experience**: On the completed orders list view, a pulsing purple "Scratch Card" button opens a realistic scratch canvas modal. Customers scratch away a silver metallic layer. Once >30% transparent, it fires confetti and registers the card as claimed/scratched at `POST /api/rewards/:id/scratch`, showing monetary application or educational astrology/fact texts instantly.
+    - **Real-Time Reward Metrics**: The Shopkeeper Statistics panel displays dynamic grids summarizing active scratch rate progress bars, total card distributions, and customer engagement tiers.
+
  ---
  
  ## Document Version
  
- - **Version:** 3.1.0
- - **Last Updated:** June 05, 2026
+ - **Version:** 3.2.0
+ - **Last Updated:** June 06, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, and interactive Google Pay style Scratch & Win loyalty reward coupon modal).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, and Gemini 3.5 custom API key overrides).
  
  ---
  

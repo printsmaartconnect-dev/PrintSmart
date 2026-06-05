@@ -144,6 +144,7 @@ model Order {
   orderFiles          OrderFile[]
   queue                Queue?
   invoice              Invoice?
+  rewardLog            RewardLog?
 
   price                Float    @default(0)
   subtotal             Float    @default(0)
@@ -309,6 +310,34 @@ model AIUsage {
   featureType     String
   generationCount Int         @default(1)
   createdAt       DateTime    @default(now())
+
+  @@index([shopkeeperId])
+}
+
+model RewardLog {
+  id              String      @id @default(uuid())
+  orderId         String      @unique
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shopId          String
+  rewardType      String      // 'FREE_PRINT' | 'DISCOUNT_50' | 'ASTROLOGY' | 'DID_YOU_KNOW'
+  rewardCategory  String      // 'MONETARY' | 'NON_MONETARY'
+  scratched       Boolean     @default(false)
+  applied         Boolean     @default(false)
+  rewardMessage   String?     @db.Text
+  customerSession String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([shopId])
+  @@index([rewardType])
+}
+
+model UserSession {
+  id           String   @id @default(uuid())
+  shopkeeperId String
+  token        String   @unique @db.Text
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
 
   @@index([shopkeeperId])
 }

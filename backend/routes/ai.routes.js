@@ -7,6 +7,7 @@ const authMiddleware = require("../middleware/auth.middleware");
 router.post("/suggest-prompt", authMiddleware, aiController.suggestPrompt);
 router.post("/generate", authMiddleware, aiController.generatePoster);
 router.post("/regenerate", authMiddleware, aiController.regeneratePoster);
+router.post("/chat-generate", authMiddleware, aiController.chatGenerate);
 router.get("/history", authMiddleware, aiController.getHistory);
 
 module.exports = router;

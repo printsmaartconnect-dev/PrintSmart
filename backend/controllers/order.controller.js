@@ -304,6 +304,7 @@ exports.getCustomerOrders = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        rewardLog: true,
         shopkeeper: {
           select: {
             shopName: true,
@@ -408,6 +409,16 @@ exports.updateOrderStatus = async (req, res) => {
         where: { orderId: id },
         data: { status: queueStatus },
       });
+    }
+
+    // Generate reward card automatically on order completion
+    if (statusEnum === "COMPLETED") {
+      try {
+        const rewardController = require("./reward.controller");
+        await rewardController.generateReward(id, order.shopkeeperId);
+      } catch (err) {
+        console.error("Failed to generate reward automatically on order completion:", err);
+      }
     }
 
     res.json({

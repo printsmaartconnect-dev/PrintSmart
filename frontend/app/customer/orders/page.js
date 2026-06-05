@@ -26,9 +26,8 @@ export default function OrdersPage() {
   const [deleting, setDeleting] = useState(false)
 
   // Scratch Coupon State
-  const [scratchRevealed, setScratchRevealed] = useState(false)
-  const canvasRef = useCanvasRef(scratchRevealed, setScratchRevealed)
   const [showRewardModal, setShowRewardModal] = useState(false)
+  const [selectedOrderId, setSelectedOrderId] = useState(null)
 
   const fetchOrders = async () => {
     setLoading(true)
@@ -160,6 +159,9 @@ export default function OrdersPage() {
     })
   }
 
+  const completedOrders = orders.filter(o => o.status === 'COMPLETED')
+  const latestCompletedOrder = completedOrders.find(o => !o.rewardLog?.scratched) || completedOrders[0]
+
   return (
     <div className="wave-bg min-h-screen flex flex-col items-center justify-start px-4 sm:px-6 lg:px-10 py-8 lg:py-10">
       {/* Step Header */}
@@ -197,25 +199,30 @@ export default function OrdersPage() {
         </div>
 
         {/* Premium Scratch & Win Section */}
-        {orders.length > 0 && (
+        {latestCompletedOrder && (
           <div className="mb-8 p-5 bg-white border border-violet-100 rounded-2xl shadow-[0_4px_20px_rgba(139,92,246,0.05)]">
             <h3 className="font-bold text-slate-800 text-sm mb-1 flex items-center gap-1.5">
               <Gift size={16} className="text-violet-600" />
               {t('Scratch & Win')}
             </h3>
             <p className="text-xs text-slate-500 font-medium mb-4">
-              {t('Scratch the card and win exciting rewards!')}
+              {latestCompletedOrder.rewardLog?.scratched 
+                ? t('You have scratched the card for order ') + latestCompletedOrder.orderId
+                : t('You have an unscratched reward card from your completed print order!')}
             </p>
             <button
               type="button"
-              onClick={() => setShowRewardModal(true)}
+              onClick={() => {
+                setSelectedOrderId(latestCompletedOrder.id)
+                setShowRewardModal(true)
+              }}
               className="w-full h-32 rounded-xl border-2 border-violet-300 border-dashed bg-violet-50/50 hover:bg-violet-50 hover:border-violet-400 transition flex flex-col items-center justify-center gap-2 group cursor-pointer"
             >
               <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center border border-violet-100 shadow-sm transition group-hover:scale-110">
                 <Gift size={20} className="text-violet-600 animate-pulse" />
               </div>
               <span className="text-xs font-bold text-violet-700 tracking-wide uppercase">
-                {t('Tap to scratch')}
+                {latestCompletedOrder.rewardLog?.scratched ? t('View Reward') : t('Tap to scratch')}
               </span>
             </button>
           </div>
@@ -378,6 +385,24 @@ export default function OrdersPage() {
                   </div>
                   
                   <div className="flex gap-2">
+                    {/* Scratch Card / Claim Reward (Completed orders only) */}
+                    {order.status === 'COMPLETED' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedOrderId(order.id)
+                          setShowRewardModal(true)
+                        }}
+                        className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                          order.rewardLog?.scratched 
+                            ? 'text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100'
+                            : 'text-violet-700 bg-violet-50 border border-violet-150 hover:bg-violet-100 animate-pulse-slow'
+                        }`}
+                      >
+                        <Gift size={14} className={order.rewardLog?.scratched ? 'text-slate-500' : 'text-violet-600 animate-bounce-slow'} />
+                        {order.rewardLog?.scratched ? t('View Reward') : t('Scratch Card')}
+                      </button>
+                    )}
                     {/* View Invoice */}
                     {order.invoice && (
                       <button
@@ -467,7 +492,16 @@ export default function OrdersPage() {
       <FeedbackButton />
       
       {showRewardModal && (
-        <RewardCardModal onClose={() => setShowRewardModal(false)} />
+        <RewardCardModal 
+          orderId={selectedOrderId} 
+          onClose={() => {
+            setShowRewardModal(false)
+            setSelectedOrderId(null)
+          }}
+          onRewardApplied={() => {
+            fetchOrders()
+          }}
+        />
       )}
     </div>
   )

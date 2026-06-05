@@ -25,7 +25,13 @@ import {
   X,
   FileText,
   Sliders,
-  Settings
+  Settings,
+  Upload,
+  Minus,
+  Plus,
+  Trash2,
+  ZoomIn,
+  Maximize2
 } from 'lucide-react'
 
 // Import Hero and Footer banners statically from the root of frontend
@@ -33,6 +39,16 @@ import TopHeroImage from '../../../Top-Of-Ai-Page.jpg'
 import BottomImage from '../../../bottom-of-page.jpeg'
 
 const PAPER_SIZES = ['A4', 'A3', 'Banner', 'Square Post']
+
+const SWATCHES = [
+  { name: 'Royal Gold', gradient: 'from-amber-500 via-yellow-400 to-amber-600', border: 'border-yellow-300' },
+  { name: 'Sunset Glow', gradient: 'from-orange-500 to-rose-500', border: 'border-orange-300' },
+  { name: 'Ocean Breeze', gradient: 'from-cyan-500 to-blue-600', border: 'border-cyan-300' },
+  { name: 'Midnight Purple', gradient: 'from-indigo-600 to-purple-800', border: 'border-indigo-400' },
+  { name: 'Emerald Luxe', gradient: 'from-emerald-600 to-teal-800', border: 'border-emerald-400' }
+]
+
+const bgCategories = ['All', 'Festive', 'Corporate', 'Minimalist', 'Creative']
 
 export default function PrintSmartAiPage() {
   const { t } = useTranslation()
@@ -72,6 +88,48 @@ export default function PrintSmartAiPage() {
   // History state
   const [history, setHistory] = useState([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
+  const [creationMethod, setCreationMethod] = useState('manual') // 'manual' | 'chat'
+  const [creationType, setCreationType] = useState('Poster')
+  const [targetIntent, setTargetIntent] = useState('Sale / Offer')
+  const [posterData, setPosterData] = useState({
+    headline: '',
+    subheadline: '',
+    description: '',
+    offerText: '',
+    cta: '',
+    theme: ''
+  })
+  const [selectedCategory, setSelectedCategory] = useState('All')
+  const [selectedBgSwatch, setSelectedBgSwatch] = useState(0)
+  const [uploadedRefFile, setUploadedRefFile] = useState(null)
+  const [bgRemovedFile, setBgRemovedFile] = useState(null)
+  
+  const [promptText, setPromptText] = useState('')
+  const [chatFiles, setChatFiles] = useState([])
+  const [generatedConfig, setGeneratedConfig] = useState(null)
+  const [promptHistory, setPromptHistory] = useState([])
+  const [errorState, setErrorState] = useState(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [canvasScale, setCanvasScale] = useState(1)
+  
+  const [printType, setPrintType] = useState('COLOR')
+  const [copies, setCopies] = useState(1)
+  const [paperSize, setPaperSize] = useState('A4')
+  const [sides, setSides] = useState('SINGLE')
+  const [orientation, setOrientation] = useState('PORTRAIT')
+  const [quality, setQuality] = useState('NORMAL')
+
+  const [geminiApiKey, setGeminiApiKey] = useState('')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedKey = localStorage.getItem('gemini_api_key') || ''
+      setGeminiApiKey(savedKey)
+    }
+  }, [])
+
+  const activeSwatchConfig = SWATCHES[selectedBgSwatch] || SWATCHES[0]
 
   const loadingTexts = [
     "Analyzing business context...",
@@ -134,6 +192,171 @@ export default function PrintSmartAiPage() {
     }
   }
 
+  const handleZoomIn = () => setCanvasScale(prev => Math.min(prev + 0.1, 2))
+  const handleZoomOut = () => setCanvasScale(prev => Math.max(prev - 0.1, 0.5))
+  const handleFit = () => setCanvasScale(1)
+
+  const processUploadedFile = (e, callback) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('File is too large! Max 10MB allowed.', 'error')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      callback(event.target.result)
+      addToast('File uploaded successfully!', 'success')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleInputChange = (field, value, maxLength) => {
+    const truncatedValue = maxLength ? value.substring(0, maxLength) : value
+    setPosterData(prev => ({
+      ...prev,
+      [field]: truncatedValue
+    }))
+  }
+
+  const handleCancelAction = () => {
+    setPromptText('')
+    setChatFiles([])
+    addToast('Inputs cleared.', 'info')
+  }
+
+  const handleChatGenerate = async (e) => {
+    if (e) e.preventDefault()
+    if (!promptText.trim()) return
+
+    setIsGenerating(true)
+    setLoadingStep(0)
+    setGeneratedImageUrl('')
+    setErrorState(null)
+    addToast('AI auto-configuring parameters...', 'info')
+
+    const stepTimer = setInterval(() => {
+      setLoadingStep(prev => (prev < loadingTexts.length - 1 ? prev + 1 : prev))
+    }, 3000)
+
+    try {
+      const token = localStorage.getItem('authToken')
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/ai/chat-generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          ...(geminiApiKey ? { 'X-Gemini-API-Key': geminiApiKey } : {})
+        },
+        body: JSON.stringify({ prompt: promptText, currentConfig: formData })
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.error ? `${errData.message} (${errData.error})` : (errData.message || 'AI Chat Generation failed'))
+      }
+
+      const result = await response.json()
+      
+      setGeneratedConfig(result.config)
+      setGeneratedImageUrl(result.generatedImageUrl)
+      setGeneratedAssetId(result.id)
+      
+      setPosterData({
+        headline: result.config.headline || '',
+        subheadline: result.config.subheadline || '',
+        description: result.config.description || '',
+        offerText: result.config.offerText || '',
+        cta: result.config.cta || '',
+        theme: result.config.theme || ''
+      })
+      
+      const historyItem = {
+        id: result.id || Date.now().toString(),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: promptText,
+        result: {
+          headline: result.config.headline || '',
+          subheadline: result.config.subheadline || '',
+          offerText: result.config.offerText || '',
+          description: result.config.description || '',
+          cta: result.config.cta || '',
+          theme: result.config.theme || '',
+          swatchIdx: 0,
+          swatchName: 'Royal Gold'
+        }
+      }
+      setPromptHistory(prev => [historyItem, ...prev])
+      addToast('Poster successfully configured and generated by AI!', 'success')
+      fetchHistory()
+    } catch (error) {
+      console.error('Chat generate error:', error)
+      setErrorState(error.message)
+      addToast(error.message || 'Failed to auto-configure layout', 'error')
+    } finally {
+      clearInterval(stepTimer)
+      setIsGenerating(false)
+    }
+  }
+
+  const handleChatFileUpload = (e) => {
+    let files = []
+    if (e.target && e.target.files) {
+      files = Array.from(e.target.files)
+    } else if (e.dataTransfer && e.dataTransfer.files) {
+      files = Array.from(e.dataTransfer.files)
+    }
+
+    if (files.length === 0) return
+
+    const newFiles = files.map(file => ({
+      id: Math.random().toString(36).substr(2, 9),
+      name: file.name,
+      size: (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+    }))
+
+    setChatFiles(prev => [...prev, ...newFiles])
+    addToast(`${files.length} file(s) attached!`, 'success')
+  }
+
+  const handleGeneratePoster = (e) => {
+    if (e) e.preventDefault()
+    handleGenerate(e)
+  }
+
+  const handleReset = () => {
+    setFormData({
+      title: '',
+      businessName: shopName,
+      description: '',
+      language: 'English',
+      audience: 'General public',
+      posterType: 'Poster',
+      posterSize: 'A4',
+      themeStyle: 'Modern',
+      colorPreference: '',
+      cta: 'Visit Today'
+    })
+    setPosterData({
+      headline: '',
+      subheadline: '',
+      description: '',
+      offerText: '',
+      cta: '',
+      theme: ''
+    })
+    setGeneratedImageUrl('')
+    setGeneratedAssetId('')
+    addToast('Configuration settings reset.', 'info')
+  }
+
+  const handleSaveConfiguration = () => {
+    addToast('Layout configuration saved!', 'success')
+  }
+
   // Handle Tab / Feature selection to preset fields
   const handleFeatureSelect = (featureId, type, size, theme) => {
     setActiveFeature(featureId)
@@ -144,6 +367,25 @@ export default function PrintSmartAiPage() {
       themeStyle: theme || prev.themeStyle
     }))
     addToast(`Preset fields configured for ${type}!`, 'info')
+  }
+
+  // Handle tab selection translation
+  const handleTabChange = (tabId, label) => {
+    let type = 'Poster'
+    let size = 'A4'
+    let theme = 'Modern'
+
+    if (tabId === 'flyer') {
+      type = 'Flyer'
+    } else if (tabId === 'festival') {
+      type = 'Festival'
+      theme = 'Traditional'
+    } else if (tabId === 'social') {
+      type = 'Social Media'
+      size = 'Square Post'
+    }
+
+    handleFeatureSelect(tabId, type, size, theme)
   }
 
   // Handle "Suggest Prompt"
@@ -163,13 +405,19 @@ export default function PrintSmartAiPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          ...(geminiApiKey ? { 'X-Gemini-API-Key': geminiApiKey } : {})
         },
         body: JSON.stringify({ title: formData.title })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to fetch suggestions from Gemini API')
+        let errMsg = 'Failed to fetch suggestions from Gemini API'
+        try {
+          const errData = await response.json()
+          errMsg = errData.error ? `${errData.message} (${errData.error})` : (errData.message || errMsg)
+        } catch (_) {}
+        throw new Error(errMsg)
       }
 
       const suggestions = await response.json()
@@ -218,14 +466,15 @@ export default function PrintSmartAiPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          ...(geminiApiKey ? { 'X-Gemini-API-Key': geminiApiKey } : {})
         },
         body: JSON.stringify(formData)
       })
 
       if (!response.ok) {
         const errData = await response.json()
-        throw new Error(errData.message || 'Failed to generate poster')
+        throw new Error(errData.error ? `${errData.message} (${errData.error})` : (errData.message || 'Failed to generate poster'))
       }
 
       const result = await response.json()
@@ -260,14 +509,15 @@ export default function PrintSmartAiPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          ...(geminiApiKey ? { 'X-Gemini-API-Key': geminiApiKey } : {})
         },
         body: JSON.stringify(formData)
       })
 
       if (!response.ok) {
         const errData = await response.json()
-        throw new Error(errData.message || 'Failed to regenerate poster')
+        throw new Error(errData.error ? `${errData.message} (${errData.error})` : (errData.message || 'Failed to regenerate poster'))
       }
 
       const result = await response.json()
@@ -457,6 +707,21 @@ export default function PrintSmartAiPage() {
           <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-full px-3.5 py-1.5 text-xs font-bold text-[#6366F1]">
             <span>Shop Pro</span>
           </div>
+          <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-2.5 py-1.5 bg-slate-50">
+            <Settings size={14} className="text-slate-500 animate-spin-slow" />
+            <input
+              type="password"
+              placeholder="Gemini API Key..."
+              value={geminiApiKey}
+              onChange={(e) => {
+                const val = e.target.value
+                setGeminiApiKey(val)
+                localStorage.setItem('gemini_api_key', val)
+              }}
+              className="text-[10px] bg-transparent border-none outline-none font-mono w-28 text-slate-700 placeholder-slate-400 focus:ring-0 focus:outline-none"
+              title="Add client-side Gemini API key to override backend setting"
+            />
+          </div>
           <span className="text-xs font-bold text-[#64748B]">Active Shop: {shopName}</span>
           <div className="h-9 w-9 rounded-full bg-[#6366F1] text-white flex items-center justify-center font-bold text-sm shadow-sm">
             SP
@@ -485,7 +750,7 @@ export default function PrintSmartAiPage() {
             { id: 'social', label: 'Social Media Post', icon: ThumbsUp, desc: 'Create digital square layouts' }
           ].map((tab) => {
             const TabIcon = tab.icon
-            const isActive = activeTab === tab.id
+            const isActive = activeFeature === tab.id
             return (
               <button
                 key={tab.id}
@@ -1592,6 +1857,8 @@ export default function PrintSmartAiPage() {
                       </div>
                     )}
                   </div>
+                )}
+              </div>
             </div>
 
               {/* Canvas Action Bar */}
@@ -1714,6 +1981,27 @@ export default function PrintSmartAiPage() {
           </div>
 
       </main>
+    </div>
+  )
+}
+
+function MandalaPattern() {
+  return (
+    <div className="absolute inset-0 opacity-10 pointer-events-none flex items-center justify-center">
+      <svg className="w-64 h-64 text-yellow-200 animate-spin-slow" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="0.5">
+        <circle cx="50" cy="50" r="40" />
+        <circle cx="50" cy="50" r="30" />
+        <circle cx="50" cy="50" r="20" />
+        {[...Array(12)].map((_, i) => (
+          <line
+            key={i}
+            x1="50"
+            y1="50"
+            x2={50 + 40 * Math.cos((i * Math.PI) / 6)}
+            y2={50 + 40 * Math.sin((i * Math.PI) / 6)}
+          />
+        ))}
+      </svg>
     </div>
   )
 }

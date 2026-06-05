@@ -14,6 +14,7 @@ const userRoutes = require("./routes/user.routes");
 const shopkeeperRoutes = require("./routes/shopkeeper.routes");
 const adminRoutes = require("./routes/admin.routes");
 const aiRoutes = require("./routes/ai.routes");
+const rewardRoutes = require("./routes/reward.routes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +45,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/shopkeeper", shopkeeperRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/rewards", rewardRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
