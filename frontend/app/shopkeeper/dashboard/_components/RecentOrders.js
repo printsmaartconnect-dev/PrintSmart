@@ -119,7 +119,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
             type="button"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 hover:text-violet-800 hover:underline bg-violet-50/50 px-3 py-2 rounded-xl border border-violet-100"
           >
-            {t('All Orders Analysis')} <MoveRight size={14} />
+            {t('Statistics & Analysis')} <MoveRight size={14} />
           </button>
         </div>
       </div>

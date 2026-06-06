@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   Building2,
   Download,
@@ -32,7 +33,7 @@ import {
   syncLocalStorageFromDb,
 } from '../onboarding/_components/onboardingStorage'
 
-import { Card, Field, PrimaryButton, SecondaryButton } from '../onboarding/_components/ui'
+import { Card, Field, PrimaryButton, SecondaryButton, TextInput } from '../onboarding/_components/ui'
 import { ReadOnlyBox, ReadOnlyIconBox, ReadOnlyTextarea } from './_components/ReadOnlyField'
 
 const DEFAULT_PROFILE = {
@@ -47,6 +48,8 @@ const DEFAULT_PROFILE = {
   logoDataUrl: '',
   shopkeeperIdCode: '',
   shopSlug: '',
+  upiId: '',
+  paymentQrUrl: '',
 }
 
 const DEFAULT_CONTACT = {
@@ -65,6 +68,7 @@ const DEFAULT_SOCIALS = {
 }
 
 function SidebarNavItem({ active, icon: Icon, children, href }) {
+  const { t } = useTranslation()
   const base =
     active
       ? 'flex items-center gap-3 rounded-xl bg-violet-50 px-3 py-2.5 text-violet-700 font-semibold'
@@ -75,7 +79,7 @@ function SidebarNavItem({ active, icon: Icon, children, href }) {
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
         <Icon size={18} className={active ? 'text-violet-700' : 'text-slate-500'} />
       </span>
-      <span className="text-sm">{children}</span>
+      <span className="text-sm">{t(children)}</span>
     </>
   )
 
@@ -95,6 +99,7 @@ function SidebarNavItem({ active, icon: Icon, children, href }) {
 }
 
 export default function ShopkeeperProfileViewPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
 
@@ -110,6 +115,9 @@ export default function ShopkeeperProfileViewPage() {
     qrValue: ''
   })
   const [regenerating, setRegenerating] = useState(false)
+  const [editingUpi, setEditingUpi] = useState(false)
+  const [upiValue, setUpiValue] = useState('')
+  const [savingUpi, setSavingUpi] = useState(false)
 
   useEffect(() => {
     const loggedIn = getLoggedInShopkeeper()
@@ -118,7 +126,42 @@ export default function ShopkeeperProfileViewPage() {
       return
     }
 
-    // Sync database shopkeeper details to local storage
+    const fetchFreshProfile = async () => {
+      const token = localStorage.getItem("authToken")
+      if (!token) return
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/auth/profile`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        })
+        if (response.ok) {
+          const dbShopkeeper = await response.json()
+          localStorage.setItem('loggedInShopkeeper', JSON.stringify(dbShopkeeper))
+          localStorage.setItem('shopkeeper', JSON.stringify(dbShopkeeper))
+          syncLocalStorageFromDb(dbShopkeeper)
+          
+          const p = getProfile()
+          const c = getContact()
+          const s = getSocials()
+
+          setProfileState(p)
+          setUpiValue(p.upiId || '')
+          setContactState({
+            ...c,
+            phoneNumber: c.phoneNumber || dbShopkeeper.phone || '',
+            emailAddress: c.emailAddress || dbShopkeeper.email || '',
+          })
+          setSocialsState(s)
+          setQrCodeUrl(dbShopkeeper.qrCodeUrl || '')
+        }
+      } catch (err) {
+        console.error("Failed to fetch fresh profile from DB:", err)
+      }
+    }
+
+    // Initialize with local storage values first
     syncLocalStorageFromDb(loggedIn)
 
     const p = getProfile()
@@ -126,6 +169,7 @@ export default function ShopkeeperProfileViewPage() {
     const s = getSocials()
 
     setProfileState(p)
+    setUpiValue(p.upiId || '')
     setContactState({
       ...c,
       phoneNumber: c.phoneNumber || loggedIn.phone || '',
@@ -133,6 +177,9 @@ export default function ShopkeeperProfileViewPage() {
     })
     setSocialsState(s)
     setQrCodeUrl(loggedIn.qrCodeUrl || '')
+
+    // Fetch fresh profile details from DB
+    fetchFreshProfile()
 
     // Fetch QR Details from backend
     const fetchQrDetails = async () => {
@@ -263,6 +310,175 @@ export default function ShopkeeperProfileViewPage() {
     }
   }
 
+  const handleUpdateUpi = async () => {
+    if (!upiValue.trim()) {
+      alert(t("UPI ID cannot be empty."))
+      return
+    }
+    setSavingUpi(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) return
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          shopName: profile.shopName,
+          ownerName: profile.shopOwnerName,
+          address: contact.shopAddress,
+          category: profile.businessCategory,
+          subCategory: profile.subCategory,
+          languagePref: profile.languagePreference,
+          gstNumber: profile.gstNumber,
+          businessDescription: profile.businessDescription,
+          businessEstablishedYear: profile.businessEstablishedYear,
+          website: contact.website,
+          alternatePhone: contact.alternatePhone,
+          socials,
+          logoUrl: profile.logoDataUrl || null,
+          phone: contact.phoneNumber,
+          upiId: upiValue,
+          paymentQrUrl: profile.paymentQrUrl || null,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+        localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+        syncLocalStorageFromDb(data.shopkeeper)
+        setProfileState(prev => ({ ...prev, upiId: upiValue }))
+        setEditingUpi(false)
+        alert(t("UPI ID updated successfully!"))
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        alert(`${t("Failed to update UPI ID")}: ${errData.message || 'Server error'}`)
+      }
+    } catch (err) {
+      console.error("Error updating UPI ID:", err)
+      alert(t("Error updating UPI ID. Please try again."))
+    } finally {
+      setSavingUpi(false)
+    }
+  }
+
+  const onPickPaymentQr = async (file) => {
+    if (!file) return
+    const token = localStorage.getItem('authToken')
+    if (!token) return
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const uploadResponse = await fetch(`${uploadUrl}/api/files/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      if (uploadResponse.ok) {
+        const uploadData = await uploadResponse.json()
+        const newQrUrl = uploadData.fileUrl || ''
+        
+        const response = await fetch(`${uploadUrl}/api/auth/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            shopName: profile.shopName,
+            ownerName: profile.shopOwnerName,
+            address: contact.shopAddress,
+            category: profile.businessCategory,
+            subCategory: profile.subCategory,
+            languagePref: profile.languagePreference,
+            gstNumber: profile.gstNumber,
+            businessDescription: profile.businessDescription,
+            businessEstablishedYear: profile.businessEstablishedYear,
+            website: contact.website,
+            alternatePhone: contact.alternatePhone,
+            socials,
+            logoUrl: profile.logoDataUrl || null,
+            phone: contact.phoneNumber,
+            upiId: profile.upiId,
+            paymentQrUrl: newQrUrl,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+          localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+          syncLocalStorageFromDb(data.shopkeeper)
+          setProfileState(prev => ({ ...prev, paymentQrUrl: newQrUrl }))
+          alert(t("Payment QR Code updated successfully!"))
+        } else {
+          alert(t("Failed to update profile with new QR URL."))
+        }
+      }
+    } catch (err) {
+      console.error("Error uploading payment QR:", err)
+      alert(t("Error uploading payment QR code."))
+    }
+  }
+
+  const handleRemovePaymentQr = async () => {
+    const token = localStorage.getItem('authToken')
+    if (!token) return
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          shopName: profile.shopName,
+          ownerName: profile.shopOwnerName,
+          address: contact.shopAddress,
+          category: profile.businessCategory,
+          subCategory: profile.subCategory,
+          languagePref: profile.languagePreference,
+          gstNumber: profile.gstNumber,
+          businessDescription: profile.businessDescription,
+          businessEstablishedYear: profile.businessEstablishedYear,
+          website: contact.website,
+          alternatePhone: contact.alternatePhone,
+          socials,
+          logoUrl: profile.logoDataUrl || null,
+          phone: contact.phoneNumber,
+          upiId: profile.upiId,
+          paymentQrUrl: null,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+        localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+        syncLocalStorageFromDb(data.shopkeeper)
+        setProfileState(prev => ({ ...prev, paymentQrUrl: '' }))
+        alert(t("Payment QR Code removed successfully!"))
+      } else {
+        alert(t("Failed to remove payment QR code."))
+      }
+    } catch (err) {
+      console.error("Error removing payment QR:", err)
+      alert(t("Error removing payment QR code."))
+    }
+  }
+
   const shopName = useMemo(() => profile.shopName || 'Shree Ganesh Xerox & Prints', [profile.shopName])
 
   const isProfileActive = pathname?.includes('/shopkeeper/profile')
@@ -308,9 +524,9 @@ export default function ShopkeeperProfileViewPage() {
                     <Headphones size={18} className="text-violet-700" />
                   </span>
                   <div>
-                    <div className="text-sm font-semibold text-slate-800">Need Help?</div>
+                    <div className="text-sm font-semibold text-slate-800">{t('Need Help?')}</div>
                     <div className="mt-1 text-xs text-slate-500">
-                      We&apos;re here to help you set up your shop.
+                      {t("We're here to help you set up your shop.")}
                     </div>
                   </div>
                 </div>
@@ -321,7 +537,7 @@ export default function ShopkeeperProfileViewPage() {
                   rel="noopener noreferrer"
                   className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
                 >
-                  Get Support
+                  {t('Get Support')}
                 </a>
               </div>
             </div>
@@ -330,13 +546,13 @@ export default function ShopkeeperProfileViewPage() {
           {/* Main content */}
           <section className="flex-1">
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
+              <h1 className="text-2xl font-bold text-slate-900">{t('Profile')}</h1>
               <p className="mt-1 text-sm text-slate-500">
-                Tell customers about your business. This information will be visible on your shop profile.
+                {t('Tell customers about your business. This information will be visible on your shop profile.')}
               </p>
 
               <div className="mt-4 rounded-2xl bg-violet-50 border border-violet-100 px-4 py-3 text-sm text-violet-800">
-                To request changes to your profile details, please use the Help &amp; Support option.
+                {t('To request changes to your profile details, please use the Help & Support option.')}
               </div>
             </div>
 
@@ -344,8 +560,8 @@ export default function ShopkeeperProfileViewPage() {
               {/* Left Column: Business Info */}
               <div className="xl:col-span-5">
                 <Card
-                  title="Business Information"
-                  subtitle="Basic details about your shop"
+                  title={t('Business Information')}
+                  subtitle={t('Basic details about your shop')}
                   icon={Building2}
                 >
                   <div className="flex items-start gap-4 mb-5">
@@ -357,49 +573,49 @@ export default function ShopkeeperProfileViewPage() {
                       )}
                     </div>
                     <div className="text-xs text-slate-500 pt-1">
-                      Shop logo is managed via support.
+                      {t('Shop logo is managed via support.')}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <Field label="Shop Name" required>
+                      <Field label={t('Shop Name')} required>
                         <ReadOnlyBox value={profile.shopName} />
                       </Field>
                     </div>
 
-                    <Field label="Business Category" required>
-                      <ReadOnlyBox value={profile.businessCategory} placeholder="Printing & Photocopy" />
+                    <Field label={t('Business Category')} required>
+                      <ReadOnlyBox value={profile.businessCategory} placeholder={t('Printing & Photocopy')} />
                     </Field>
 
-                    <Field label="Sub Category">
-                      <ReadOnlyBox value={profile.subCategory} placeholder="Xerox & Digital Prints" />
+                    <Field label={t('Sub Category')}>
+                      <ReadOnlyBox value={profile.subCategory} placeholder={t('Xerox & Digital Prints')} />
                     </Field>
 
-                    <Field label="Language Preference" required>
-                      <ReadOnlyBox value={profile.languagePreference} placeholder="Select language..." />
+                    <Field label={t('Language Preference')} required>
+                      <ReadOnlyBox value={profile.languagePreference} placeholder={t('Select language...')} />
                     </Field>
 
-                    <Field label="Shop Owner Name">
+                    <Field label={t('Shop Owner Name')}>
                       <ReadOnlyBox value={profile.shopOwnerName} placeholder="—" />
                     </Field>
 
                     <div className="md:col-span-2">
-                      <Field label="Business Description" required>
+                      <Field label={t('Business Description')} required>
                         <ReadOnlyTextarea value={profile.businessDescription} className="min-h-[110px]" />
                       </Field>
                     </div>
 
-                    <Field label="Business Established Year">
+                    <Field label={t('Business Established Year')}>
                       <ReadOnlyBox value={profile.businessEstablishedYear} placeholder="—" />
                     </Field>
 
-                    <Field label="GST Number (Optional)">
+                    <Field label={t('GST Number (Optional)')}>
                       <ReadOnlyBox value={profile.gstNumber} placeholder="—" />
                     </Field>
 
                     <div className="md:col-span-2">
-                      <Field label="Shopkeeper ID">
+                      <Field label={t('Shopkeeper ID')}>
                         <ReadOnlyBox value={profile.shopSlug || '—'} />
                       </Field>
                     </div>
@@ -409,28 +625,103 @@ export default function ShopkeeperProfileViewPage() {
 
               {/* Middle Column: Contact Info */}
               <div className="xl:col-span-4">
-                <Card title="Contact Information" subtitle="How customers can reach you" icon={Phone}>
+                <Card title={t('Contact Information')} subtitle={t('How customers can reach you')} icon={Phone}>
                   <div className="space-y-4">
-                    <Field label="Phone Number" required>
+                    <Field label={t('Phone Number')} required>
                       <div className="flex gap-2">
                         <ReadOnlyBox value={contact.countryCode} className="w-28 text-center" />
                         <ReadOnlyBox value={contact.phoneNumber} placeholder="—" />
                       </div>
                     </Field>
 
-                    <Field label="Alternate Phone">
+                    <Field label={t('Alternate Phone')}>
                       <ReadOnlyBox value={contact.alternatePhone} placeholder="—" />
                     </Field>
 
-                    <Field label="Email Address" required>
+                    <Field label={t('Email Address')} required>
                       <ReadOnlyIconBox icon={Mail} value={contact.emailAddress} placeholder="—" />
                     </Field>
 
-                    <Field label="Website (Optional)">
+                    <Field label={t('UPI ID')} required>
+                      {!editingUpi ? (
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1">
+                            <ReadOnlyBox value={profile.upiId || '—'} />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUpiValue(profile.upiId || '')
+                              setEditingUpi(true)
+                            }}
+                            className="px-3 py-2 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-xl transition"
+                          >
+                            {t('Edit')}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <TextInput
+                            value={upiValue}
+                            onChange={(e) => setUpiValue(e.target.value)}
+                            placeholder="e.g. shopname@upi"
+                          />
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              type="button"
+                              onClick={handleUpdateUpi}
+                              disabled={savingUpi}
+                              className="flex-1 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-xl transition disabled:opacity-50"
+                            >
+                              {savingUpi ? t('Saving...') : t('Save')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingUpi(false)}
+                              disabled={savingUpi}
+                              className="flex-1 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition disabled:opacity-50"
+                            >
+                              {t('Cancel')}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </Field>
+
+                    <Field label={t('Payment QR Code (Optional)')}>
+                      <div className="flex flex-col gap-2">
+                        {profile.paymentQrUrl ? (
+                          <div className="relative w-24 h-24 border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
+                            <img
+                              src={profile.paymentQrUrl.startsWith('http') ? profile.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${profile.paymentQrUrl}`}
+                              alt="Payment QR"
+                              className="max-h-full max-w-full object-contain"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleRemovePaymentQr}
+                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-[10px] w-5 h-5 flex items-center justify-center hover:bg-red-700 transition"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-500 italic">{t('No payment QR uploaded.')}</span>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => onPickPaymentQr(e.target.files?.[0])}
+                          className="block w-full text-xs text-slate-550 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 file:cursor-pointer hover:file:bg-violet-100"
+                        />
+                      </div>
+                    </Field>
+
+                    <Field label={t('Website (Optional)')}>
                       <ReadOnlyIconBox icon={Globe} value={contact.website} placeholder="—" />
                     </Field>
 
-                    <Field label="Shop Address" required>
+                    <Field label={t('Shop Address')} required>
                       <ReadOnlyTextarea value={contact.shopAddress} className="min-h-[160px]" />
                     </Field>
                   </div>
@@ -440,7 +731,7 @@ export default function ShopkeeperProfileViewPage() {
               {/* Right Panel: QR + Social */}
               <div className="xl:col-span-3">
                 <div className="space-y-6">
-                  <Card title="Your Shop QR" subtitle="Scan to upload print files" icon={Tag}>
+                  <Card title={t('Your Shop QR')} subtitle={t('Scan to upload print files')} icon={Tag}>
                     <div className="flex flex-col items-center">
                       <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm relative w-[180px] h-[180px] flex items-center justify-center mb-3">
                         {qrDetails.qrCodeUrl ? (
@@ -461,7 +752,7 @@ export default function ShopkeeperProfileViewPage() {
                       </div>
 
                       <div className="text-center mb-4">
-                        <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Shop ID</div>
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{t('Shop ID')}</div>
                         <div className="text-sm font-bold text-slate-800 break-all select-all mt-0.5">
                           {qrDetails.shopId || profile.shopkeeperIdCode || '—'}
                         </div>
@@ -473,7 +764,7 @@ export default function ShopkeeperProfileViewPage() {
                           className="gap-1 py-1.5 px-2 text-[11px] justify-center"
                           onClick={handleCopyLink}
                         >
-                          Copy Link
+                          {t('Copy Link')}
                         </SecondaryButton>
                         <SecondaryButton
                           type="button"
@@ -481,14 +772,14 @@ export default function ShopkeeperProfileViewPage() {
                           onClick={handleDownloadQR}
                         >
                           <Download size={12} />
-                          Download
+                          {t('Download')}
                         </SecondaryButton>
                         <SecondaryButton
                           type="button"
                           className="gap-1 py-1.5 px-2 text-[11px] justify-center"
                           onClick={handlePrintQR}
                         >
-                          Print QR
+                          {t('Print QR')}
                         </SecondaryButton>
                         <SecondaryButton
                           type="button"
@@ -496,7 +787,7 @@ export default function ShopkeeperProfileViewPage() {
                           onClick={handleShareQR}
                         >
                           <Share2 size={12} />
-                          Share QR
+                          {t('Share QR')}
                         </SecondaryButton>
                       </div>
 
@@ -506,20 +797,20 @@ export default function ShopkeeperProfileViewPage() {
                         disabled={regenerating}
                         className="mt-4 text-[11px] font-semibold text-violet-600 hover:text-violet-700 transition disabled:text-slate-400"
                       >
-                        {regenerating ? 'Regenerating...' : 'Regenerate QR Code'}
+                        {regenerating ? t('Regenerating...') : t('Regenerate QR Code')}
                       </button>
                     </div>
                   </Card>
 
-                  <Card title="Social Links" subtitle="Visible on your profile" icon={User}>
+                  <Card title={t('Social Links')} subtitle={t('Visible on your profile')} icon={User}>
                     <div className="space-y-4">
-                      <Field label="WhatsApp">
+                      <Field label={t('WhatsApp')}>
                         <ReadOnlyIconBox icon={MessageCircle} value={socials.whatsapp} placeholder="—" />
                       </Field>
-                      <Field label="Facebook">
+                      <Field label={t('Facebook')}>
                         <ReadOnlyIconBox icon={Facebook} value={socials.facebook} placeholder="—" />
                       </Field>
-                      <Field label="Instagram">
+                      <Field label={t('Instagram')}>
                         <ReadOnlyIconBox icon={Instagram} value={socials.instagram} placeholder="—" />
                       </Field>
                     </div>
@@ -532,16 +823,16 @@ export default function ShopkeeperProfileViewPage() {
             <div className="lg:hidden mt-6 rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                 <Headphones size={16} className="text-violet-700" />
-                Need Help?
+                {t('Need Help?')}
               </div>
-              <div className="mt-1 text-xs text-slate-500">We&apos;re here to help you set up your shop.</div>
+              <div className="mt-1 text-xs text-slate-500">{t("We're here to help you set up your shop.")}</div>
               <a
                 href="https://forms.gle/VBK48SwGSWm7prgUA"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
               >
-                Get Support
+                {t('Get Support')}
               </a>
             </div>
           </section>

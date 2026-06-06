@@ -23,50 +23,87 @@
 
 ### Installation & Setup
 
-```bash
-# 1. Clone the repository
-git clone <repository-url>
-cd PrintSmart
+PrintSmart consists of a Next.js frontend and an Express.js backend. You must configure and run both components for the system to function correctly.
 
-# 2. Install dependencies
+#### 1. Backend & Database Setup
+```bash
+# Navigate to backend directory
+cd backend
+
+# Install server-side dependencies
 npm install
 
-# 3. Set up environment variables (see Configuration section)
-cp .env.example .env.local
+# Configure environment variables
+cp .env.example .env
+# Edit .env to set your DATABASE_URL, PORT, JWT_SECRET, and AWS S3 keys
+```
 
-# 4. Run the development server
+#### 2. Run Database Migrations
+Programmatic database push occurs on startup, but you can manually sync schema via:
+```bash
+# Create/apply migrations
+npm run prisma:migrate dev
+
+# Re-generate Prisma Client
+npm run prisma:generate
+```
+
+#### 3. Frontend Setup
+```bash
+# Navigate to frontend directory
+cd ../frontend
+
+# Install client-side dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env.local
+# Verify NEXT_PUBLIC_API_URL points to the backend (default: http://localhost:5000)
+```
+
+#### 4. Run the Development Servers
+Open two terminal windows:
+
+**Run Backend (Port 5000):**
+```bash
+cd backend
 npm run dev
 ```
 
-**Access the application:**
-- Homepage: `http://localhost:3000`
-- Admin Dashboard: `http://localhost:3000/admin`
-- Shopkeeper Login: `http://localhost:3000/shopkeeper/login`
-- Customer Upload: `http://localhost:3000/customer/upload`
+**Run Frontend (Port 3000):**
+```bash
+cd frontend
+npm run dev
+```
+
+**Access Points:**
+- **Customer Homepage**: `http://localhost:3000`
+- **Shopkeeper Portal**: `http://localhost:3000/shopkeeper/login`
+- **Hidden Admin Gateway**: Click the Printsmart logo 5 times on the homepage
 
 > [!NOTE]
-> **Default Test Credentials:**
+> **Default Development Test Credentials:**
 > - Email: `defaultshop@printsmart.com`
 > - Password: `password123`
-> - Shop ID / Shopkeeper ID / shopkeeperIdCode: `smart-print-hub` (both are identical strings)
-> - Manual Test Fallback Code: `0000` (automatically maps to `smart-print-hub` for testing)
+> - Shopkeeper ID / shopkeeperIdCode: `smart-print-hub`
+> - Manual Test Entry Code: `0000` (resolves to `smart-print-hub`)
 
 ### Basic Commands
 
+#### Backend Commands (Inside `backend/`):
 ```bash
-# Development
-npm run dev              # Start dev server on port 3000
+npm run dev                 # Start Express server with nodemon
+npm start                   # Start Express server in production
+npm run prisma:migrate      # Create/run schema migrations
+npm run prisma:generate     # Rebuild Prisma Client models
+```
 
-# Production Build
-npm run build            # Compile Next.js app
-npm start                # Run production server
-
-# Code Quality
-npm run lint             # Run ESLint on all files
-
-# Clean Build
-rm -rf .next             # Remove build cache
-npm run build            # Rebuild
+#### Frontend Commands (Inside `frontend/`):
+```bash
+npm run dev                 # Start Next.js development server
+npm run build               # Build production assets
+npm start                   # Start Next.js production server
+npm run lint                # Run ESLint checking
 ```
 
 ---
@@ -220,6 +257,7 @@ PrintSmart/
     │   ├── layout.js                 # Global HTML & SEO structural shell
     │   ├── page.js                   # Homepage (detects scanned QRs, renders Partner specs)
     │   ├── globals.css               # Tailwind directives & Glassmorphism definitions
+    │   ├── I18nProvider.js           # Multi-language i18n translation context provider [NEW]
     │   │
     │   ├── admin/                    # Admin portal pages
     │   │   ├── page.js               # Admin authentication gateway
@@ -228,7 +266,11 @@ PrintSmart/
     │   │
     │   ├── components/               # Shareable component modules
     │   │   ├── BackButton.js         # Unified client navigation button
-    │   │   └── FeedbackButton.js     # Floating help modal triggers
+    │   │   ├── FeedbackButton.js     # Floating help modal triggers
+    │   │   ├── FeedbackLink.js       # Reusable help form footer link [NEW]
+    │   │   └── customer/             # Customer workflow UI components [NEW]
+    │   │       ├── DocumentPreview.jsx # Live thumbnail & grayscale CSS preview renderer [NEW]
+    │   │       └── FilePreviewSection.jsx # Document title & config options wrapper [NEW]
     │   │
     │   ├── customer/                 # Customer order flow views
     │   │   ├── language/
@@ -250,8 +292,8 @@ PrintSmart/
     │   │   │   └── page.js           # Multiple login support authentication
     │   │   ├── register/
     │   │   │   └── page.js           # New printer registrations
-    │   │   ├── all-orders/
-    │   │   │   └── page.js           # Detailed order analytics dashboard (Heatmap, trends, print-sizes, order-types) [NEW]
+    │   │   ├── statistics-and-analysis/
+    │   │   │   └── page.js           # Detailed order analytics dashboard (Bar chart, trends, print-sizes, order-types) [NEW]
     │   │   ├── business-network/
     │   │   │   └── page.js           # Premium connections & network layout [NEW]
     │   │   ├── printsmart-ai/
@@ -524,18 +566,29 @@ body {
 ---
 
 #### `app/admin/dashboard/page.js`
-**Purpose:** Admin dashboard; displays system KPIs and recent orders.
+**Purpose:** Rebuilt Premium Platform Administration Dashboard. Coordinates system stats, shop manager portals, order registers, reward/coupon controls, AI run logs, support ticketing, and settings profiles.
 
-**Components:**
-- **Stats Grid:** Total Orders, Active Shops, Revenue (with icons)
-- **Recent Orders Table:** Order ID, Status, Amount, Timestamp
-- **Header:** Logout button with icon
+**Sub-Components (Located in `_components/`):**
+* **`AdminSidebar.js`:** Sleek, Vercel-style semi-dark navigation featuring 8 tabs. Includes a dynamic **System Health Card** complete with an online ping indicator, live server uptime metrics, and a custom inline green SVG micro-sparkline.
+* **`StatCard.js`:** High-end KPI component representing individual baseline SVG wave sparklines, growth metrics, dynamic color accent overrides, and animated hover effects.
 
-**Key Features:**
-- Responsive grid (1 col mobile, 3 cols desktop)
-- Hover effects on rows
-- Glassmorphism styling for cards
-- Status badges (Pending, Completed, Printing) with color-coding
+**Key Dashboard Sections (8-Tab Views):**
+1. **Overview (Dashboard):** Premium layout hosting 8 top-tier metric cards, dynamic orders trend graph curves (Daily/Weekly/Monthly), an SVG order status donut chart, priority warning alert boxes, and top performing shop lists.
+2. **Shops Directory:** Active listings showing approval and onboarding states, shop contact indexes, subscription types, and a live toggle to instantly onboard/suspend shops by triggering `PUT /api/admin/shops/:id/onboard` API calls.
+3. **Orders History:** Detailed customer logs showing billing margins, order queues, print modes (e.g., standard color vs duplex), and status badges.
+4. **Coupons & Rewards:** Overview of generated active coupons, cost analysis matrices, and mock sparklines for coupon activations.
+5. **AI Telemetry:** Log counters for generated AI backgrounds, banner assets, and poster optimizations, detailing successful runs vs failed queues.
+6. **Support Helpdesk:** Priority tag registries detailing store associations, ticket priorities, and interactive response forms.
+7. **Revenue Tracking:** Platform tax rate indexes, monthly platform margins, and tax-cut metrics.
+8. **Platform Settings:** Interface to toggle platform-wide Commission Fee percentages, Maintenance Locks, and Allowed Upload File Types.
+
+> [!TIP]
+> **Hot-Reloading Static Chunk 404s Resolution:**
+> If Next.js dev server triggers `404` errors on `/admin/dashboard` chunks during simultaneous production builds, clear the cache and restart:
+> ```powershell
+> Remove-Item -Recurse -Force .next
+> npm run dev
+> ```
 
 ---
 
@@ -686,14 +739,17 @@ export const mockStats = {
 ---
 
 ##### `_components/BottomDock.js`
-**Purpose:** Floating navigation menu at bottom of page.
+**Purpose:** Floating premium navigation dock at the bottom of the Shopkeeper Dashboard page.
 
-**Navigation Items:**
-- Dashboard (home icon)
-- Orders (list icon)
-- Settings (gear icon)
-- Support (help icon)
-- Logout (exit icon)
+**Navigation Items & Premium Enhancements:**
+- **Profile:** Link to profile details (`/shopkeeper/profile`).
+- **Settings:** Access settings preferences (`/shopkeeper/settings`).
+- **Subscription:** Manage pricing tier schedules (`/shopkeeper/subscription`).
+- **Statistics & Analysis:** Interactive aggregated orders charts.
+- **Filters:** Quick filter buttons for Pending, Completed, Downloaded, and Cancelled queues.
+- **➕ Direct Add Order (Blue Plus Button):** Prominent walk-in order creation gateway (`bg-[#3B82F6]`) styled as a blue rounded-square with a white plus. Triggers a customized customer order flow (`/customer/language?shopkeeperAddOrder=true`) which auto-configures layouts, bypasses customer support talks, and automatically routes the shopkeeper back to their dashboard queue upon completion.
+- **🌐 Business Network (Glow Upgrade):** Enhanced with a solid Indigo gradient (`bg-indigo-600 border-indigo-200`), custom shadow glow (`shadow-[0_0_15px_rgba(99,102,241,0.6)]`), and active top-right ping pulse for beautiful interactive aesthetics.
+- **PrintSmart AI:** Glowing purple AI button with a continuous fuchsia ping pulse.
 
 ---
 
@@ -753,9 +809,11 @@ export const mockStats = {
 - Shop Address
 - Phone Number
 - GST Number
+- **UPI ID** (Mandatory field for receiving payment transfers)
+- **Payment QR Code** (Optional image upload field for display on customer side)
 - Bank Account Details (optional)
 
-**Save:** Stores to localStorage and can send to backend
+**Save:** Stores to localStorage and syncs with backend database
 
 ---
 
@@ -858,7 +916,7 @@ export function getOnboardingProgress() { /* ... */ }
 
 #### Other Shopkeeper Pages
 
-##### `all-orders/page.js`
+##### `statistics-and-analysis/page.js`
 **Purpose:** Comprehensive interactive orders analytics dashboard for shopkeepers.
 
 **Features:**
@@ -907,41 +965,67 @@ export function getOnboardingProgress() { /* ... */ }
 
 ---
 
+##### `statistics-and-analysis/page.js`
+**Purpose:** Shop Statistics & Analysis dashboard for the shopkeeper.
+
+**Sections & Features:**
+- **KPI Summary Cards:** Displays counts for Pending, Completed, Downloaded, and Cancelled orders, filtered dynamically by print channel (All, B&W, Color) and time range.
+- **Main Print Trends Chart:** Dynamic SVG rendering a smooth Bezier line chart showing total pages printed (violet) and total order value (amber) over selected timeframes. Includes an interactive hovering tooltip.
+- **Order Distribution Donut Chart:** Interactive SVG donut chart showing order segments (Xerox, Digital Print, B&W, Color). Slices dynamically expand outward on hover.
+- **Revenue Summary & Heatmap:** Lists total revenue and average order value, alongside a 7x12 matrix (Mon-Sun by 2-hour slots) visualizing order density hotspots.
+- **Top Formats & Sizes:** Lists count distributions for file extensions (`.pdf`, `.docx`, `.jpg`, `.png`, other) and print paper sizes (A4, A3, Legal, Letter, other).
+- **Scratch Card History:** Displays customer loyalty coupon codes claimed, pending, or expired.
+
+---
+
 ### Customer Pages
 
 #### `customer/language/page.js`
-**Purpose:** Customer's first step; select language for their session.
+**Purpose:** Customer's first step; select language for their session and collect user details.
 
 **Shows:**
-- Language options (flags or text)
-- Selected language auto-saves to localStorage
-- Proceeds to configuration page
+- Language options: English, Hindi, Marathi, Gujarati (with custom flag selectors)
+- "Other Languages" dropdown listing regional options (Bengali, Punjabi, Tamil, etc.)
+- User details form (Name [required], Phone [optional], Email [optional]) to sync identity parameters
+- Auto-detects browser language on initial load
+
+**Saves:** 
+- Selected language to `localStorage.customerLanguage` and initializes `i18next` locale context
+- Posts user details to `/api/users/create` to register/fetch user ID, and saves context to `localStorage.customerSession`
 
 ---
 
 #### `customer/configuration/page.js`
-**Purpose:** Set print configuration (paper size, color, quality, etc.).
+**Purpose:** Select printing preferences (paper size, color/BW, quality, duplex, range, and copies).
+
+**Layout Flow Options:**
+- **"I Want to Talk with Shopkeeper First"**: Bypasses layout configurations and redirects to the review step. Sets order variant to `'talk'` with ₹0 price.
+- **"I Want to Configure Print Layout"**: Reveals details below.
 
 **Options:**
-- Paper Size (A4, A3, Letter, etc.)
-- Color Mode (B&W, Color)
-- Quality (Draft, Normal, Premium)
-- Binding option (None, Left, Top)
+- Print Type (Black & White vs Color)
+- Number of Copies (supports increment/decrement selectors, range 1-999)
+- Paper Size (A4, A3, A5, Legal, Letter, Executive, Ledger, Tabloid)
+- Print Sides (Single-sided vs Double-sided)
+- Orientation (Portrait vs Landscape)
+- Print Quality (Draft, Normal, High)
+- Pages to Print (All Pages, Odd Pages Only, Even Pages Only)
 
-**Saves:** To localStorage or session state
+**Saves:** Stores full file configurations array (with customized layouts per file) to `localStorage.printConfigurations`
 
 ---
 
 #### `customer/upload/page.js`
-**Purpose:** Main file upload interface using React Dropzone.
+**Purpose:** Drag-and-drop file upload using React Dropzone, wrapped in a `<Suspense>` boundary to allow clean build-time static generation.
 
 **Features:**
-- Drag-and-drop zone
-- File browser button
-- Accepted formats (PDF, DOCX, XLSX, JPG, PNG)
-- File preview thumbnails
-- Upload progress indicator
-- Estimated cost calculation
+- Multi-file drag/drop zone supporting PDF, Word doc/docx, and JPG/JPEG/PNG images.
+- Dynamic thumbnail generation (Images use Canvas resize, PDFs use `pdf.js` worker rendering).
+- Custom renaming field for each uploaded file (retaining file extensions).
+- **Full-Screen Loading/Buffering State**: Triggers a premium glassmorphic full-screen backdrop overlay (`backdrop-blur-md bg-slate-900/60`) during file upload loops or "Talk to Shopkeeper" requests.
+- **Dynamic Text Cycling**: Cycles through translation-friendly status messages every 2.5 seconds (e.g. `"Uploading document (1 of 3)..."`, `"Processing print configuration..."`, `"Preparing preview..."`).
+- **Interactive Disabling**: Blurs the entire background page (`filter blur-md`) and blocks pointer events (`pointer-events-none select-none`) while active.
+- Integrates with POST `/api/files/upload` to store files and retrieve URLs.
 
 **Key Code:**
 ```javascript
@@ -949,11 +1033,18 @@ export function getOnboardingProgress() { /* ... */ }
 import { useDropzone } from 'react-dropzone'
 
 export default function UploadPage() {
-  const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
+  const onDrop = (acceptedFiles) => {
+    // Generates object previews and kicks off async thumbnail generator
+  }
+
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop,
     accept: {
       'application/pdf': ['.pdf'],
-      'application/msword': ['.docx'],
-      'image/*': ['.jpg', '.png'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
     },
   })
 
@@ -981,38 +1072,40 @@ export default function UploadPage() {
 ---
 
 #### `customer/review/page.js`
-**Purpose:** Rate and review order after completion.
+**Purpose:** Review print specifications, calculate GST breakdown, and place the print order.
 
-**Form:**
-- Star rating (1-5)
-- Comment textarea
-- Photo upload (optional)
-- Submit review button
+**Shows:**
+- Shop details card showing name, address, phone, and estimated wait duration
+- Itemized files list displaying custom names, configured variants (e.g. Standard layout details vs "I Want to Talk" status banner), and individual estimated costs
+- Financial summary breakdown (Subtotal, 18% GST tax, and Total Cost)
+
+**Actions:**
+- Submits order via POST `/api/orders/create` payload containing items array, configurations, customer details, and total amount
+- Caches returned order details to `localStorage.currentOrder` and routes to placement confirmation
 
 ---
 
 #### `customer/order-placed/page.js`
-**Purpose:** Confirmation page after order submission.
+**Purpose:** Alphanumeric order confirmation page displaying queue and ID.
 
 **Shows:**
-- Order ID and confirmation number
-- Total amount and taxes
-- Estimated delivery date
-- Order summary
-- "Track Order" and "Continue Shopping" buttons
+- Alphanumeric Custom Order ID (format: `MMYYP[BW|C][sequence]`)
+- Estimated print wait time (e.g., 2–7 mins based on current queue size)
+- Print order details summary and total pricing
+- Links to order history tracking `/customer/orders`
 
 ---
 
 #### `customer/orders/page.js`
-**Purpose:** View all past and current orders.
+**Purpose:** Track active order statuses, manage past history, pay orders, and scratch reward coupons. Wrapped in a `<Suspense>` boundary to prevent build-time bailout warnings.
 
 **Features:**
-- Filter by status (All, Pending, Printing, Ready, Delivered)
-- Search by order ID
-- Sort by date
-- Order details modal
-- Reorder button
-- Download invoice link
+- Real-time status cards (Pending, Accepted, Printing, Ready, Completed, Cancelled).
+- **UPI ID & Payment QR Code Box**: Centered above the online/offline buttons, displays the shopkeeper's custom payment QR code image if uploaded. Clicking "Pay Online (UPI)" redirects directly to the shopkeeper's registered UPI ID link. Clicking "Pay Offline to Shopkeeper" transitions the order status to `ACCEPTED` directly in the database.
+- **Premium Scratch & Win Card Section**: Positioned directly above the payment details. Invokes `RewardCardModal` showing a Vercel-style interactive silver scratch coupon.
+- Inline button to download invoices (calls `/api/orders/:id/invoice`).
+- Delete order confirmation modal (allowed only if status is `PENDING`).
+- Ascending/descending date sorting filters and status badges.
 
 ---
 
@@ -1520,115 +1613,89 @@ export default function HomePage() {
 
 ### Environment Variables
 
-Create `.env.local` in the project root:
+PrintSmart keeps frontend and backend environment variables isolated in their respective folders.
 
+#### 1. Backend Variables (`backend/.env`)
+
+Configure these values in the server directory:
 ```bash
-# .env.local
+PORT=5000                                   # Express port
+NODE_ENV=development                        # Run mode (development/production)
+DATABASE_URL=postgresql://...               # PostgreSQL Prisma connection string
+JWT_SECRET=supersecretjwtkey...             # Auth token secret key
+FRONTEND_URL=http://localhost:3000          # Client origin for CORS setup
+GOOGLE_CLIENT_ID=43806...                   # Google OAuth client ID
 
-# Application
-NEXT_PUBLIC_APP_NAME=PrintSmart
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# File Storage Configuration (AWS S3)
+AWS_ACCESS_KEY_ID=AKIA...                   # Optional AWS Access Key
+AWS_SECRET_ACCESS_KEY=...                   # Optional AWS Secret Key
+AWS_REGION=us-east-1                        # AWS region
+AWS_S3_BUCKET=printsmart-storage            # S3 bucket name
 
-# Features
-NEXT_PUBLIC_ENABLE_ANALYTICS=false
-NEXT_PUBLIC_MAX_FILE_SIZE=52428800  # 50MB in bytes
+# Local fallback directory
+UPLOAD_DIR=./uploads                        # Folder for local fallback storage
+```
 
-# (Future) Backend API
-# NEXT_PUBLIC_API_URL=http://localhost:5000/api
-# NEXT_PUBLIC_API_KEY=sk_test_xxxx
+#### 2. Frontend Variables (`frontend/.env.local`)
 
-# (Future) Database (not used in frontend)
-# DATABASE_URL=postgresql://user:password@localhost:5432/printsmart
-
-# (Future) Third-party Services
-# STRIPE_PUBLISHABLE_KEY=pk_test_xxxx
-# SENDGRID_API_KEY=SG_xxxx
-# AWS_S3_BUCKET=printsmart-uploads
-# AWS_REGION=us-east-1
+Configure these values in the client directory:
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:5000   # URL of backend Express app
+NEXT_PUBLIC_APP_NAME=PrintSmart             # Display brand name
+NEXT_PUBLIC_MAX_FILE_SIZE=52428800          # Capped file upload size (50MB in bytes)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=43806...       # Google Sign-In client ID matching backend
 ```
 
 ### Environment Variable Descriptions
 
-| Variable | Type | Purpose | Default |
-|----------|------|---------|---------|
-| `NEXT_PUBLIC_APP_NAME` | string | App name in title/headers | "PrintSmart" |
-| `NEXT_PUBLIC_APP_URL` | string | Current site URL | "http://localhost:3000" |
-| `NEXT_PUBLIC_ENABLE_ANALYTICS` | boolean | Enable tracking (Vercel Analytics, etc.) | false |
-| `NEXT_PUBLIC_MAX_FILE_SIZE` | number | Max upload file size (bytes) | 52428800 (50MB) |
-| `NEXT_PUBLIC_API_URL` | string | Backend API base URL | undefined (uses frontend only) |
-| `NEXT_PUBLIC_API_KEY` | string | API auth token | undefined |
-
-**Notes:**
-- `NEXT_PUBLIC_*` variables are exposed to browser (safe for public keys)
-- Private variables (without `NEXT_PUBLIC_`) are server-only (if backend added)
-- Development: `.env.local` (git-ignored)
-- Production: Set via hosting platform (Vercel, Docker env, etc.)
+| Variable | Type | Location | Purpose |
+|----------|------|----------|---------|
+| `DATABASE_URL` | string | Backend | Connection string to PostgreSQL database |
+| `JWT_SECRET` | string | Backend | Cryptographic secret used to sign and verify session JWTs |
+| `AWS_S3_BUCKET` | string | Backend | Target AWS storage bucket. If missing/invalid, fallback local disk is used |
+| `NEXT_PUBLIC_API_URL` | string | Frontend | Base URL of the backend API client routes query |
+| `NEXT_PUBLIC_MAX_FILE_SIZE` | number | Frontend | Capped file size (in bytes) validation boundary |
 
 ---
 
 ## Local Development
 
 ### Prerequisites
+- **Node.js**: v18.0.0+ (v20.0.0+ recommended)
+- **npm**: v9.0.0+ 
+- **PostgreSQL**: Local running instance or a managed Supabase/RDS URL
+- **AWS S3**: Bucket setup (optional - offline fallback to local `./uploads/` works by default)
 
-- **Node.js:** 18+ (check with `node --version`)
-- **npm:** 9+ (comes with Node.js)
-- **Git:** For version control
-- **Code Editor:** VS Code recommended with "ES7+ React/Redux/React-Native snippets" extension
+### Comprehensive Startup Sequence
 
-### Setup Steps
+Follow these steps to spin up the local development environment:
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/yourusername/PrintSmart.git
+# 1. Clone the repository and navigate to root
+git clone <repository-url>
 cd PrintSmart
 
-# 2. Install dependencies
+# 2. Build the Backend
+cd backend
 npm install
+cp .env.example .env
+# Edit credentials in .env (add DATABASE_URL)
+npm run prisma:migrate dev   # Creates schema tables & generates client
+npm run dev                  # Launches server on http://localhost:5000
 
-# 3. Create environment file
+# 3. Build the Frontend (In a separate terminal tab)
+cd ../frontend
+npm install
 cp .env.example .env.local
-
-# 4. Start development server
-npm run dev
-
-# 5. Open browser
-# http://localhost:3000
+# Set NEXT_PUBLIC_API_URL to http://localhost:5000
+npm run dev                  # Launches frontend on http://localhost:3000
 ```
 
-### Development Server Details
+### Development Architecture & Hot Reloading
 
-```bash
-npm run dev
-# Starts: http://localhost:3000
-# Features:
-#   - Hot Module Reloading (HMR) - instant updates
-#   - Fast Refresh - preserves component state
-#   - Automatic file watching
-#   - Build errors shown in browser overlay
-#   - 'q' key in terminal to quit server
-```
-
-### Useful Development Commands
-
-```bash
-# Build for production (verify before deploying)
-npm run build
-
-# Start production build (local)
-npm run build && npm start
-
-# Lint code (check for errors/warnings)
-npm run lint
-
-# Format code (with Prettier - if configured)
-npm run format
-
-# Clean build cache (if stuck)
-rm -rf .next && npm run dev
-
-# Check TypeScript (if using .ts/.tsx)
-npx tsc --noEmit
-```
+- **Frontend Hot Module Replacement (HMR)**: The Next.js dev server automatically updates components in the browser upon saving files without resetting active client states.
+- **Backend Reloading**: Powered by `nodemon`. Any saved changes to backend routers, controllers, or services trigger an instantaneous server restart.
+- **Database Tracking**: Prisma client updates automatically on schema changes. Simply run `npx prisma db push` or `npx prisma migrate dev` in the `backend/` directory.
 
 ### Development Workflow
 
@@ -2862,6 +2929,14 @@ All notable changes to PrintSmart are documented in this file.
 - Mock data only
 - localStorage limited to browser
 
+## [3.1.0] - 2026-06-05
+
+### Added
+- **Full-Screen Upload Loading State**: Premium glassmorphic backdrop loader with backdrop-blur and pointer lock on `/customer/upload`. Status texts rotate dynamically every 2.5 seconds.
+- **UPI & Payment QR Code System**: Mandatory UPI ID field and optional QR image uploads in shopkeeper onboarding and profile edit options. Dynamic QR image rendering on customer orders page.
+- **Google Pay Scratch & Win Cards**: Customer side scratch coupon modals featuring silver texture canvas scratching, touch-coordinates sparkle effects, scale feedback, and 30% scratched auto-reveal.
+- **Suspense Boundaries**: Wrapped customer upload and order tracking pages in React `<Suspense>` to prevent Next.js static build bailout warnings.
+
 ## [3.0.0] - 2026-05-31
 
 ### Added
@@ -2888,6 +2963,7 @@ npm run dev                 # Start dev server
 npm run build              # Build for production
 npm start                  # Run production build
 npm run lint               # Lint code
+node test-s3.js            # Run S3 configuration connectivity test (in backend/)
 
 # Dependency Management
 npm install               # Install all dependencies
@@ -3264,6 +3340,7 @@ For managing documents in a scalable SaaS structure, PrintSmart integrates **AWS
   - **Allowed Formats:** `.pdf`, `.doc`, `.docx`, `.jpg`, `.jpeg`, `.png` (mimetypes verified).
   - **Explicit Blocklist:** Executable extensions (like `.exe`, `.bat`, `.apk`, `.sh`) are rejected with 400 Bad Request to prevent security vulnerabilities.
   - **Size Limit:** Max file upload size is capped at 50MB.
+- **S3 Connectivity Verification Script:** Developers can verify the configured S3 credentials and connectivity by executing `node test-s3.js` from the `backend/` directory. The script attempts to upload a test string to `test-folder/test.txt` and logs the resulting S3 URL.
 
 ### Programmatic DB Push and Generation
 On server startup (`server.js`), programmatic schema synchronization and client generation (`npx prisma db push` and `npx prisma generate`) are **disabled by default (commented out)**.
@@ -3294,6 +3371,7 @@ In environments where local networks resolve dual-stack domains (like Supabase's
 ```
 backend/
 ├── server.js                 # Express server initialization, DB syncing, and startup seeding
+├── test-s3.js                # S3 configuration and upload connectivity testing utility
 ├── config/
 │   └── db.js                 # Prisma Client instance instantiation
 ├── prisma/
@@ -3662,10 +3740,10 @@ Manages the ordering workflow.
  
  ## Document Version
  
- - **Version:** 2.8.0
- - **Last Updated:** May 30, 2026
+ - **Version:** 3.1.0
+ - **Last Updated:** June 05, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, AWS S3 integration with local fallback storage, file validation security rules, error-handling response updates, and improved file-upload routing. Updated with database connection workarounds for Windows dual-stack environments and startup schema synchronization practices. Enhanced with multi-file sequential ID batch uploads, premium itemized invoices, global shopkeeper dashboard translations, and 2-PC concurrent session rolling logout limits).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, and interactive Google Pay style Scratch & Win loyalty reward coupon modal).
  
  ---
  

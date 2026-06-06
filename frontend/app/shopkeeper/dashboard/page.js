@@ -55,6 +55,7 @@ export default function ShopkeeperDashboard() {
           status: o.status ? (o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()) : "Pending",
           customerName: o.customerName || "Anonymous Customer",
           phone: o.phone || "",
+          customerComment: o.customerComment || "",
           fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
           fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
           pages: 1,
@@ -178,9 +179,9 @@ export default function ShopkeeperDashboard() {
   }, [router]);
 
   const displayedOrders =
-    activeFilter === "All"
+    (activeFilter === "All" || activeFilter === t("All"))
       ? ordersList
-      : ordersList.filter((order) => order.status === activeFilter);
+      : ordersList.filter((order) => t(order.status) === activeFilter);
 
   const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
   const completedCount = ordersList.filter((o) => o.status === "Completed").length;
@@ -204,11 +205,12 @@ export default function ShopkeeperDashboard() {
       { key: 'profile', label: t('Profile'), badge: null, href: '/shopkeeper/profile' },
       { key: 'settings', label: t('Settings'), badge: null, href: '/shopkeeper/settings' },
       { key: 'subscription', label: t('Subscription'), badge: null, href: '/shopkeeper/subscription' },
-      { key: 'allOrders', label: t('Statistics & Analysis'), badge: null, href: '/shopkeeper/all-orders' },
+      { key: 'allOrders', label: t('Statistics & Analysis'), badge: null, href: '/shopkeeper/statistics-and-analysis' },
       { key: 'pending', label: t('Pending'), badge: String(pendingCount) },
       { key: 'completed', label: t('Completed'), badge: String(completedCount) },
       { key: 'downloaded', label: t('Downloaded'), badge: String(downloadedCount) },
       { key: 'cancelled', label: t('Cancelled'), badge: String(cancelledCount) },
+      { key: 'addOrder', label: t('Add order'), badge: null, href: `/customer/language?shopkeeperAddOrder=true&shopId=${shopkeeperIdCode}` },
       { key: 'coupon', label: t('Business network'), badge: null, href: '/shopkeeper/business-network' },
       { key: 'printsmartAi', label: t('PrintSmart AI'), badge: null, href: '/shopkeeper/printsmart-ai' },
     ];
@@ -223,11 +225,42 @@ export default function ShopkeeperDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCFD] relative overflow-hidden">
-      {/* Dynamic Purple Wave Background Decorator */}
-      <div className="absolute top-0 right-0 left-0 h-[340px] bg-gradient-to-b from-violet-100/30 via-fuchsia-50/15 to-transparent -z-10 pointer-events-none overflow-hidden">
-        <svg className="absolute top-0 w-full h-full text-violet-200/20" viewBox="0 0 1440 320" fill="none" preserveAspectRatio="none">
-          <path fill="currentColor" d="M0,96L48,112C96,128,192,160,288,186.7C384,213,480,235,576,218.7C672,203,768,149,864,138.7C960,128,1056,160,1152,165.3C1248,171,1344,149,1392,138.7L1440,128L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path>
+    <div className="min-h-screen bg-[#FAF8FF] relative overflow-hidden" style={{
+      backgroundImage: `
+        radial-gradient(at 0% 0%, rgba(243, 232, 255, 0.85) 0px, transparent 50%),
+        radial-gradient(at 50% 0%, rgba(250, 232, 255, 0.65) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(224, 242, 254, 0.75) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(243, 232, 255, 0.8) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(253, 244, 255, 0.65) 0px, transparent 50%)
+      `
+    }}>
+      {/* Premium Glassmorphism Pastel Blob Background */}
+      <div className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
+        {/* Soft floating blurred shapes */}
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-purple-200/30 blur-[100px] animate-pulse duration-[8s]" />
+        <div className="absolute top-[20%] right-[-10%] w-[45%] h-[45%] rounded-full bg-pink-100/30 blur-[120px] animate-pulse duration-[10s]" />
+        <div className="absolute bottom-[10%] left-[5%] w-[40%] h-[40%] rounded-full bg-blue-100/20 blur-[90px] animate-pulse duration-[12s]" />
+        
+        {/* Smooth horizontal gradient wave curves mimicking the reference image */}
+        <svg className="absolute top-0 w-full h-[600px] opacity-[0.25] blur-[1px]" viewBox="0 0 1440 600" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0 120C150 180 300 80 450 140C600 200 750 250 900 180C1050 110 1200 70 1440 130V0H0V120Z" fill="url(#wave-grad-1)" />
+          <path d="M0 190C200 120 400 260 600 180C800 100 1000 220 1200 150C1320 108 1380 125 1440 140V0H0V190Z" fill="url(#wave-grad-2)" fillOpacity="0.7" />
+          <defs>
+            <linearGradient id="wave-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#C084FC" />
+              <stop offset="50%" stopColor="#F472B6" />
+              <stop offset="100%" stopColor="#818CF8" />
+            </linearGradient>
+            <linearGradient id="wave-grad-2" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#E9D5FF" />
+              <stop offset="100%" stopColor="#FCE7F3" />
+            </linearGradient>
+          </defs>
+        </svg>
+
+        {/* Soft bottom ripples */}
+        <svg className="absolute bottom-0 w-full h-[300px] opacity-[0.15] rotate-180" viewBox="0 0 1440 300" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0 100C200 50 400 150 600 90C800 30 1000 120 1200 80C1320 56 1380 65 1440 70V0H0V100Z" fill="url(#wave-grad-1)" />
         </svg>
       </div>
       <DashboardHeader shopName={shopName} />

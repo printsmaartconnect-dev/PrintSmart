@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   CheckCircle2,
   Clock,
@@ -12,6 +14,7 @@ import {
   Home,
   User,
   XCircle,
+  Plus,
 } from 'lucide-react'
 
 const iconMap = {
@@ -25,51 +28,78 @@ const iconMap = {
   cancelled: XCircle,
   coupon: Home,
   printsmartAi: Sparkles,
+  addOrder: Plus,
 }
 
 const filterItems = new Set(['pending', 'completed', 'downloaded', 'cancelled'])
 
 function DockItem({ item, activeFilter, onFilterChange }) {
+  const { t } = useTranslation()
+  const pathname = usePathname()
   const Icon = iconMap[item.key] || User
   const isFilterItem = filterItems.has(item.key)
-  const isActive = isFilterItem && activeFilter === item.label
+  const translatedLabel = t(item.label)
+  
+  // Highlighting is active if either it is a filter item matching the active state, or it is a page link matching current pathname
+  const isCurrentPage = item.href && (pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href)))
+  const isActive = (isFilterItem && activeFilter === translatedLabel) || isCurrentPage
+
   const isAiItem = item.key === 'printsmartAi'
+  const isAddOrderItem = item.key === 'addOrder'
+  const isCouponItem = item.key === 'coupon'
 
   const content = (
     <>
       <span
-        className={`relative flex h-10 w-10 items-center justify-center rounded-2xl transition ${
+        className={`relative flex h-10 w-10 items-center justify-center transition-all duration-300 ${
           isAiItem
-            ? 'rounded-full border border-purple-200 bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.6)]'
-            : isActive
-              ? 'text-violet-600 scale-105'
-              : 'text-slate-600'
+            ? 'rounded-full bg-gradient-to-tr from-violet-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(124,58,237,0.55)] border border-violet-400/30'
+            : isCouponItem
+              ? 'rounded-full border border-indigo-200 bg-indigo-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] scale-105'
+              : isAddOrderItem
+                ? 'rounded-[14px] bg-[#3B82F6] text-white hover:bg-[#2563EB] shadow-[0_4px_12px_rgba(59,130,246,0.3)] scale-105'
+                : isActive
+                  ? 'text-[#5D3EBC]'
+                  : 'text-slate-600'
         }`}
       >
         {isAiItem ? (
-          <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-fuchsia-200 animate-ping" />
-        ) : null}
-        <Icon size={20} className={isAiItem ? 'text-white' : isActive ? 'text-violet-600' : 'text-slate-700'} />
+          <>
+            <span className="text-[11px] font-black tracking-wider text-white">AI</span>
+            <span className="absolute -top-1 -right-1 text-[8px] animate-pulse">✨</span>
+            <span className="absolute -bottom-1.5 -left-1 text-[8px] animate-pulse delay-100">✨</span>
+          </>
+        ) : isCouponItem ? (
+          <>
+            <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-indigo-200 animate-ping" />
+            <Icon size={18} className="text-white" />
+          </>
+        ) : (
+          <Icon size={19} className={isAddOrderItem ? 'text-white' : isActive ? 'text-[#5D3EBC]' : 'text-slate-600 group-hover:text-slate-800'} />
+        )}
+        
         {item.badge ? (
-          <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm">
+          <span className="absolute -right-2 -top-2 rounded-full bg-[#FF3B30] px-1.5 py-0.5 text-[9px] font-black text-white border-2 border-white shadow-sm flex items-center justify-center h-[18px] min-w-[18px]">
             {item.badge}
           </span>
         ) : null}
       </span>
-      <span className={`text-[9.5px] font-bold tracking-tight text-center truncate w-full ${isActive ? 'text-violet-600 font-black' : 'text-slate-600'}`} title={item.label}>
-        {item.label}
+      <span className={`text-[9.5px] tracking-tight text-center truncate w-full transition-colors duration-300 ${isActive ? 'text-[#5D3EBC] font-extrabold' : 'text-slate-500 font-semibold group-hover:text-slate-700'}`} title={translatedLabel}>
+        {translatedLabel}
       </span>
     </>
   )
 
   const className =
-    `relative flex flex-col items-center justify-between h-[72px] w-[78px] rounded-2xl p-2 transition-all duration-200 hover:scale-110 origin-bottom select-none ${
-      isActive ? 'bg-violet-500/15 border border-violet-500/20 shadow-[0_4px_12px_rgba(124,58,237,0.08)]' : 'hover:bg-violet-500/5'
+    `relative flex flex-col items-center justify-between h-[74px] w-[80px] rounded-[20px] p-2 transition-all duration-300 hover:scale-105 origin-bottom select-none cursor-pointer group ${
+      isActive
+        ? 'bg-[#ECE9F8]/80 border border-violet-200/50 shadow-[0_4px_16px_rgba(124,58,237,0.08)]'
+        : 'hover:bg-violet-50/50 border border-transparent'
     }`
 
   if (item.href) {
     return (
-      <Link href={item.href} className={className} aria-label={item.label}>
+      <Link href={item.href} className={className} aria-label={translatedLabel}>
         {content}
       </Link>
     )
@@ -80,9 +110,9 @@ function DockItem({ item, activeFilter, onFilterChange }) {
       <button
         type="button"
         className={className}
-        aria-label={item.label}
+        aria-label={translatedLabel}
         aria-pressed={isActive}
-        onClick={() => onFilterChange?.(item.label)}
+        onClick={() => onFilterChange?.(translatedLabel)}
       >
         {content}
       </button>
@@ -93,7 +123,7 @@ function DockItem({ item, activeFilter, onFilterChange }) {
     <button
       type="button"
       className={className}
-      aria-label={item.label}
+      aria-label={translatedLabel}
     >
       {content}
     </button>
@@ -103,8 +133,8 @@ function DockItem({ item, activeFilter, onFilterChange }) {
 export default function BottomDock({ items, activeFilter, onFilterChange }) {
   return (
     <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-max max-w-[95vw] overflow-x-auto no-scrollbar">
-      <div className="rounded-[28px] bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.12)] px-4 py-2 hover:shadow-[0_16px_50px_rgba(0,0,0,0.16)] transition-all duration-300">
-        <div className="flex items-end justify-center gap-1.5 flex-nowrap">
+      <div className="rounded-[32px] bg-white/70 backdrop-blur-xl border border-white/50 shadow-[0_15px_35px_rgba(0,0,0,0.05),0_5px_15px_rgba(124,58,237,0.03)] px-4 py-2 hover:shadow-[0_20px_45px_rgba(124,58,237,0.08)] transition-all duration-300">
+        <div className="flex items-end justify-center gap-2 flex-nowrap">
           {items.map((i) => (
             <DockItem
               key={i.key}

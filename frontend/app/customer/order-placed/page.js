@@ -21,6 +21,9 @@ export default function OrderPlacedPage() {
   useEffect(() => {
     const currentOrder = JSON.parse(localStorage.getItem('currentOrder') || '{}')
     setOrder(currentOrder)
+    
+    // Clear customer comment from localStorage after order is placed
+    localStorage.removeItem('customerComment')
   }, [])
 
   if (!order?.orderId) {

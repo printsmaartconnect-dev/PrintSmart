@@ -201,18 +201,21 @@ export default function PrintConfigurationSettingsPage() {
     setPricingState((prev) => ({ ...prev, [key]: value }))
   }
 
-  const showCustomAutoDelete = pricing.autoDeleteAfterHours === 'Custom'
-
   const pricingSummary = useMemo(() => {
     const safe = (v) => (v === '' || v == null ? '0.00' : v)
     return {
       bwA4: safe(pricing.bwA4),
       bwA3: safe(pricing.bwA3),
+      bwA5: safe(pricing.bwA5),
+      bwLegal: safe(pricing.bwLegal),
+      bwLetter: safe(pricing.bwLetter),
       colorA4: safe(pricing.colorA4),
       colorA3: safe(pricing.colorA3),
+      colorA5: safe(pricing.colorA5),
+      colorLegal: safe(pricing.colorLegal),
+      colorLetter: safe(pricing.colorLetter),
       bwDoubleSide: safe(pricing.bwDoubleSide),
       colorDoubleSide: safe(pricing.colorDoubleSide),
-      expressPrint: safe(pricing.expressPrint),
     }
   }, [pricing])
 
@@ -309,7 +312,7 @@ export default function PrintConfigurationSettingsPage() {
               <div>
                 <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">{t('Print Configuration')}</h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  {t('Update your printing prices, extra service charges, and automatic document deletion rules.')}
+                  {t('Update your printing prices and preferences.')}
                 </p>
               </div>
 
@@ -322,6 +325,15 @@ export default function PrintConfigurationSettingsPage() {
                     </Field>
                     <Field label={t('A3 (Per Page)')}>
                       <RupeeInput value={pricing.bwA3} onChange={onChange('bwA3')} placeholder="2.00" />
+                    </Field>
+                    <Field label={t('A5 (Per Page)')}>
+                      <RupeeInput value={pricing.bwA5} onChange={onChange('bwA5')} placeholder="1.00" />
+                    </Field>
+                    <Field label={t('Legal (Per Page)')}>
+                      <RupeeInput value={pricing.bwLegal} onChange={onChange('bwLegal')} placeholder="1.50" />
+                    </Field>
+                    <Field label={t('Letter (Per Page)')}>
+                      <RupeeInput value={pricing.bwLetter} onChange={onChange('bwLetter')} placeholder="1.00" />
                     </Field>
                     <Field label={t('Double Side (Per Page)')}>
                       <RupeeInput
@@ -341,6 +353,15 @@ export default function PrintConfigurationSettingsPage() {
                     <Field label={t('A3 (Per Page)')}>
                       <RupeeInput value={pricing.colorA3} onChange={onChange('colorA3')} placeholder="8.00" />
                     </Field>
+                    <Field label={t('A5 (Per Page)')}>
+                      <RupeeInput value={pricing.colorA5} onChange={onChange('colorA5')} placeholder="4.00" />
+                    </Field>
+                    <Field label={t('Legal (Per Page)')}>
+                      <RupeeInput value={pricing.colorLegal} onChange={onChange('colorLegal')} placeholder="6.00" />
+                    </Field>
+                    <Field label={t('Letter (Per Page)')}>
+                      <RupeeInput value={pricing.colorLetter} onChange={onChange('colorLetter')} placeholder="5.00" />
+                    </Field>
                     <Field label={t('Double Side (Per Page)')}>
                       <RupeeInput
                         value={pricing.colorDoubleSide}
@@ -350,55 +371,6 @@ export default function PrintConfigurationSettingsPage() {
                     </Field>
                   </div>
                 </Card>
-
-                <div className="md:col-span-2">
-                  <Card title={t('Other Settings')} icon={Settings2}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field label={t('Express Print (Extra Charges)')}>
-                        <RupeeInput
-                          value={pricing.expressPrint}
-                          onChange={onChange('expressPrint')}
-                          placeholder="10.00"
-                        />
-                      </Field>
-                      <Field label={t('Auto Delete After (Hours)')}>
-                        <SelectInput
-                          value={pricing.autoDeleteAfterHours}
-                          onChange={(e) =>
-                            setPricingState((prev) => ({
-                              ...prev,
-                              autoDeleteAfterHours: e.target.value,
-                            }))
-                          }
-                        >
-                          <option value="1 hrs">1 hrs</option>
-                          <option value="24 hrs">24 hrs</option>
-                          <option value="Custom">Custom</option>
-                        </SelectInput>
-                      </Field>
-
-                      {showCustomAutoDelete && (
-                        <div className="sm:col-span-2">
-                          <Field label={t('Custom Hours')}>
-                            <TextInput
-                              type="number"
-                              min={1}
-                              value={pricing.customAutoDeleteHours || ''}
-                              onChange={(e) =>
-                                setPricingState((prev) => ({
-                                  ...prev,
-                                  customAutoDeleteHours: e.target.value,
-                                }))
-                              }
-                              placeholder="Enter hours"
-                              inputMode="numeric"
-                            />
-                          </Field>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                </div>
               </div>
 
               <div className="flex justify-end">
@@ -420,11 +392,16 @@ export default function PrintConfigurationSettingsPage() {
                 <div className="space-y-1">
                   <SummaryRow label={t('B&W A4')} value={pricingSummary.bwA4} />
                   <SummaryRow label={t('B&W A3')} value={pricingSummary.bwA3} />
+                  <SummaryRow label={t('B&W A5')} value={pricingSummary.bwA5} />
+                  <SummaryRow label={t('B&W Legal')} value={pricingSummary.bwLegal} />
+                  <SummaryRow label={t('B&W Letter')} value={pricingSummary.bwLetter} />
                   <SummaryRow label={t('Color A4')} value={pricingSummary.colorA4} />
                   <SummaryRow label={t('Color A3')} value={pricingSummary.colorA3} />
+                  <SummaryRow label={t('Color A5')} value={pricingSummary.colorA5} />
+                  <SummaryRow label={t('Color Legal')} value={pricingSummary.colorLegal} />
+                  <SummaryRow label={t('Color Letter')} value={pricingSummary.colorLetter} />
                   <SummaryRow label={t('Double Side B&W')} value={pricingSummary.bwDoubleSide} />
                   <SummaryRow label={t('Double Side Color')} value={pricingSummary.colorDoubleSide} />
-                  <SummaryRow label={t('Express Print')} value={pricingSummary.expressPrint} />
                 </div>
               </div>
             </aside>

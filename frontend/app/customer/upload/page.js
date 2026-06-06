@@ -197,6 +197,7 @@ export default function UploadPage() {
   const [files, setFiles] = useState([])
   const [renames, setRenames] = useState({})
   const [uploading, setUploading] = useState(false)
+  const [customerComment, setCustomerComment] = useState('')
   const [error, setError] = useState(null)
 
   const onDrop = useCallback((acceptedFiles) => {
@@ -337,10 +338,22 @@ export default function UploadPage() {
       // Store complete file metadata in localStorage for legacy and current flows.
       localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
       localStorage.setItem('uploadCart', JSON.stringify(uploadedFilesData))
+      
+      // Store customer comment if provided
+      if (customerComment.trim()) {
+        localStorage.setItem('customerComment', customerComment.trim())
+      } else {
+        localStorage.removeItem('customerComment')
+      }
 
-      const nextUrl = shopId
+      const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
+      let nextUrl = shopId
         ? `/customer/configuration?shopId=${shopId}&userId=${userId}`
         : `/customer/configuration?userId=${userId}`
+
+      if (isShopkeeper) {
+        nextUrl += `&shopkeeperAddOrder=true`
+      }
 
       router.push(nextUrl)
     } catch (err) {
@@ -584,6 +597,22 @@ export default function UploadPage() {
           <CheckCircle size={16} className="text-green-600" />
           {t('Your files are encrypted and automatically deleted after printing.')}
         </p>
+
+        {/* Customer Comment Field */}
+        <div className="mt-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            {t('Customer Comment')} <span className="text-gray-400 font-normal">(Optional)</span>
+          </label>
+          <textarea
+            value={customerComment}
+            onChange={(e) => setCustomerComment(e.target.value)}
+            placeholder={t('Add any special instructions or comments for the shopkeeper...')}
+            maxLength={500}
+            rows={3}
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+          />
+          <p className="text-xs text-gray-500 mt-1">{customerComment.length}/500</p>
+        </div>
 
         {/* Continue Button */}
         <button

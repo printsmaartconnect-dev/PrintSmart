@@ -11,6 +11,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.16
         version: 10.5.0(postcss@8.5.15)
+      groq-sdk:
+        specifier: ^1.2.1
+        version: 1.2.1
       i18next:
         specifier: ^26.2.0
         version: 26.2.0
@@ -269,6 +272,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  groq-sdk@1.2.1:
+    resolution: {integrity: sha512-dsDSWJRJf+n2dPiCv7zU3IsJbrh7jfSPqi6vc1q0TTK1oUF6bn+wv4P2VFdynkHpuJ0TTJ57vlpT87judPgVPA==}
+    hasBin: true
 
   hasown@2.0.3:
     resolution: {integrity: sha512-ej4AhfhfL2Q2zpMmLo7U1Uv9+PyhIZpgQLGT1F9miIGmiCJIoCgSmczFdrc97mWT4kVY72KA+WnnhJ5pghSvSg==}
@@ -767,6 +774,8 @@ snapshots:
       is-glob: 4.0.3
 
   graceful-fs@4.2.11: {}
+
+  groq-sdk@1.2.1: {}
 
   hasown@2.0.3:
     dependencies:
