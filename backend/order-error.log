@@ -1,0 +1,82 @@
+2026-06-07T06:14:59.613Z
+PrismaClientValidationError: 
+Invalid `prisma.order.findUnique()` invocation in
+D:\New folder (4)\PrintSmart\backend\controllers\order.controller.js:292:47
+
+  289 });
+  290 
+  291 // Fetch complete populated order
+→ 292 const completedOrder = await prisma.order.findUnique({
+        where: {
+          id: "300e9c1d-e097-43c3-91ec-f67ccaf4d9a9"
+        },
+        include: {
+          printConfiguration: true,
+          orderFiles: true,
+          queue: true,
+          invoice: true,
+          paymentLog: true,
+          ~~~~~~~~~~
+      ?   user?: true,
+      ?   shopkeeper?: true,
+      ?   rewardLog?: true
+        }
+      })
+
+Unknown field `paymentLog` for include statement on model `Order`. Available options are marked with ?.
+    at wn (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async exports.createOrder (D:\New folder (4)\PrintSmart\backend\controllers\order.controller.js:292:28)
+
+2026-06-07T06:15:49.524Z
+PrismaClientValidationError: 
+Invalid `prisma.order.findUnique()` invocation in
+D:\New folder (4)\PrintSmart\backend\controllers\order.controller.js:292:47
+
+  289 });
+  290 
+  291 // Fetch complete populated order
+→ 292 const completedOrder = await prisma.order.findUnique({
+        where: {
+          id: "7041e173-8813-4c86-ae78-b92f39d10ac6"
+        },
+        include: {
+          printConfiguration: true,
+          orderFiles: true,
+          queue: true,
+          invoice: true,
+          paymentLog: true,
+          ~~~~~~~~~~
+      ?   user?: true,
+      ?   shopkeeper?: true,
+      ?   rewardLog?: true
+        }
+      })
+
+Unknown field `paymentLog` for include statement on model `Order`. Available options are marked with ?.
+    at wn (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async exports.createOrder (D:\New folder (4)\PrintSmart\backend\controllers\order.controller.js:292:28)
+
+2026-06-07T06:16:48.737Z
+PrismaClientKnownRequestError: 
+Invalid `prisma.order.findUnique()` invocation in
+D:\New folder (4)\PrintSmart\backend\controllers\order.controller.js:292:47
+
+  289 });
+  290 
+  291 // Fetch complete populated order
+→ 292 const completedOrder = await prisma.order.findUnique(
+The table `public.PaymentLog` does not exist in the current database.
+    at $n.handleRequestError (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (D:\New folder (4)\PrintSmart\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async exports.createOrder (D:\New folder (4)\PrintSmart\backend\controllers\order.controller.js:292:28)
+

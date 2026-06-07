@@ -8,6 +8,7 @@ import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import RewardCardModal from '../../components/customer/RewardCardModal'
+import { validateUpiParams, generateUpiUrl } from '../../../lib/upi'
 
 export default function OrdersPage() {
   const { t } = useTranslation()
@@ -19,6 +20,8 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [transactionRef, setTransactionRef] = useState('')
+  const [submittingRef, setSubmittingRef] = useState(false)
   
   // Delete Confirmation Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -28,6 +31,19 @@ export default function OrdersPage() {
   // Scratch Coupon State
   const [showRewardModal, setShowRewardModal] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState(null)
+
+  // UPI Payment State
+  const [isMobile, setIsMobile] = useState(false)
+  const [showUpiModal, setShowUpiModal] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = typeof navigator !== 'undefined' ? (navigator.userAgent || navigator.vendor || window.opera) : ''
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
+      setIsMobile(mobileRegex.test(userAgent))
+    }
+    checkMobile()
+  }, [])
 
   const fetchOrders = async () => {
     setLoading(true)
@@ -111,26 +127,36 @@ export default function OrdersPage() {
     }
   }
 
-  const handlePayOffline = async (orderId) => {
+  const handleVerifyPayment = async (orderId, ref, gateway = 'UPI') => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-      const response = await fetch(`${apiUrl}/api/orders/${orderId}/customer-status`, {
-        method: 'PUT',
+      const response = await fetch(`${apiUrl}/api/payments/verify/${orderId}`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: 'ACCEPTED' }),
+        body: JSON.stringify({
+          transactionRef: ref,
+          paymentGateway: gateway,
+          amount: orders.find(o => o.id === orderId)?.totalAmount || 0
+        }),
       })
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.message || 'Failed to update order status')
+        throw new Error(errData.message || 'Failed to register payment verification code')
       }
 
       await fetchOrders()
     } catch (err) {
-      console.error('Pay offline error:', err)
-      alert(err.message || t('Could not transition to the next step.'))
+      console.error('Verify payment error:', err)
+      alert(err.message || t('Could not register payment verification details.'))
+    }
+  }
+
+  const handlePayCash = async (orderId) => {
+    if (confirm(t('Confirm cash payment at the counter?'))) {
+      await handleVerifyPayment(orderId, 'CASH_AT_COUNTER', 'CASH')
     }
   }
 
@@ -233,62 +259,194 @@ export default function OrdersPage() {
           (() => {
             const latestPendingOrder = orders.find(o => o.status === 'PENDING')
             const upiId = latestPendingOrder?.shopkeeper?.upiId
-            const paymentQrUrl = latestPendingOrder?.shopkeeper?.paymentQrUrl
-            const upiLink = upiId ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(latestPendingOrder.shopkeeper?.shopName || 'Shopkeeper')}&am=${latestPendingOrder.totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('PrintSmart Order ' + latestPendingOrder.orderId)}` : '#'
+            const shopName = latestPendingOrder?.shopkeeper?.shopName
+            const amount = latestPendingOrder?.totalAmount
+
+            let upiUrl = ''
+            let validationError = null
+
+            if (latestPendingOrder) {
+              try {
+                upiUrl = generateUpiUrl(upiId, shopName, amount)
+              } catch (err) {
+                validationError = err.message
+              }
+            }
+
+            const handleUpiPayClick = () => {
+              if (validationError) return
+              if (isMobile) {
+                window.location.href = upiUrl
+              } else {
+                setShowUpiModal(true)
+              }
+            }
 
             return (
               <div className="mb-8 p-5 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl space-y-4 shadow-sm animate-fade-in flex flex-col">
                 <div className="space-y-1 text-center">
                   <h3 className="font-bold text-slate-800 text-sm">{t('Payment Options for Order')} <span className="text-indigo-600 font-mono">({latestPendingOrder.orderId})</span></h3>
                   <p className="text-xs text-gray-500 font-semibold">
-                    {t('If you are paying online then click on this upi link or paying offline then ignore')}
+                    {t('Pay online via UPI or pay cash at the counter to start printing.')}
                   </p>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row gap-4 items-end">
-                  {/* Pay Online column with optional QR Code directly above button */}
-                  <div className="flex-1 flex flex-col items-center gap-3 w-full">
-                    {paymentQrUrl && (
-                      <div className="flex flex-col items-center justify-center p-2 bg-white rounded-xl border border-indigo-100 max-w-[150px] shadow-sm">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{t('Scan to Pay')}</p>
-                        <div className="w-28 h-28 relative flex items-center justify-center bg-slate-50 border border-slate-100 rounded-lg overflow-hidden">
-                          <img
-                            src={paymentQrUrl.startsWith('http') ? paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${paymentQrUrl}`}
-                            alt="Shop Payment QR"
-                            className="max-w-full max-h-full object-contain cursor-pointer transition hover:scale-105"
-                            onClick={() => window.open(paymentQrUrl.startsWith('http') ? paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${paymentQrUrl}`, '_blank')}
+                <div className="flex flex-col md:flex-row gap-4 items-stretch">
+                  {/* Pay Online column */}
+                  <div className="flex-1 flex flex-col items-center gap-3 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm justify-between">
+                    <div className="w-full flex flex-col items-center gap-3">
+                      <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">{t('Option A: Pay Online')}</p>
+                      
+                      {validationError ? (
+                        <div className="w-full bg-rose-50 border border-rose-100 rounded-xl p-3 text-left">
+                          <p className="text-[10px] font-bold text-rose-800 uppercase tracking-wide flex items-center gap-1.5">
+                            <AlertCircle size={12} className="text-rose-600" />
+                            {t('Payment Configuration Error')}
+                          </p>
+                          <p className="text-xs text-rose-700 font-semibold mt-1">
+                            {t(validationError)}
+                          </p>
+                          <p className="text-[10px] text-rose-500 mt-1 font-medium">
+                            {t('Please notify the shopkeeper to set up their profile correctly.')}
+                          </p>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleUpiPayClick}
+                          className="w-full inline-flex items-center justify-center gap-2 text-center py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition duration-200 shadow-sm"
+                        >
+                          ⚡ {t('Pay with UPI')}
+                        </button>
+                      )}
+                    </div>
+
+                    {!validationError && (
+                      <div className="w-full border-t border-slate-100 pt-3 mt-3 text-left">
+                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">
+                          {t('Confirm UPI (12-Digit Ref No.)')}
+                        </label>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            value={transactionRef}
+                            onChange={(e) => setTransactionRef(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                            placeholder="e.g. 123456789012"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
                           />
+                          <button
+                            type="button"
+                            disabled={transactionRef.length !== 12 || submittingRef}
+                            onClick={async () => {
+                              setSubmittingRef(true)
+                              await handleVerifyPayment(latestPendingOrder.id, transactionRef, 'UPI')
+                              setTransactionRef('')
+                              setSubmittingRef(false)
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center justify-center"
+                          >
+                            {submittingRef ? t('Wait...') : t('Submit')}
+                          </button>
                         </div>
                       </div>
-                    )}
-                    {upiId ? (
-                      <a
-                        href={upiLink}
-                        className="w-full inline-flex items-center justify-center gap-2 text-center py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm"
-                      >
-                        💳 {t('Pay Online (UPI)')}
-                      </a>
-                    ) : (
-                      <button
-                        disabled
-                        className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed"
-                      >
-                        💳 {t('Online Payment Unavailable')}
-                      </button>
                     )}
                   </div>
                   
                   {/* Pay Offline column */}
-                  <div className="flex-1 w-full">
+                  <div className="flex-1 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm flex flex-col justify-between items-center text-center">
+                    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">{t('Option B: Pay Cash')}</p>
+                    <div className="text-[11px] text-gray-500 font-medium px-2 mb-4">
+                      {t('Pay cash directly at the counter. Click below to notify the shopkeeper of cash payment.')}
+                    </div>
                     <button
                       type="button"
-                      onClick={() => handlePayOffline(latestPendingOrder.id)}
-                      className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 transition shadow-sm h-[48px] flex items-center justify-center"
+                      onClick={() => handlePayCash(latestPendingOrder.id)}
+                      className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 transition shadow-sm h-[42px] flex items-center justify-center mt-auto"
                     >
-                      🏪 {t('Pay Offline to Shopkeeper')}
+                      🏪 {t('Pay Cash at Counter')}
                     </button>
                   </div>
                 </div>
+
+                {/* Desktop Fallback QR Modal */}
+                {showUpiModal && !validationError && (
+                  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-5 border border-indigo-50 relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowUpiModal(false)}
+                        className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition font-bold"
+                      >
+                        ✕
+                      </button>
+
+                      <div className="text-center space-y-1">
+                        <h3 className="text-base font-bold text-slate-800 flex items-center justify-center gap-1.5">
+                          📱 {t('Scan to Pay with UPI')}
+                        </h3>
+                        <p className="text-xs text-slate-500 font-bold">
+                          {shopName}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-2xl border border-slate-100 max-w-[210px] mx-auto shadow-inner">
+                        <div className="w-48 h-48 relative flex items-center justify-center bg-white border border-slate-150 rounded-xl overflow-hidden shadow-sm">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUrl)}`}
+                            alt="Scan UPI QR Code"
+                            className="max-w-full max-h-full object-contain p-1"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-center bg-indigo-50/60 border border-indigo-100 rounded-xl py-2 px-4 max-w-[200px] mx-auto">
+                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider block">
+                          {t('Amount Prefilled')}
+                        </span>
+                        <span className="text-lg font-extrabold text-indigo-700">
+                          ₹{amount.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <p className="text-center text-[11px] text-slate-600 font-semibold leading-relaxed px-2">
+                        {t('Open Google Pay, PhonePe, Paytm, or any UPI app on your phone and scan this QR code to complete the payment.')}
+                      </p>
+
+                      <div className="border-t border-slate-100 pt-4 text-left">
+                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">
+                          {t('Step 2: Enter 12-Digit UPI Ref No. / UTR')}
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={transactionRef}
+                            onChange={(e) => setTransactionRef(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                            placeholder="e.g. 123456789012"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold shadow-sm"
+                          />
+                          <button
+                            type="button"
+                            disabled={transactionRef.length !== 12 || submittingRef}
+                            onClick={async () => {
+                              setSubmittingRef(true)
+                              await handleVerifyPayment(latestPendingOrder.id, transactionRef, 'UPI')
+                              setTransactionRef('')
+                              setShowUpiModal(false)
+                              setSubmittingRef(false)
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md active:scale-95 flex items-center justify-center flex-shrink-0"
+                          >
+                            {submittingRef ? t('Wait...') : t('Submit')}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })()
@@ -307,11 +465,32 @@ export default function OrdersPage() {
         ) : orders.length > 0 ? (
           <div className="space-y-6 mb-8">
             {orders.map((order) => (
-              <div key={order.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
+              <div key={order.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4 text-left">
                 {/* Header Row */}
                 <div className="flex justify-between items-start flex-wrap gap-2 pb-3 border-b border-gray-150">
                   <div>
-                    <span className="font-bold text-indigo-700 text-base">{order.orderId}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-indigo-700 text-base">{order.orderId}</span>
+                      {order.paymentLog && (
+                        <>
+                          {order.paymentLog.paymentStatus === 'PENDING' && (
+                            <span className="inline-flex items-center rounded bg-amber-50 text-amber-700 border border-amber-200/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider">
+                              ⏳ {t('Verifying')} {order.paymentLog.paymentGateway === 'UPI' ? `(Ref: ${order.paymentLog.transactionRef})` : `(Cash)`}
+                            </span>
+                          )}
+                          {order.paymentLog.paymentStatus === 'VERIFIED' && (
+                            <span className="inline-flex items-center rounded bg-emerald-50 text-emerald-700 border border-emerald-200/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider">
+                              ✅ {t('Paid')}
+                            </span>
+                          )}
+                          {order.paymentLog.paymentStatus === 'FAILED' && (
+                            <span className="inline-flex items-center rounded bg-rose-50 text-rose-700 border border-rose-200/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider">
+                              ❌ {t('Payment Rejected')}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500 font-semibold mt-0.5">{formatTimestamp(order.createdAt)}</p>
                   </div>
                   <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${statusColors[order.status] || statusColors['PENDING']}`}>

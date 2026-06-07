@@ -101,7 +101,7 @@ function ActionButton({ tone, icon: Icon, label, onClick }) {
   )
 }
 
-export default function OrderCard({ order, onStatusChange }) {
+export default function OrderCard({ order, onStatusChange, onPaymentVerify }) {
   const handlePreview = () => {
     if (order.fileUrl) {
       window.open(order.fileUrl, '_blank')
@@ -168,6 +168,51 @@ export default function OrderCard({ order, onStatusChange }) {
       </div>
 
       {order.variant === 'talk' ? <CustomerWantsToTalk /> : <DetailGrid order={order} />}
+
+      {order.paymentLog && (
+        <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-left space-y-2 text-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 font-semibold">Payment Status:</span>
+            {order.paymentLog.paymentStatus === 'PENDING' ? (
+              <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">
+                ⏳ Pending ({order.paymentLog.paymentGateway})
+              </span>
+            ) : order.paymentLog.paymentStatus === 'VERIFIED' ? (
+              <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">
+                ✅ Verified
+              </span>
+            ) : (
+              <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200/50 px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">
+                ❌ Rejected
+              </span>
+            )}
+          </div>
+          {order.paymentLog.paymentGateway === 'UPI' && (
+            <div className="flex justify-between items-center text-[10px] font-mono">
+              <span className="text-slate-400 font-semibold">Ref No:</span>
+              <span className="text-indigo-600 font-bold">{order.paymentLog.transactionRef}</span>
+            </div>
+          )}
+          {order.paymentLog.paymentStatus === 'PENDING' && (
+            <div className="flex gap-2 pt-1.5 border-t border-slate-150">
+              <button
+                type="button"
+                onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'VERIFIED')}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-extrabold py-1.5 rounded-lg transition"
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'FAILED')}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold py-1.5 rounded-lg transition"
+              >
+                Reject
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-4">
         <label className="text-xs font-semibold text-slate-600 mb-1 block">Customer Comment (Optional)</label>

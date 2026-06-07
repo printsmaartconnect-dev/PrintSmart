@@ -2939,6 +2939,13 @@ All notable changes to PrintSmart are documented in this file.
 - Mock data only
 - localStorage limited to browser
 
+## [3.2.1] - 2026-06-07
+
+### Fixed
+- Fixed order placement server-side crash (500 Error) caused by PDFKit winansi encoding errors when rendering the Rupee symbol `₹` using standard Helvetica; replaced with `Rs.`.
+- Fixed duplicate key database conflicts on `orderId` unique constraint by querying the latest monthly order file to resolve sequence baseline instead of using `count()`, making sequence generation robust against file/order deletions.
+- Fixed customer success screen redirection issue where orders placed via normal checkout resulted in a "No active order found." error page; added the missing `currentOrder` localStorage item write on order placement completion.
+
 ## [3.1.0] - 2026-06-05
 
 ### Added
@@ -3601,7 +3608,7 @@ To ensure shopkeepers have short, human-readable IDs to track orders, the backen
 1. `MM` (Month) and `YY` (Year) are extracted from the current date.
 2. `P` represents "Print".
 3. `BW` or `C` signifies Black & White or Color print types respectively.
-4. `sequence` is calculated by querying the database for all orders placed in the current calendar month matching that print type, adding `1`, and zero-padding it to 2 digits (e.g., `0526PBW01`, `0526PC02`).
+4. `sequence` is resolved dynamically by querying the database for the most recently created order file this month, parsing its sequence suffix, and incrementing it (falling back to 0 if none exist). This makes sequence generation robust against intermediate order or file deletions, preventing database duplicate key collisions.
 
 ### 3. Estimated Wait Time Algorithm
 Upon order creation, the system calculates estimated queue waiting times dynamically:
@@ -3624,6 +3631,7 @@ When an order is created, the backend triggers the `invoice.service.js` using `p
    - **ORDER DETAILS** block specifying order ID, quality, copies, paper size, and print sides.
    - **FILES** list displaying custom names of uploaded documents.
    - **FINANCIAL SUMMARY** showing subtotal, 18% GST (Tax), and total amount.
+   - **Note on Currency Rendering**: The PDF uses the ASCII-compatible `Rs.` representation instead of the Unicode `₹` symbol to ensure standard PDFKit fonts (like Helvetica) render successfully without triggering character encoding exceptions.
 3. Streams the PDF buffer into `/uploads/invoices/invoice-[orderId]-[timestamp].pdf`.
 4. Saves metadata (invoice number, pdfUrl, totals) to the `Invoice` table, making it available for client-side download via `/api/orders/:id/invoice`.
 
@@ -3802,10 +3810,10 @@ Used to manage the order-specific customer scratch loyalty cards and aggregate m
  
  ## Document Version
  
- - **Version:** 3.2.0
- - **Last Updated:** June 06, 2026
+ - **Version:** 3.2.1
+ - **Last Updated:** June 07, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, and Gemini 3.5 custom API key overrides).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, Gemini 3.5 custom API key overrides, and fixes for order placement server errors and success redirection).
  
  ---
  

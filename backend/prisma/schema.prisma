@@ -145,6 +145,7 @@ model Order {
   queue                Queue?
   invoice              Invoice?
   rewardLog            RewardLog?
+  paymentLog           PaymentLog?
 
   price                Float    @default(0)
   subtotal             Float    @default(0)
@@ -340,4 +341,18 @@ model UserSession {
   expiresAt    DateTime
 
   @@index([shopkeeperId])
+}
+
+model PaymentLog {
+  id             String      @id @default(uuid())
+  orderId        String      @unique
+  order          Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  transactionRef String      @unique
+  paymentStatus  String      @default("PENDING") // 'PENDING' | 'VERIFIED' | 'FAILED'
+  amount         Float
+  paymentGateway String      @default("UPI") // 'UPI' | 'CASH'
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([transactionRef])
 }

@@ -150,7 +150,7 @@ async function generateInvoicePDF(orderData) {
         doc.text(fileId, 50, rowY);
         doc.text(displayName, 140, rowY);
         doc.text(detailsStr, 330, rowY);
-        doc.text(`₹${itemPrice.toFixed(2)}`, 480, rowY, { align: 'right', width: 60 });
+        doc.text(`Rs. ${itemPrice.toFixed(2)}`, 480, rowY, { align: 'right', width: 60 });
         
         doc.moveDown(1.2); // space for next row
       });
@@ -164,14 +164,14 @@ async function generateInvoicePDF(orderData) {
     doc.moveDown(0.5);
     
     doc.fontSize(10).font('Helvetica')
-      .text(`Subtotal: ₹${subtotal?.toFixed(2) || '0.00'}`, 400)
-      .text(`Tax (GST): ₹${tax?.toFixed(2) || '0.00'}`, 400)
-      .text(`Discount: -₹${discount?.toFixed(2) || '0.00'}`, 400);
+      .text(`Subtotal: Rs. ${subtotal?.toFixed(2) || '0.00'}`, 400)
+      .text(`Tax (GST): Rs. ${tax?.toFixed(2) || '0.00'}`, 400)
+      .text(`Discount: -Rs. ${discount?.toFixed(2) || '0.00'}`, 400);
     
     doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.3);
     
-    doc.fontSize(12).font('Helvetica-Bold').text(`TOTAL: ₹${totalAmount?.toFixed(2) || '0.00'}`, 400);
+    doc.fontSize(12).font('Helvetica-Bold').text(`TOTAL: Rs. ${totalAmount?.toFixed(2) || '0.00'}`, 400);
     
     doc.moveDown(2);
 

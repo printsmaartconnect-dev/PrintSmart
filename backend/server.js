@@ -15,6 +15,7 @@ const shopkeeperRoutes = require("./routes/shopkeeper.routes");
 const adminRoutes = require("./routes/admin.routes");
 const aiRoutes = require("./routes/ai.routes");
 const rewardRoutes = require("./routes/reward.routes");
+const paymentRoutes = require("./routes/payment.routes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -46,6 +47,7 @@ app.use("/api/shopkeeper", shopkeeperRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/rewards", rewardRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -81,19 +83,6 @@ app.listen(PORT, async () => {
   } catch (dnsErr) {
     console.error('DNS test setup failed:', dnsErr.message);
   }
-
-  // Programmatic DB schema sync commented out to avoid DNS/IPv6 startup conflicts
-  /*
-  try {
-    const { execSync } = require("child_process");
-    console.log("Syncing database schema and generating Prisma client...");
-    execSync("npx prisma db push --accept-data-loss", { stdio: "inherit" });
-    execSync("npx prisma generate", { stdio: "inherit" });
-    console.log("Prisma client generated and DB synchronized.");
-  } catch (syncErr) {
-    console.warn("Prisma schema sync failed:", syncErr.message);
-  }
-  */
 
   // Seed default shopkeeper details on start
   try {

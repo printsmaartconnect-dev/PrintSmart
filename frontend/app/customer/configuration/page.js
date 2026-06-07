@@ -255,7 +255,7 @@ export default function ConfigurationPage() {
                               onClick={() =>
                                 handleConfigChange(idx, 'copies', Math.max(1, (configs[idx]?.copies || 1) - 1))
                               }
-                              className="p-2 hover:bg-gray-200 rounded transition"
+                              className="w-12 h-12 flex items-center justify-center hover:bg-gray-200 rounded-lg transition focus:outline-none"
                             >
                               <Minus size={20} className="text-gray-700" />
                             </button>
@@ -265,6 +265,8 @@ export default function ConfigurationPage() {
                               onChange={(e) => handleConfigChange(idx, 'copies', Math.max(1, parseInt(e.target.value) || 1))}
                               min="1"
                               max="999"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               className="w-16 text-center text-2xl font-bold text-gray-900 bg-transparent outline-none"
                             />
                             <button
@@ -272,7 +274,7 @@ export default function ConfigurationPage() {
                               onClick={() =>
                                 handleConfigChange(idx, 'copies', Math.min(999, (configs[idx]?.copies || 1) + 1))
                               }
-                              className="p-2 hover:bg-gray-200 rounded transition"
+                              className="w-12 h-12 flex items-center justify-center hover:bg-gray-200 rounded-lg transition focus:outline-none"
                             >
                               <Plus size={20} className="text-gray-700" />
                             </button>

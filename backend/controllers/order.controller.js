@@ -81,14 +81,35 @@ exports.createOrder = async (req, res) => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    // Count existing monthly printed files to initialize the sequence counter
-    let thisMonthOrderCount = await prisma.orderFile.count({
+    // Find the latest order file this month to get the last sequence number
+    const lastOrderFile = await prisma.orderFile.findFirst({
       where: {
         order: {
           createdAt: { gte: startOfMonth, lt: endOfMonth }
         }
-      }
+      },
+      orderBy: { createdAt: "desc" }
     });
+
+    let lastSequence = 0;
+    if (lastOrderFile && lastOrderFile.customFileName) {
+      if (lastOrderFile.customFileName.includes('|')) {
+        try {
+          const parts = lastOrderFile.customFileName.split('|');
+          const parsedConfig = JSON.parse(parts[1]);
+          if (parsedConfig && parsedConfig.orderId) {
+            const match = parsedConfig.orderId.match(/P(BW|C)(\d+)$/);
+            if (match) {
+              lastSequence = parseInt(match[2], 10);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse last order file sequence from db:", e);
+        }
+      }
+    }
+
+    let thisMonthOrderCount = lastSequence;
 
     // 1. Generate sequential unique Order IDs for all items in the batch
     const fileOrderIds = [];
@@ -275,6 +296,7 @@ exports.createOrder = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        paymentLog: true,
       },
     });
 
@@ -284,6 +306,13 @@ exports.createOrder = async (req, res) => {
     });
   } catch (err) {
     console.error("Create order controller error:", err);
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      fs.writeFileSync(path.join(__dirname, "..", "order-error.log"), `${new Date().toISOString()}\n${err.stack}\n\n`, { flag: "a" });
+    } catch (logErr) {
+      console.error("Failed to write order error log:", logErr);
+    }
     res.status(500).json({ message: "Server error placing order", error: err.message });
   }
 };
@@ -305,6 +334,7 @@ exports.getCustomerOrders = async (req, res) => {
         queue: true,
         invoice: true,
         rewardLog: true,
+        paymentLog: true,
         shopkeeper: {
           select: {
             shopName: true,
@@ -346,6 +376,7 @@ exports.getShopkeeperOrders = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        paymentLog: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -396,6 +427,7 @@ exports.updateOrderStatus = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        paymentLog: true,
       },
     });
 
@@ -444,6 +476,7 @@ exports.getOrderById = async (req, res) => {
         queue: true,
         invoice: true,
         shopkeeper: true,
+        paymentLog: true,
       },
     });
 
@@ -457,6 +490,7 @@ exports.getOrderById = async (req, res) => {
           queue: true,
           invoice: true,
           shopkeeper: true,
+          paymentLog: true,
         },
       });
 
@@ -570,6 +604,7 @@ exports.updateOrderStatusByCustomer = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        paymentLog: true,
       },
     });
 

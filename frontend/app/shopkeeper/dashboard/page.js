@@ -69,6 +69,7 @@ export default function ShopkeeperDashboard() {
             ", " +
             new Date(o.createdAt).toLocaleDateString([], { month: "short", day: "numeric" }),
           variant: o.variant || (o.orderFiles && o.orderFiles.length > 0 && (o.orderFiles[0].customFileName === "Customer wants to talk" || o.orderFiles[0].originalFileName === "Customer wants to talk" || o.price === 0) ? "talk" : "standard"),
+          paymentLog: o.paymentLog,
         }));
         setOrdersList(mappedOrders);
         setDataLoaded(true);
@@ -112,6 +113,31 @@ export default function ShopkeeperDashboard() {
       setOrdersList((prev) =>
         prev.map((o) => (o.dbId === dbId || o.id === dbId ? { ...o, status: nextStatus } : o))
       );
+    }
+  };
+
+  const handlePaymentVerify = async (orderDbId, status) => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/payments/shopkeeper/verify/${orderDbId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        await fetchOrders();
+      } else {
+        alert("Failed to update payment status");
+      }
+    } catch (err) {
+      console.error("Payment status update error:", err);
+      alert("Error updating payment validation");
     }
   };
 
@@ -238,7 +264,12 @@ export default function ShopkeeperDashboard() {
         <div className="mx-auto max-w-7xl space-y-6">
           <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} memberSince={memberSince} />
           <StatsRow stats={dynamicStats} />
-          <RecentOrders orders={displayedOrders} activeFilter={activeFilter} onStatusChange={handleStatusChange} />
+          <RecentOrders 
+            orders={displayedOrders} 
+            activeFilter={activeFilter} 
+            onStatusChange={handleStatusChange} 
+            onPaymentVerify={handlePaymentVerify}
+          />
         </div>
       </div>
 
