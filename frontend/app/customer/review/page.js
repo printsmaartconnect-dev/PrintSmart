@@ -9,6 +9,7 @@ import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import DocumentPreview from '../../components/customer/DocumentPreview'
 import { getActiveShop } from '../../../lib/shop-context'
+import { formatCurrency } from '../../../lib/currency'
 
 export default function ReviewPage() {
   const { t } = useTranslation()
@@ -299,7 +300,7 @@ export default function ReviewPage() {
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <span className="font-bold text-gray-900 font-brand">₹{calculateItemPrice(item).toFixed(2)}</span>
+                <span className="font-bold text-gray-900 font-brand">{formatCurrency(calculateItemPrice(item))}</span>
               </div>
             </div>
           ))}
@@ -309,11 +310,11 @@ export default function ReviewPage() {
         <div className="bg-slate-50 p-5 rounded-xl border border-gray-200 mb-8 space-y-3 text-sm">
           <div className="flex justify-between items-center text-gray-700 font-medium">
             <span>{t('Subtotal')}</span>
-            <span>₹{subtotal.toFixed(2)}</span>
+            <span>{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between items-center pt-3 border-t border-gray-200 font-bold text-lg text-gray-900">
             <span>{t('Total Cost')}</span>
-            <span>₹{total.toFixed(2)}</span>
+            <span>{formatCurrency(total)}</span>
           </div>
         </div>
 
@@ -343,7 +344,7 @@ export default function ReviewPage() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40 shadow-lg flex items-center justify-between md:hidden pb-safe">
         <div className="flex flex-col text-left">
           <span className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wide">{t('Total Cost')}</span>
-          <span className="text-xl font-bold text-gray-900 font-brand">₹{total.toFixed(2)}</span>
+          <span className="text-xl font-bold text-gray-900 font-brand">{formatCurrency(total)}</span>
         </div>
         <button
           onClick={handlePlaceOrder}

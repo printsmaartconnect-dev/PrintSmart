@@ -139,14 +139,14 @@ export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
               buttonText: "Awesome!",
               buttonClass: "bg-emerald-600 hover:bg-emerald-700 hover:shadow-emerald-200"
             }
-          } else if (data.rewardType === 'DISCOUNT_50') {
+          } else if (data.rewardType === 'DISCOUNT_50' || data.rewardType === 'HALF_PRICE_COLOR') {
             uiReward = {
               type: "discount",
               category: "monetary",
               statusTag: "🎉 Congratulations!",
               badgeText: "YOU WON",
               message: "50% OFF",
-              description: data.rewardMessage || "You got a 50% discount on 1 Black & White print page!",
+              description: data.rewardMessage || "You got a 50% discount on your print order!",
               footerText: "Reward applied automatically",
               icon: Percent,
               themeColor: "blue",
@@ -159,13 +159,26 @@ export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
               buttonClass: "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200"
             }
           } else if (data.rewardType === 'ASTROLOGY') {
+            let desc = data.rewardMessage;
+            let sub = "Cosmic Advice";
+            let cat = "🔮 Astrology Insight";
+            if (data.rewardMessage && data.rewardMessage.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(data.rewardMessage);
+                desc = parsed.scratch_text || parsed.scratchtext || parsed.scratchText || parsed.message || parsed.description || data.rewardMessage;
+                sub = parsed.type || parsed.sub_category || parsed.subcategory || parsed.subCategory || sub;
+                cat = parsed.category ? `🔮 ${parsed.category}` : cat;
+              } catch (e) {
+                console.error("Failed parsing astrology rewardMessage JSON:", e);
+              }
+            }
             uiReward = {
               type: "astrology",
               category: "non-monetary",
-              statusTag: "🔮 Astrology Insight",
+              statusTag: cat,
               badgeText: "TODAY'S INSIGHT",
-              message: "Cosmic Advice",
-              description: data.rewardMessage,
+              message: sub,
+              description: desc,
               footerText: "Keep shining bright",
               icon: Moon,
               themeColor: "purple",
@@ -178,13 +191,32 @@ export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
               buttonClass: "bg-purple-600 hover:bg-purple-700 hover:shadow-purple-200"
             }
           } else { // DID_YOU_KNOW
+            let desc = data.rewardMessage;
+            let sub = "Fun Fact";
+            let cat = "💡 Did You Know?";
+            let refLink = null;
+            let srcName = "";
+            if (data.rewardMessage && data.rewardMessage.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(data.rewardMessage);
+                desc = parsed.scratch_text || parsed.scratchtext || parsed.scratchText || parsed.message || parsed.description || data.rewardMessage;
+                sub = parsed.sub_category || parsed.subcategory || parsed.subCategory || parsed.type || sub;
+                cat = parsed.category ? `💡 ${parsed.category}` : cat;
+                refLink = parsed.reference_link || parsed.referencelink || parsed.referenceLink || parsed.link || null;
+                srcName = parsed.source_name || parsed.sourcename || parsed.sourceName || parsed.source || refLink || "";
+              } catch (e) {
+                console.error("Failed parsing did_you_know rewardMessage JSON:", e);
+              }
+            }
             uiReward = {
               type: "fact",
               category: "non-monetary",
-              statusTag: "💡 Did You Know?",
+              statusTag: cat,
               badgeText: "USEFUL INFO",
-              message: "Fun Fact",
-              description: data.rewardMessage,
+              message: sub,
+              description: desc,
+              referenceLink: refLink,
+              sourceName: srcName,
               footerText: "Knowledge is power",
               icon: Lightbulb,
               themeColor: "orange",
@@ -622,9 +654,20 @@ export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
           </h2>
 
           {/* 5. Description Text */}
-          <p className="text-xs text-slate-500 font-medium px-4 mb-6 leading-relaxed">
-            {t(reward.description)}
-          </p>
+          <div className="text-xs text-slate-500 font-medium px-4 mb-6 leading-relaxed">
+            <p className={reward.referenceLink ? "mb-2" : ""}>{t(reward.description)}</p>
+            {reward.referenceLink && (
+              <a
+                href={reward.referenceLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
+              >
+                <span>Source: {reward.sourceName || 'Link'}</span>
+                <span className="text-[10px]">↗</span>
+              </a>
+            )}
+          </div>
 
           {/* 6. Footer Mini Card */}
           <div className="w-full bg-white/70 border border-slate-100 rounded-xl p-3 flex items-center justify-center gap-2 text-[11px] font-bold text-slate-600 shadow-sm">

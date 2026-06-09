@@ -3,48 +3,47 @@ const prisma = require("../config/db");
 /**
  * Generate a random reward for a given order and shop
  */
-const generateReward = async (orderId, shopId) => {
+const generateReward = async (orderId, shopId, forceRewardType = null, forceRewardMessage = null) => {
   // Check if reward already exists
   const existingReward = await prisma.rewardLog.findUnique({
     where: { orderId }
   });
   if (existingReward) return existingReward;
 
-  const rand = Math.random() * 100;
-  let rewardType = 'DID_YOU_KNOW';
+  let rewardType = forceRewardType;
+  let rewardMessage = forceRewardMessage;
   let rewardCategory = 'NON_MONETARY';
-  let rewardMessage = '';
 
-  if (rand < 1.0) {
-    rewardType = 'FREE_PRINT';
+  // If not pre-determined, roll for a non-monetary card (50/50 split)
+  if (!rewardType) {
+    const rand = Math.random();
+    if (rand < 0.5) {
+      rewardType = 'DID_YOU_KNOW';
+    } else {
+      rewardType = 'ASTROLOGY';
+    }
+  }
+
+  if (rewardType === 'FREE_PRINT' || rewardType === 'HALF_PRICE_COLOR') {
     rewardCategory = 'MONETARY';
-    rewardMessage = '🎉 Congratulations! You won 1 Free Black & White print page!';
-  } else if (rand < 6.0) {
-    rewardType = 'DISCOUNT_50';
-    rewardCategory = 'MONETARY';
-    rewardMessage = '🎉 Superb! You got a 50% discount on 1 Black & White print page!';
-  } else if (rand < 46.0) {
-    rewardType = 'ASTROLOGY';
-    rewardCategory = 'NON_MONETARY';
-    const astrologyMessages = [
-      "🌟 Your lucky stars indicate a productive day ahead!",
-      "🌙 Tonight holds creative energy for you. Write down your ideas!",
-      "🪐 Saturn stands for discipline. Today is a great day to complete your pending work.",
-      "☀️ Focus your energy like a solar beam, success is near!",
-      "🌌 Keep printing your dreams, the cosmos aligns in your favor!"
-    ];
-    rewardMessage = astrologyMessages[Math.floor(Math.random() * astrologyMessages.length)];
   } else {
-    rewardType = 'DID_YOU_KNOW';
     rewardCategory = 'NON_MONETARY';
-    const facts = [
-      "💡 Did you know? The first printed book, the Diamond Sutra, dates back to 868 AD!",
-      "💡 Did you know? Gutenberg invented the movable type printing press around 1440.",
-      "💡 Did you know? Printing in CMYK uses Cyan, Magenta, Yellow, and Key (Black) inks.",
-      "💡 Did you know? The largest printed book in the world is 5 meters wide!",
-      "💡 Did you know? 3D printing was invented in 1983 by Chuck Hull."
-    ];
-    rewardMessage = facts[Math.floor(Math.random() * facts.length)];
+  }
+
+  // Load from CSV cache if not already populated
+  if (!rewardMessage) {
+    const csvService = require("../services/csv.service");
+    if (rewardType === 'DID_YOU_KNOW') {
+      const record = csvService.getRandomDidYouKnow();
+      rewardMessage = record ? JSON.stringify(record) : "Did you know? Facts are interesting!";
+    } else if (rewardType === 'ASTROLOGY') {
+      const record = csvService.getRandomAstrology();
+      rewardMessage = record ? JSON.stringify(record) : "Astrology: Cosmic alignments look positive!";
+    } else if (rewardType === 'FREE_PRINT') {
+      rewardMessage = "Congratulations! Your current black & white print order is FREE.";
+    } else if (rewardType === 'HALF_PRICE_COLOR') {
+      rewardMessage = "Congratulations! 50% OFF has been applied to your current color print order.";
+    }
   }
 
   return await prisma.rewardLog.create({
@@ -54,7 +53,7 @@ const generateReward = async (orderId, shopId) => {
       rewardType,
       rewardCategory,
       scratched: false,
-      applied: false,
+      applied: rewardCategory === 'MONETARY' ? true : false,
       rewardMessage,
       customerSession: Math.random().toString(36).substring(2, 11)
     }
@@ -203,7 +202,7 @@ exports.getShopkeeperStats = async (req, res) => {
     const discountRewardsUsed = await prisma.rewardLog.count({
       where: {
         shopId: shopkeeperId,
-        rewardType: "DISCOUNT_50",
+        rewardType: "HALF_PRICE_COLOR",
         scratched: true
       }
     });

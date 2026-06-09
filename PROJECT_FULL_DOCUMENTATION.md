@@ -3746,7 +3746,7 @@ Used to manage the order-specific customer scratch loyalty cards and aggregate m
 
 | Route | Method | Headers/Auth | Request Body | Success Response |
 |---|---|---|---|---|
-| `/api/rewards/order/:orderId` | `GET` | None | None | `{ id, orderId, shopId, rewardType, rewardCategory, scratched, applied, rewardMessage, customerSession }` (Fetches or initializes a card for a completed order) |
+| `/api/rewards/order/:orderId` | `GET` | None | None | `{ id, orderId, shopId, rewardType, rewardCategory, scratched, applied, rewardMessage, customerSession }` (Fetches or initializes a card pre-created during order placement) |
 | `/api/rewards/:id/scratch` | `POST` | None | None | `{ id, orderId, shopId, rewardType, rewardCategory, scratched: true, applied: true/false, ... }` (Marks card as scratched & applies coupon) |
 | `/api/rewards/shopkeeper/stats` | `GET` | JWT token | None | `{ rewardsGeneratedToday, freePrintRewardsUsed, discountRewardsUsed, customerEngagementLevel, totalScratched, totalGenerated }` |
 | `/api/rewards/admin/stats` | `GET` | None | None | `{ totalScratches, monetaryRewardsUsed, nonMonetaryRewardsViewed, scratchRate, totalCardsGenerated }` |
@@ -3802,8 +3802,10 @@ Used to manage the order-specific customer scratch loyalty cards and aggregate m
  8. **Scratch Card Loyalty Program & Gemini Key Overrides**:
     - **Google Gemini v3.5-Flash**: The AI Poster Studio runs on the updated `gemini-3.5-flash` model, resolving 404 retired model exceptions.
     - **Customer-Supplied API Keys**: Shopkeepers can input their own Gemini API keys in the header panel. The key is saved locally in the browser context and forwarded in headers as `X-Gemini-API-Key`. The backend reads this header first, executing model queries against the user's personal API key quota, before falling back to server environment variables.
-    - **Order-Triggered Scratch Cards**: When a shopkeeper sets an order status to `COMPLETED`, a background trigger automatically calls `rewardController.generateReward` to initialize a single unique card tied to the order ID.
-    - **Customer Scratch Experience**: On the completed orders list view, a pulsing purple "Scratch Card" button opens a realistic scratch canvas modal. Customers scratch away a silver metallic layer. Once >30% transparent, it fires confetti and registers the card as claimed/scratched at `POST /api/rewards/:id/scratch`, showing monetary application or educational astrology/fact texts instantly.
+    - **Instant Order-Linked Scratch Cards**: Scratch cards are pre-created instantly in the database at the time of order placement while the order is still `PENDING`, rather than waiting for order completion.
+    - **Monetary Reward Application**: If the order is eligible and wins a monetary discount (`FREE_PRINT` with 1% probability for eligible B/W prints, or `HALF_PRICE_COLOR` with 0.50% probability for eligible Color prints), the discount is calculated and applied to the print order total instantly at creation.
+    - **Non-Monetary Content Sourcing**: Non-eligible or losing rolls trigger a non-monetary card (`DID_YOU_KNOW` or `ASTROLOGY` on a 50/50 split). Card details are dynamically cached from local Excel/CSV worksheets (`Do You Know,Astrology.xlsx` converted to assets on startup).
+    - **Immediate Customer Scratch Access**: Customers can view and scratch cards immediately from the orders queue page (`/customer/orders`) even while the order is pending or accepted. The scratch card modal dynamically parses JSON entries case-insensitively (supporting columns like `scratch_text`, `category`, `sub_category`, and `reference_link`) and renders clickable source references for facts.
     - **Real-Time Reward Metrics**: The Shopkeeper Statistics panel displays dynamic grids summarizing active scratch rate progress bars, total card distributions, and customer engagement tiers.
 
  ---

@@ -10,6 +10,7 @@ import FeedbackLink from '../../components/FeedbackLink'
 import RewardCardModal from '../../components/customer/RewardCardModal'
 import CustomerHeader from '../../components/customer/CustomerHeader'
 import { validateUpiParams, generateUpiUrl } from '../../../lib/upi'
+import { formatCurrency } from '../../../lib/currency'
 
 export function OrdersPageContent() {
   const { t } = useTranslation()
@@ -186,8 +187,7 @@ export function OrdersPageContent() {
     })
   }
 
-  const completedOrders = orders.filter(o => o.status === 'COMPLETED')
-  const latestCompletedOrder = completedOrders.find(o => !o.rewardLog?.scratched) || completedOrders[0]
+  const activeRewardOrder = orders.find(o => o.rewardLog && !o.rewardLog.scratched) || orders.find(o => o.rewardLog)
 
   return (
     <div className="wave-bg min-h-screen flex flex-col">
@@ -228,21 +228,21 @@ export function OrdersPageContent() {
           </div>
 
         {/* Premium Scratch & Win Section */}
-        {latestCompletedOrder && (
+        {activeRewardOrder && (
           <div className="mb-8 p-5 bg-white border border-violet-100 rounded-2xl shadow-[0_4px_20px_rgba(139,92,246,0.05)]">
             <h3 className="font-bold text-slate-800 text-sm mb-1 flex items-center gap-1.5">
               <Gift size={16} className="text-violet-600" />
               {t('Scratch & Win')}
             </h3>
             <p className="text-xs text-slate-500 font-medium mb-4">
-              {latestCompletedOrder.rewardLog?.scratched 
-                ? t('You have scratched the card for order ') + latestCompletedOrder.orderId
-                : t('You have an unscratched reward card from your completed print order!')}
+              {activeRewardOrder.rewardLog?.scratched 
+                ? t('You have scratched the card for order ') + activeRewardOrder.orderId
+                : t('You have an unscratched reward card from your print order!')}
             </p>
             <button
               type="button"
               onClick={() => {
-                setSelectedOrderId(latestCompletedOrder.id)
+                setSelectedOrderId(activeRewardOrder.id)
                 setShowRewardModal(true)
               }}
               className="w-full h-32 rounded-xl border-2 border-violet-300 border-dashed bg-violet-50/50 hover:bg-violet-50 hover:border-violet-400 transition flex flex-col items-center justify-center gap-2 group cursor-pointer"
@@ -251,7 +251,7 @@ export function OrdersPageContent() {
                 <Gift size={20} className="text-violet-600 animate-pulse" />
               </div>
               <span className="text-xs font-bold text-violet-700 tracking-wide uppercase">
-                {latestCompletedOrder.rewardLog?.scratched ? t('View Reward') : t('Tap to scratch')}
+                {activeRewardOrder.rewardLog?.scratched ? t('View Reward') : t('Tap to scratch')}
               </span>
             </button>
           </div>
@@ -409,7 +409,7 @@ export function OrdersPageContent() {
                           {t('Amount Prefilled')}
                         </span>
                         <span className="text-lg font-extrabold text-indigo-700">
-                          ₹{amount.toFixed(2)}
+                          {formatCurrency(amount)}
                         </span>
                       </div>
 
@@ -559,7 +559,7 @@ export function OrdersPageContent() {
                 {/* Footer details & Action buttons */}
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pt-3 border-t border-gray-100">
                   <div className="flex items-center gap-4">
-                    <span className="font-bold text-gray-900 text-base">₹{order.totalAmount.toFixed(2)}</span>
+                    <span className="font-bold text-gray-900 text-base">{formatCurrency(order.totalAmount)}</span>
                     <span className="text-gray-500 text-xs font-semibold flex items-center gap-1">
                       <Clock size={14} className="text-indigo-500" />
                       {t('Queue Position')}: {order.queue ? (order.queue.status === 'DONE' ? t('Done') : `#${order.queue.position}`) : t('Pending')}
@@ -567,8 +567,8 @@ export function OrdersPageContent() {
                   </div>
                   
                   <div className="flex gap-2">
-                    {/* Scratch Card / Claim Reward (Completed orders only) */}
-                    {order.status === 'COMPLETED' && (
+                    {/* Scratch Card / Claim Reward (Available for any order with a reward log) */}
+                    {order.rewardLog && (
                       <button
                         type="button"
                         onClick={() => {
