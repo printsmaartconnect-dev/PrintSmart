@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Settings, FileText, LogIn, Loader, AlertCircle, MapPin, Phone } from 'lucide-react'
@@ -8,7 +8,7 @@ import FeedbackButton from './components/FeedbackButton'
 import FeedbackLink from './components/FeedbackLink'
 import { setActiveShop, getActiveShop, clearCurrentShop } from '../lib/shop-context'
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [language, setLanguage] = useState('English')
@@ -125,5 +125,17 @@ export default function Home() {
       {/* Floating Feedback Button */}
       <FeedbackButton />
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }

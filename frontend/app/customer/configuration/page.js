@@ -1,16 +1,18 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText } from 'lucide-react'
+import { useEffect, useState, Suspense } from 'react'
+import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText, AlertCircle } from 'lucide-react'
 import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import FilePreviewSection from '../../components/customer/FilePreviewSection'
+import CustomerHeader from '../../components/customer/CustomerHeader'
+import { getActiveShop } from '../../../lib/shop-context'
 
 const PAPER_SIZES = ['A4', 'A3', 'A5', 'Legal', 'Letter', 'Executive', 'Ledger', 'Tabloid']
-export default function ConfigurationPage() {
+function ConfigurationPageContent() {
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -22,6 +24,67 @@ export default function ConfigurationPage() {
   const [configs, setConfigs] = useState([])
   const [loading, setLoading] = useState(false)
   const [showConfig, setShowConfig] = useState(isShopkeeper)
+  const [customerComment, setCustomerComment] = useState('')
+  const [shopDetails, setShopDetails] = useState(null)
+  const [customerInfo, setCustomerInfo] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const savedComment = localStorage.getItem('customerComment')
+    if (savedComment) {
+      setCustomerComment(savedComment)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Load customer session details
+    const sessionStr = localStorage.getItem('customerSession')
+    if (sessionStr) {
+      try {
+        setCustomerInfo(JSON.parse(sessionStr))
+      } catch (err) {
+        console.error('Error loading customer session:', err)
+      }
+    }
+
+    // Resolve shop from local storage first, then fall back to API lookup by slug
+    const resolveShop = async () => {
+      const activeShop = getActiveShop()
+      if (activeShop) {
+        setShopDetails(activeShop)
+        return
+      }
+
+      const storedShop = localStorage.getItem('selectedShop')
+      if (storedShop) {
+        try {
+          const parsedShop = JSON.parse(storedShop)
+          if (parsedShop) {
+            setShopDetails(parsedShop)
+            return
+          }
+        } catch (err) {
+          console.error('Error loading selected shop:', err)
+        }
+      }
+
+      const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
+      if (!resolvedShopId) return
+
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${resolvedShopId}`)
+        if (response.ok) {
+          const data = await response.json()
+          setShopDetails(data.shopkeeper)
+        }
+      } catch (err) {
+        console.error('Error fetching shop keeper:', err)
+      }
+    }
+
+    resolveShop()
+  }, [shopId])
 
   const defaultConfig = {
     printType: 'BW',
@@ -30,6 +93,42 @@ export default function ConfigurationPage() {
     sides: 'SINGLE',
     orientation: 'PORTRAIT',
     pageRange: 'all'
+  }
+
+  // Calculate pricing based on shop keeper settings or fallbacks
+  const calculateItemPrice = (item) => {
+    if (!item || !item.config) return 0
+    if (item.variant === 'talk') return 0
+    const copies = Number(item.config.copies || 1)
+    
+    // Fallback standard rates
+    let pageRate = 2.0 // standard B&W A4
+    
+    if (shopDetails && shopDetails.pricing) {
+      const pricing = shopDetails.pricing
+      const isColor = item.config.printType === 'COLOR'
+      const isA3 = item.config.paperSize === 'A3'
+      const isDouble = item.config.sides === 'DOUBLE'
+
+      if (isColor) {
+        pageRate = isA3 ? parseFloat(pricing.colorA3 || 8.0) : parseFloat(pricing.colorA4 || 5.0)
+        if (isDouble) pageRate += parseFloat(pricing.colorDoubleSide || 3.0)
+      } else {
+        pageRate = isA3 ? parseFloat(pricing.bwA3 || 2.0) : parseFloat(pricing.bwA4 || 1.0)
+        if (isDouble) pageRate += parseFloat(pricing.bwDoubleSide || 1.0)
+      }
+    } else {
+      // Standard local pricing logic
+      if (item.config.printType === 'COLOR') {
+        pageRate = item.config.paperSize === 'A3' ? 8.0 : 5.0
+        if (item.config.sides === 'DOUBLE') pageRate += 3.0
+      } else {
+        pageRate = item.config.paperSize === 'A3' ? 2.0 : 1.0
+        if (item.config.sides === 'DOUBLE') pageRate += 1.0
+      }
+    }
+
+    return pageRate * copies
   }
 
   useEffect(() => {
@@ -63,7 +162,7 @@ export default function ConfigurationPage() {
   const handleContinue = async () => {
     if (uploadedFiles.length === 0) {
       alert(t('No files uploaded. Please upload files first.'))
-      let uploadUrl = `/customer/upload?shopId=${shopId}&userId=${userId}`
+      let uploadUrl = `/customer/language?shopId=${shopId}&userId=${userId}`
       if (isShopkeeper) {
         uploadUrl += `&shopkeeperAddOrder=true`
       }
@@ -72,7 +171,15 @@ export default function ConfigurationPage() {
     }
 
     setLoading(true)
+    setError(null)
     try {
+      // Save customer comment
+      if (customerComment.trim()) {
+        localStorage.setItem('customerComment', customerComment.trim())
+      } else {
+        localStorage.removeItem('customerComment')
+      }
+
       // Store configuration in localStorage
       const fileConfigs = uploadedFiles.map((file, idx) => ({
         ...file,
@@ -81,15 +188,58 @@ export default function ConfigurationPage() {
       
       localStorage.setItem('printConfigurations', JSON.stringify(fileConfigs))
 
-      // Redirect to review page with shop and user info
-      let nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
-      if (isShopkeeper) {
-        nextUrl += `&shopkeeperAddOrder=true`
+      // Build items array for API call
+      const items = fileConfigs.map((item) => ({
+        fileName: item.customFileName || item.originalFileName,
+        fileUrl: item.fileUrl,
+        fileSize: item.fileSize || 0,
+        price: calculateItemPrice(item),
+        variant: item.variant || 'standard',
+        config: item.config
+      }))
+
+      let resolvedUserId = userId || customerInfo?.userId || null
+      if (resolvedUserId === 'undefined' || resolvedUserId === 'null' || resolvedUserId === '') {
+        resolvedUserId = null
       }
-      router.push(nextUrl)
+
+      let resolvedShopkeeperId = shopDetails?.id || localStorage.getItem('activeShopId') || null
+      if (resolvedShopkeeperId === 'undefined' || resolvedShopkeeperId === 'null' || resolvedShopkeeperId === '') {
+        resolvedShopkeeperId = null
+      }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/orders/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: resolvedUserId,
+          shopkeeperId: resolvedShopkeeperId,
+          customerName: customerInfo?.name || 'Anonymous Customer',
+          phone: customerInfo?.phone || '',
+          customerComment: customerComment.trim() || null,
+          items,
+        }),
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || t('Failed to place print order'))
+      }
+
+      const result = await response.json()
+      
+      // Store currentOrder
+      localStorage.setItem('currentOrder', JSON.stringify(result.order || result))
+
+      if (isShopkeeper) {
+        router.push('/shopkeeper/dashboard')
+      } else {
+        router.push(`/customer/orders?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
+      }
     } catch (err) {
-      console.error('Error saving configuration:', err)
-      alert(t('Error saving configuration'))
+      console.error('Order creation error:', err)
+      setError(err.message || t('Error occurred while submitting order details.'))
     } finally {
       setLoading(false)
     }
@@ -98,7 +248,7 @@ export default function ConfigurationPage() {
   const handleTalkFirst = async () => {
     if (uploadedFiles.length === 0) {
       alert(t('No files uploaded. Please upload files first.'))
-      let uploadUrl = `/customer/upload?shopId=${shopId}&userId=${userId}`
+      let uploadUrl = `/customer/language?shopId=${shopId}&userId=${userId}`
       if (isShopkeeper) {
         uploadUrl += `&shopkeeperAddOrder=true`
       }
@@ -107,7 +257,15 @@ export default function ConfigurationPage() {
     }
 
     setLoading(true)
+    setError(null)
     try {
+      // Save customer comment
+      if (customerComment.trim()) {
+        localStorage.setItem('customerComment', customerComment.trim())
+      } else {
+        localStorage.removeItem('customerComment')
+      }
+
       // Store configuration in localStorage with variant 'talk'
       const fileConfigs = uploadedFiles.map((file, idx) => ({
         ...file,
@@ -117,15 +275,58 @@ export default function ConfigurationPage() {
       
       localStorage.setItem('printConfigurations', JSON.stringify(fileConfigs))
 
-      // Redirect to review page with shop and user info
-      let nextUrl = `/customer/review?shopId=${shopId}&userId=${userId}`
-      if (isShopkeeper) {
-        nextUrl += `&shopkeeperAddOrder=true`
+      // Build items array for API call
+      const items = fileConfigs.map((item) => ({
+        fileName: item.customFileName || item.originalFileName,
+        fileUrl: item.fileUrl,
+        fileSize: item.fileSize || 0,
+        price: 0,
+        variant: 'talk',
+        config: item.config
+      }))
+
+      let resolvedUserId = userId || customerInfo?.userId || null
+      if (resolvedUserId === 'undefined' || resolvedUserId === 'null' || resolvedUserId === '') {
+        resolvedUserId = null
       }
-      router.push(nextUrl)
+
+      let resolvedShopkeeperId = shopDetails?.id || localStorage.getItem('activeShopId') || null
+      if (resolvedShopkeeperId === 'undefined' || resolvedShopkeeperId === 'null' || resolvedShopkeeperId === '') {
+        resolvedShopkeeperId = null
+      }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/orders/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: resolvedUserId,
+          shopkeeperId: resolvedShopkeeperId,
+          customerName: customerInfo?.name || 'Anonymous Customer',
+          phone: customerInfo?.phone || '',
+          customerComment: customerComment.trim() || null,
+          items,
+        }),
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || t('Failed to place print order'))
+      }
+
+      const result = await response.json()
+      
+      // Store currentOrder
+      localStorage.setItem('currentOrder', JSON.stringify(result.order || result))
+
+      if (isShopkeeper) {
+        router.push('/shopkeeper/dashboard')
+      } else {
+        router.push(`/customer/orders?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
+      }
     } catch (err) {
-      console.error('Error saving configuration:', err)
-      alert(t('Error saving configuration'))
+      console.error('Order creation error:', err)
+      setError(err.message || t('Error occurred while submitting order details.'))
     } finally {
       setLoading(false)
     }
@@ -134,10 +335,7 @@ export default function ConfigurationPage() {
   return (
     <div className="wave-bg min-h-screen flex flex-col">
       {/* Header */}
-      <header className="px-6 py-4 flex items-center justify-between">
-        <BackButton />
-        <span className="text-sm font-semibold text-gray-600">{t('Step 5 of 6')}</span>
-      </header>
+      <CustomerHeader stepText={t('Step 2 of 3')} />
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-8">
@@ -148,11 +346,18 @@ export default function ConfigurationPage() {
             <p className="text-gray-600">{t('Customize print settings for your files')}</p>
           </div>
 
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex gap-3 max-w-5xl mx-auto">
+              <AlertCircle className="text-red-650 flex-shrink-0" size={20} />
+              <p className="text-sm text-red-700 font-semibold">{error}</p>
+            </div>
+          )}
+
           {uploadedFiles.length === 0 ? (
             <div className="bg-white rounded-xl shadow-lg p-8 text-center border border-gray-100">
               <p className="text-gray-600 mb-4 font-semibold">{t('No files uploaded yet')}</p>
               <button
-                onClick={() => router.push(`/customer/upload?shopId=${shopId}&userId=${userId}`)}
+                onClick={() => router.push(`/customer/language?shopId=${shopId}&userId=${userId}`)}
                 className="gradient-button text-white font-semibold py-2.5 px-6 rounded-lg transition"
               >
                 {t('Go to Upload Page')}
@@ -170,7 +375,7 @@ export default function ConfigurationPage() {
                     className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-violet-200 bg-violet-50/50 hover:bg-violet-50 text-violet-800 font-bold transition-all transform hover:scale-[1.01] shadow-sm text-center w-full focus:outline-none"
                   >
                     <span className="text-2xl mb-1.5">💬</span>
-                    <span className="text-sm font-extrabold">{t('I Want to Talk with Shopkeeper First')}</span>
+                    <span className="text-sm font-extrabold">{t('Send Talk Request & Go to Orders →')}</span>
                     <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Skip layout configuration & talk directly')}</span>
                   </button>
                   
@@ -189,6 +394,22 @@ export default function ConfigurationPage() {
                   </button>
                 </div>
               )}
+
+              {/* Customer Comment Field */}
+              <div className="max-w-5xl mx-auto rounded-[36px] bg-white shadow-xl border border-purple-100 p-8 md:p-10 backdrop-blur-sm mb-6">
+                <label className="block text-sm font-semibold text-gray-750 mb-2">
+                  {t('Customer Comment')} <span className="text-gray-400 font-normal">({t('optional')})</span>
+                </label>
+                <textarea
+                  value={customerComment}
+                  onChange={(e) => setCustomerComment(e.target.value)}
+                  placeholder={t('Add any special instructions or comments for the shopkeeper...')}
+                  maxLength={500}
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none font-semibold text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">{customerComment.length}/500</p>
+              </div>
 
               {showConfig && (
                 <>
@@ -386,14 +607,14 @@ export default function ConfigurationPage() {
                     <button
                       onClick={handleContinue}
                       disabled={loading}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl transition shadow-md"
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl transition shadow-md text-base"
                     >
-                      {loading ? t('Saving Settings...') : t('Continue to Review →')}
+                      {loading ? t('Placing Order...') : t('Confirm Order & Print →')}
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        let uploadUrl = `/customer/upload?shopId=${shopId}&userId=${userId}`
+                        let uploadUrl = `/customer/language?shopId=${shopId}&userId=${userId}`
                         if (isShopkeeper) {
                           uploadUrl += `&shopkeeperAddOrder=true`
                         }
@@ -401,7 +622,7 @@ export default function ConfigurationPage() {
                       }}
                       className="w-full bg-white border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-bold py-3 rounded-xl transition"
                     >
-                      {t('Back to Upload')}
+                      {t('Back to Setup')}
                     </button>
                   </div>
                 </>
@@ -418,5 +639,17 @@ export default function ConfigurationPage() {
 
       <FeedbackButton />
     </div>
+  )
+}
+
+export default function ConfigurationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <ConfigurationPageContent />
+    </Suspense>
   )
 }

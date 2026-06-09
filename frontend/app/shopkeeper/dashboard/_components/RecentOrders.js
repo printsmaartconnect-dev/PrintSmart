@@ -128,7 +128,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
         {orders.length === 0 ? (
           <EmptyState activeFilter={activeFilter} />
         ) : viewMode === 'card' ? (
-          <div className="flex gap-5 overflow-x-auto pb-4 pr-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {orders.map((o) => (
               <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} />
             ))}

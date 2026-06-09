@@ -16,7 +16,7 @@ function TopBorder({ type }) {
       className={
         'absolute left-0 top-0 h-1.5 w-full rounded-t-2xl ' +
         (isColor
-          ? 'bg-gradient-to-r from-pink-500 via-purple-500 via-sky-500 to-emerald-500'
+          ? 'bg-gradient-to-r from-red-500 via-orange-500 via-yellow-400 via-green-500 via-blue-500 via-indigo-500 to-purple-500'
           : 'bg-gradient-to-r from-slate-800 via-slate-600 to-slate-400')
       }
     />
@@ -141,7 +141,7 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify }) {
   }
 
   return (
-    <div className="relative rounded-2xl bg-white shadow-sm border border-slate-100 p-5 min-w-[290px] transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-slate-200">
+    <div className="relative rounded-2xl bg-white shadow-sm border border-slate-100 p-5 w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-slate-200">
       <TopBorder type={order.type} />
 
       <div className="flex items-start justify-between gap-3">

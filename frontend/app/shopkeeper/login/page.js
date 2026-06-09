@@ -140,7 +140,7 @@ export default function ShopkeeperLoginPage() {
           <img
             src="/shopkeeper_login.jpeg"
             alt="Shopkeeper login"
-            className="w-full h-full md:h-screen object-cover"
+            className="w-full h-full md:h-screen object-cover object-left"
           />
         </div>
 
