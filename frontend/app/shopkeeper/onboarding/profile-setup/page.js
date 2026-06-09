@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
+  ArrowLeft,
   Building2,
   Download,
   Globe,
@@ -48,36 +49,138 @@ export default function ProfileSetupPage() {
 
   const [logoPreview, setLogoPreview] = useState('')
   const [saving, setSaving] = useState(false)
+  const [qrCodeUrl, setQrCodeUrl] = useState('')
+  const [shopkeeperIdCode, setShopkeeperIdCode] = useState('')
+  const [regenerating, setRegenerating] = useState(false)
 
   const [form, setForm] = useState(() => getProfile())
   const [contact, setContactState] = useState(() => getContact())
   const [socials, setSocialsState] = useState(() => getSocials())
 
   useEffect(() => {
+    const token = localStorage.getItem('authToken')
     const loggedIn = getLoggedInShopkeeper()
-    if (!loggedIn) {
+    if (!token || !loggedIn) {
       router.replace('/shopkeeper/login')
       return
     }
 
-    if (isOnboardingComplete(loggedIn)) {
-      router.replace('/shopkeeper/dashboard')
-      return
+    const checkOnboardingStatus = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (response.ok) {
+          const shopkeeper = await response.json()
+          localStorage.setItem('loggedInShopkeeper', JSON.stringify(shopkeeper))
+          localStorage.setItem('shopkeeper', JSON.stringify(shopkeeper))
+          setQrCodeUrl(shopkeeper.qrCodeUrl || '')
+          setShopkeeperIdCode(shopkeeper.shopkeeperIdCode || shopkeeper.shopSlug || '')
+          
+          if (shopkeeper.isOnboarded) {
+            router.replace('/shopkeeper/dashboard')
+            return
+          }
+
+          if (!shopkeeper.profileCompleted) {
+            // Clear any lingering localStorage onboarding data from other sessions
+            localStorage.removeItem('shopkeeperProfile')
+            localStorage.removeItem('shopkeeperContact')
+            localStorage.removeItem('shopkeeperSocials')
+            localStorage.removeItem('shopkeeperPricing')
+            localStorage.removeItem('shopkeeperSetupCompleted')
+
+            setForm({
+              shopName: '',
+              businessCategory: '',
+              subCategory: '',
+              languagePreference: '',
+              shopOwnerName: shopkeeper.ownerName || '',
+              businessDescription: '',
+              businessEstablishedYear: '',
+              gstNumber: '',
+              logoDataUrl: '',
+              logoUrl: shopkeeper.logoUrl || '',
+            })
+
+            setContactState({
+              countryCode: '+91',
+              phoneNumber: shopkeeper.phone || '',
+              alternatePhone: '',
+              emailAddress: shopkeeper.email || '',
+              website: '',
+              shopAddress: '',
+            })
+
+            setSocialsState({
+              whatsapp: '',
+              facebook: '',
+              instagram: '',
+            })
+
+            setLogoPreview(shopkeeper.logoUrl || '')
+            return
+          } else {
+            // If profile is completed but pricing is not, load saved DB details
+            setForm({
+              shopName: shopkeeper.shopName || '',
+              businessCategory: shopkeeper.category || '',
+              subCategory: shopkeeper.subCategory || '',
+              languagePreference: shopkeeper.languagePref || '',
+              shopOwnerName: shopkeeper.ownerName || '',
+              businessDescription: shopkeeper.businessDescription || '',
+              businessEstablishedYear: shopkeeper.businessEstablishedYear || '',
+              gstNumber: shopkeeper.gstNumber || '',
+              logoDataUrl: '',
+              logoUrl: shopkeeper.logoUrl || '',
+            })
+
+            setContactState({
+              countryCode: '+91',
+              phoneNumber: shopkeeper.phone || '',
+              alternatePhone: shopkeeper.alternatePhone || '',
+              emailAddress: shopkeeper.email || '',
+              website: shopkeeper.website || '',
+              shopAddress: shopkeeper.address || '',
+            })
+
+            setSocialsState({
+              whatsapp: shopkeeper.socials?.whatsapp || '',
+              facebook: shopkeeper.socials?.facebook || '',
+              instagram: shopkeeper.socials?.instagram || '',
+            })
+
+            setLogoPreview(shopkeeper.logoUrl || '')
+            return
+          }
+        }
+      } catch (err) {
+        console.warn('Onboarding check failed, falling back:', err)
+        if (isOnboardingComplete(loggedIn)) {
+          router.replace('/shopkeeper/dashboard')
+          return
+        }
+      }
+
+      const existing = getProfile()
+      setForm(existing)
+      setLogoPreview(existing.logoDataUrl || '')
+
+      const existingContact = getContact()
+      const existingSocials = getSocials()
+
+      setContactState({
+        ...existingContact,
+        phoneNumber: existingContact.phoneNumber || loggedIn.phone || '',
+        emailAddress: existingContact.emailAddress || loggedIn.email || '',
+      })
+      setSocialsState(existingSocials)
     }
 
-    const existing = getProfile()
-    setForm(existing)
-    setLogoPreview(existing.logoDataUrl || '')
-
-    const existingContact = getContact()
-    const existingSocials = getSocials()
-
-    setContactState({
-      ...existingContact,
-      phoneNumber: existingContact.phoneNumber || loggedIn.phone || '',
-      emailAddress: existingContact.emailAddress || loggedIn.email || '',
-    })
-    setSocialsState(existingSocials)
+    checkOnboardingStatus()
   }, [router])
 
   const shopNameCount = useMemo(() => (form.shopName || '').length, [form.shopName])
@@ -104,10 +207,64 @@ export default function ProfileSetupPage() {
   const onPickLogo = async (file) => {
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => {
+    reader.onload = async () => {
       const result = typeof reader.result === 'string' ? reader.result : ''
       setLogoPreview(result)
       setForm((prev) => ({ ...prev, logoDataUrl: result }))
+
+      const token = localStorage.getItem('authToken')
+      if (token) {
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+          const uploadResponse = await fetch(`${uploadUrl}/api/files/upload`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          })
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json()
+            setForm((prev) => ({ ...prev, logoUrl: uploadData.fileUrl || prev.logoUrl }))
+          }
+        } catch (uploadErr) {
+          console.warn('Logo upload failed:', uploadErr)
+        }
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const onPickPaymentQr = async (file) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const result = typeof reader.result === 'string' ? reader.result : ''
+      setForm((prev) => ({ ...prev, paymentQrUrl: result }))
+
+      const token = localStorage.getItem('authToken')
+      if (token) {
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+          const uploadResponse = await fetch(`${uploadUrl}/api/files/upload`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          })
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json()
+            setForm((prev) => ({ ...prev, paymentQrUrl: uploadData.fileUrl || prev.paymentQrUrl }))
+          }
+        } catch (uploadErr) {
+          console.warn('Payment QR upload failed:', uploadErr)
+        }
+      }
     }
     reader.readAsDataURL(file)
   }
@@ -124,20 +281,195 @@ export default function ProfileSetupPage() {
       setProfile({ ...form })
       setContact({ ...contact })
       setSocials({ ...socials })
-      router.push('/shopkeeper/onboarding/pricing-setup')
+
+      const token = localStorage.getItem('authToken')
+      let success = true
+      if (token) {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+          const response = await fetch(`${apiUrl}/api/auth/profile`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              shopName: form.shopName,
+              ownerName: form.shopOwnerName,
+              address: contact.shopAddress,
+              category: form.businessCategory,
+              subCategory: form.subCategory,
+              languagePref: form.languagePreference,
+              gstNumber: form.gstNumber,
+              businessDescription: form.businessDescription,
+              businessEstablishedYear: form.businessEstablishedYear,
+              website: contact.website,
+              alternatePhone: contact.alternatePhone,
+              socials,
+              pricing: null,
+              logoUrl: form.logoUrl || form.logoDataUrl || null,
+              phone: contact.phoneNumber,
+              upiId: form.upiId,
+              paymentQrUrl: form.paymentQrUrl || null,
+            }),
+          })
+          if (response.ok) {
+            const data = await response.json()
+            localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+            localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+          } else {
+            success = false
+            const errData = await response.json().catch(() => ({}))
+            alert(`Failed to save profile: ${errData.message || 'Server error'}`)
+          }
+        } catch (apiErr) {
+          success = false
+          console.warn('Failed to sync profile to backend:', apiErr)
+          alert('Network connection error. Failed to sync profile with database. Please try again.')
+        }
+      }
+
+      if (success) {
+        router.push('/shopkeeper/onboarding/pricing-setup')
+      }
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleCopyLink = () => {
+    const loggedIn = getLoggedInShopkeeper()
+    const shopId = loggedIn?.id
+    if (!shopId) return
+    const frontendUrl = window.location.origin
+    const shareUrl = `${frontendUrl}/take-a-print?shopId=${shopId}`
+    navigator.clipboard.writeText(shareUrl)
+    alert("Shop link copied to clipboard!")
+  }
+
+  const handleDownloadQr = async () => {
+    if (!qrCodeUrl) {
+      alert('QR Code not available yet. Please complete registration and try again.')
+      return
+    }
+    try {
+      const fullUrl = qrCodeUrl.startsWith('http') ? qrCodeUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}`
+      const response = await fetch(fullUrl)
+      const blob = await response.blob()
+      const blobUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = `shop-qr-${form.shopName || 'code'}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      console.error('Failed to download QR code:', err)
+      const fullUrl = qrCodeUrl.startsWith('http') ? qrCodeUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}`
+      window.open(fullUrl, '_blank')
+    }
+  }
+
+  const handlePrintQr = () => {
+    if (!qrCodeUrl) return
+    const fullUrl = qrCodeUrl.startsWith('http') 
+      ? qrCodeUrl 
+      : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}`
+    
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print QR Code - ${form.shopName || 'Shop'}</title>
+          <style>
+            body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; margin: 0; }
+            h1 { margin-bottom: 20px; font-size: 24px; color: #1e293b; }
+            p { margin-top: 10px; font-size: 14px; color: #64748b; font-weight: bold; }
+            img { width: 300px; height: 300px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
+            @media print {
+              img { width: 400px; height: 400px; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${form.shopName || 'Shop'}</h1>
+          <p>Scan to upload print files</p>
+          <img src="${fullUrl}" onload="window.print(); window.close();" />
+          <p>Shop ID: ${shopkeeperIdCode || 'N/A'}</p>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
+
+  const handleShareQr = () => {
+    const loggedIn = getLoggedInShopkeeper()
+    const shopId = loggedIn?.id
+    if (!shopId) return
+
+    const frontendUrl = window.location.origin
+    const shareUrl = `${frontendUrl}/take-a-print?shopId=${shopId}`
+
+    if (navigator.share) {
+      navigator.share({
+        title: form.shopName || 'My Printing Shop',
+        text: 'Scan this QR code to take a print at my shop!',
+        url: shareUrl,
+      }).catch((err) => console.log('Error sharing:', err))
+    } else {
+      navigator.clipboard.writeText(shareUrl)
+        .then(() => alert('Shop link copied to clipboard! You can share it anywhere.'))
+        .catch(() => alert(`Share URL: ${shareUrl}`))
+    }
+  }
+
+  const handleRegenerateQr = async () => {
+    const token = localStorage.getItem("authToken")
+    if (!token) return
+    setRegenerating(true)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/shopkeeper/regenerate-qr`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setQrCodeUrl(data.qrCodeUrl || '')
+        setShopkeeperIdCode(data.shopkeeperIdCode || data.slug || '')
+        alert("QR Code regenerated successfully!")
+      } else {
+        alert("Failed to regenerate QR code.")
+      }
+    } catch (err) {
+      console.error("Regenerate QR failed:", err)
+      alert("Error regenerating QR code.")
+    } finally {
+      setRegenerating(false)
     }
   }
 
   return (
     <div>
       {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Profile Setup</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Tell customers about your business. This information will be visible on your shop profile.
-        </p>
+      <div className="mb-6 flex items-start gap-4">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-800 hover:bg-slate-50 transition mt-1"
+          aria-label="Back"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Profile Setup</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Tell customers about your business. This information will be visible on your shop profile.
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -163,8 +495,7 @@ export default function ProfileSetupPage() {
             <div className="flex items-start gap-4 mb-5">
               <div className="h-16 w-16 rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center">
                 {logoPreview ? (
-                  // next/image supports data URL
-                  <Image src={logoPreview} alt="Shop logo" width={64} height={64} />
+                  <img src={logoPreview} alt="Shop logo" className="h-full w-full object-cover" />
                 ) : (
                   <ImageIcon size={22} className="text-slate-400" />
                 )}
@@ -298,6 +629,41 @@ export default function ProfileSetupPage() {
                 />
               </Field>
 
+              <Field label="UPI ID (for payments)" required>
+                <TextInput
+                  value={form.upiId || ''}
+                  onChange={onFormChange('upiId')}
+                  placeholder="e.g. shopname@upi"
+                />
+              </Field>
+
+              <Field label="Payment QR Code (Optional)">
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onPickPaymentQr(e.target.files?.[0])}
+                    className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 file:cursor-pointer hover:file:bg-violet-100"
+                  />
+                  {form.paymentQrUrl && (
+                    <div className="mt-2 relative w-24 h-24 border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
+                      <img
+                        src={form.paymentQrUrl.startsWith('http') || form.paymentQrUrl.startsWith('data:') ? form.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${form.paymentQrUrl}`}
+                        alt="Payment QR Preview"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, paymentQrUrl: '' }))}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-[10px] w-5 h-5 flex items-center justify-center hover:bg-red-700 transition"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </Field>
+
               <Field label="Website (Optional)">
                 <IconInput
                   icon={Globe}
@@ -322,32 +688,75 @@ export default function ProfileSetupPage() {
         {/* Right Panel: QR + Social */}
         <div className="xl:col-span-3">
           <div className="space-y-6">
-            <Card
-              title="Shop QR Code"
-              subtitle="This will be visible on your shop profile"
-              icon={Tag}
-            >
+            <Card title="Your Shop QR" subtitle="Scan to upload print files" icon={Tag}>
               <div className="flex flex-col items-center">
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                  <Image
-                    src="/qr-placeholder.svg"
-                    alt="QR placeholder"
-                    width={180}
-                    height={180}
-                    priority
-                  />
+                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm flex items-center justify-center min-w-[206px] min-h-[206px] mb-3">
+                  {qrCodeUrl ? (
+                    <img
+                      src={qrCodeUrl.startsWith('http') ? qrCodeUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}`}
+                      alt="Shop QR Code"
+                      className="w-[180px] h-[180px] object-contain"
+                    />
+                  ) : (
+                    <img
+                      src="/qr-placeholder.svg"
+                      alt="QR placeholder"
+                      className="w-[180px] h-[180px] object-contain animate-pulse"
+                    />
+                  )}
                 </div>
 
-                <div className="mt-4 flex w-full gap-2">
-                  <SecondaryButton type="button" className="flex-1 gap-2">
-                    <Download size={16} />
+                <div className="text-center mb-4">
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Shop ID</div>
+                  <div className="text-sm font-bold text-slate-800 break-all select-all mt-0.5">
+                    {shopkeeperIdCode || '—'}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 w-full">
+                  <SecondaryButton
+                    type="button"
+                    className="gap-1 py-1.5 px-2 text-[11px] justify-center"
+                    onClick={handleCopyLink}
+                  >
+                    Copy Link
+                  </SecondaryButton>
+                  <SecondaryButton
+                    type="button"
+                    className="gap-1 py-1.5 px-2 text-[11px] justify-center"
+                    onClick={handleDownloadQr}
+                    disabled={!qrCodeUrl}
+                  >
+                    <Download size={12} />
                     Download
                   </SecondaryButton>
-                  <SecondaryButton type="button" className="flex-1 gap-2">
-                    <Share2 size={16} />
-                    Share
+                  <SecondaryButton
+                    type="button"
+                    className="gap-1 py-1.5 px-2 text-[11px] justify-center"
+                    onClick={handlePrintQr}
+                    disabled={!qrCodeUrl}
+                  >
+                    Print QR
+                  </SecondaryButton>
+                  <SecondaryButton
+                    type="button"
+                    className="gap-1 py-1.5 px-2 text-[11px] justify-center"
+                    onClick={handleShareQr}
+                    disabled={!qrCodeUrl}
+                  >
+                    <Share2 size={12} />
+                    Share QR
                   </SecondaryButton>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleRegenerateQr}
+                  disabled={regenerating}
+                  className="mt-4 text-[11px] font-semibold text-violet-600 hover:text-violet-700 transition disabled:text-slate-400"
+                >
+                  {regenerating ? 'Regenerating...' : 'Regenerate QR Code'}
+                </button>
               </div>
             </Card>
 
@@ -396,9 +805,14 @@ export default function ProfileSetupPage() {
           Need Help?
         </div>
         <div className="mt-1 text-xs text-slate-500">We&apos;re here to help you set up your shop.</div>
-        <PrimaryButton type="button" className="mt-3 w-full">
+        <a
+          href="https://forms.gle/VBK48SwGSWm7prgUA"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+        >
           Get Support
-        </PrimaryButton>
+        </a>
       </div>
     </div>
   )

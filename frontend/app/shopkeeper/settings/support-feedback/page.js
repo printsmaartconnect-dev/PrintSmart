@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useTranslation } from 'react-i18next'
 import {
+  ArrowLeft,
   ArrowRight,
   BarChart3,
   ClipboardList,
@@ -248,6 +250,7 @@ function SidebarItem({ href, icon: Icon, label, description, active }) {
 }
 
 function NeedHelpWidget() {
+  const { t } = useTranslation()
   return (
     <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start gap-3">
@@ -255,17 +258,19 @@ function NeedHelpWidget() {
           <Headphones size={18} />
         </span>
         <div>
-          <div className="text-sm font-semibold text-slate-800">Need Help?</div>
-          <div className="mt-1 text-xs leading-5 text-slate-500">We&apos;re here to help you connect and solve issues quickly.</div>
+          <div className="text-sm font-semibold text-slate-800">{t('Need Help?')}</div>
+          <div className="mt-1 text-xs leading-5 text-slate-500">{t('We\'re here to help you connect and solve issues quickly.')}</div>
         </div>
       </div>
 
-      <Link
-        href="/shopkeeper/support"
+      <a
+        href="https://forms.gle/VBK48SwGSWm7prgUA"
+        target="_blank"
+        rel="noopener noreferrer"
         className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
       >
-        Get Support
-      </Link>
+        {t('Get Support')}
+      </a>
     </div>
   )
 }
@@ -297,6 +302,7 @@ function ContactCard({ card }) {
 }
 
 function UrgentContactCard() {
+  const { t } = useTranslation()
   return (
     <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
       <div className="flex items-start gap-4">
@@ -304,8 +310,8 @@ function UrgentContactCard() {
           <Phone size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-base font-bold text-slate-900">Urgent Contact</div>
-          <div className="mt-1 text-sm text-slate-500">Call Support</div>
+          <div className="text-base font-bold text-slate-900">{t('Urgent Contact')}</div>
+          <div className="mt-1 text-sm text-slate-500">{t('Call Support')}</div>
 
           <div className="mt-4 space-y-2">
             <a
@@ -313,14 +319,14 @@ function UrgentContactCard() {
               className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
             >
               <span>87678 77602</span>
-              <span className="text-xs font-bold text-violet-600">Call</span>
+              <span className="text-xs font-bold text-violet-600">{t('Call')}</span>
             </a>
             <a
               href="tel:7249825244"
               className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
             >
               <span>7249825244</span>
-              <span className="text-xs font-bold text-violet-600">Call</span>
+              <span className="text-xs font-bold text-violet-600">{t('Call')}</span>
             </a>
           </div>
         </div>
@@ -330,9 +336,10 @@ function UrgentContactCard() {
 }
 
 function FlowToggle({ value, onChange }) {
+  const { t } = useTranslation()
   return (
     <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 shadow-sm">
-      <span className="px-2.5 text-sm font-semibold text-slate-500">You are viewing</span>
+      <span className="px-2.5 text-sm font-semibold text-slate-500">{t('You are viewing')}</span>
       <button
         type="button"
         onClick={() => onChange('customer')}
@@ -342,7 +349,7 @@ function FlowToggle({ value, onChange }) {
             : 'text-slate-600 hover:bg-white hover:text-slate-900'
         }`}
       >
-        Customer Flow
+        {t('Customer Flow')}
       </button>
       <button
         type="button"
@@ -353,7 +360,7 @@ function FlowToggle({ value, onChange }) {
             : 'text-slate-600 hover:bg-white hover:text-slate-900'
         }`}
       >
-        Shopkeeper Flow
+        {t('Shopkeeper Flow')}
       </button>
     </div>
   )
@@ -442,6 +449,7 @@ function FlowBanner({ variant }) {
 }
 
 function FlowSection({ value, onChange }) {
+  const { t } = useTranslation()
   const isCustomer = value === 'customer'
   const steps = isCustomer ? customerFlowSteps : shopkeeperFlowSteps
   const gridClass = isCustomer
@@ -453,12 +461,12 @@ function FlowSection({ value, onChange }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="text-[28px] font-extrabold tracking-tight text-slate-900 sm:text-[32px]">
-            {isCustomer ? 'How PrintSmaart.in Works' : 'Shopkeeper Flow'}
+            {isCustomer ? t('How PrintSmaart.in Works') : t('Shopkeeper Flow')}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
             {isCustomer
-              ? 'Simple, fast and smart printing for everyone.'
-              : 'Understand how PrintSmart works for your shop.'}
+              ? t('Simple, fast and smart printing for everyone.')
+              : t('Understand how PrintSmart works for your shop.')}
           </p>
         </div>
 
@@ -470,7 +478,12 @@ function FlowSection({ value, onChange }) {
           {steps.map((step, index) => (
             <StepCard
               key={step.number}
-              step={step}
+              step={{
+                ...step,
+                title: t(step.title),
+                description: t(step.description),
+                action: step.action ? t(step.action) : undefined,
+              }}
               variant={value}
               showArrow={index !== steps.length - 1}
             />
@@ -486,6 +499,7 @@ function FlowSection({ value, onChange }) {
 }
 
 export default function SupportFeedbackPage() {
+  const { t } = useTranslation()
   const [flowView, setFlowView] = useState('customer')
 
   return (
@@ -497,7 +511,7 @@ export default function SupportFeedbackPage() {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
                 <Settings2 size={16} />
               </span>
-              <h2 className="text-[18px] font-bold text-slate-900">Settings</h2>
+              <h2 className="text-[18px] font-bold text-slate-900">{t('Settings')}</h2>
             </div>
 
             <nav className="space-y-2 p-3">
@@ -506,8 +520,8 @@ export default function SupportFeedbackPage() {
                   key={item.label}
                   href={item.href}
                   icon={item.icon}
-                  label={item.label}
-                  description={item.description}
+                  label={t(item.label)}
+                  description={t(item.description)}
                   active={item.active}
                 />
               ))}
@@ -519,18 +533,32 @@ export default function SupportFeedbackPage() {
           </aside>
 
           <section className="min-w-0 space-y-6">
-            <div>
-              <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900 sm:text-[32px]">
-                Support and Contact
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm text-slate-500">
-                Reach us through feedback, tutorials, or direct support whenever you need help.
-              </p>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/shopkeeper/dashboard"
+                className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition flex-shrink-0"
+                aria-label="Back to Dashboard"
+              >
+                <ArrowLeft size={18} />
+              </Link>
+              <div>
+                <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900 sm:text-[32px]">
+                  {t('Support & Feedback')}
+                </h1>
+                <p className="mt-2 max-w-3xl text-sm text-slate-500">
+                  {t('Reach us through feedback, tutorials, or direct support whenever you need help.')}
+                </p>
+              </div>
             </div>
 
             <section className="grid gap-4 xl:grid-cols-3">
               {contactCards.map((card) => (
-                <ContactCard key={card.title} card={card} />
+                <ContactCard key={card.title} card={{
+                  ...card,
+                  title: t(card.title),
+                  helper: t(card.helper),
+                  text: t(card.text),
+                }} />
               ))}
 
               <UrgentContactCard />

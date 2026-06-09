@@ -55,6 +55,8 @@ export function getProfile() {
     businessEstablishedYear: '',
     gstNumber: '',
     logoDataUrl: '',
+    upiId: '',
+    paymentQrUrl: '',
   })
 }
 
@@ -133,6 +135,7 @@ export function validateProfileRequired(profile, contact) {
   if (!isNonEmptyString(profile?.businessCategory)) missing.push('Business Category')
   if (!isNonEmptyString(profile?.languagePreference)) missing.push('Language Preference')
   if (!isNonEmptyString(profile?.businessDescription)) missing.push('Business Description')
+  if (!isNonEmptyString(profile?.upiId)) missing.push('UPI ID')
 
   if (!isNonEmptyString(contact?.phoneNumber)) missing.push('Phone Number')
   if (!isNonEmptyString(contact?.emailAddress)) missing.push('Email Address')
@@ -164,11 +167,19 @@ export function validatePricingRequired(pricing) {
   return { ok: missing.length === 0, missing }
 }
 
+export function isProfileSetupComplete(profile, contact) {
+  return validateProfileRequired(profile, contact).ok
+}
+
+export function isPricingSetupComplete(pricing) {
+  return validatePricingRequired(pricing).ok
+}
+
 export function isOnboardingComplete(shopkeeperAccount) {
   if (typeof window === 'undefined') return false
 
   const flagCompleted = window.localStorage.getItem(KEYS.setupCompleted) === 'true'
-  const accountCompleted = shopkeeperAccount?.setupCompleted === true
+  const accountCompleted = shopkeeperAccount?.setupCompleted === true || shopkeeperAccount?.isOnboarded === true
   const completedSignal = flagCompleted || accountCompleted
   if (!completedSignal) return false
 
@@ -207,6 +218,8 @@ export function syncLocalStorageFromDb(account) {
       logoDataUrl: account.logoUrl || '',
       shopkeeperIdCode: account.shopkeeperIdCode || '',
       shopSlug: account.shopSlug || '',
+      upiId: account.upiId || '',
+      paymentQrUrl: account.paymentQrUrl || '',
     }
     window.localStorage.setItem(KEYS.profile, JSON.stringify(profile))
 

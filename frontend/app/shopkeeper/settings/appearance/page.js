@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
+  ArrowLeft,
   Bell,
   ChevronDown,
   Languages,
@@ -104,6 +106,14 @@ function TopHeader({ shopName }) {
       <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition mr-1"
+              aria-label="Back"
+            >
+              <ArrowLeft size={16} />
+            </button>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
               <Store size={18} />
             </span>
@@ -182,6 +192,7 @@ function ToggleSwitch({ enabled, onToggle }) {
 }
 
 export default function AppearanceSettingsPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [shopName, setShopName] = useState('Shree Ganesh Xerox & Prints')
   const [themeColor, setThemeColor] = useState('violet')
@@ -263,18 +274,18 @@ export default function AppearanceSettingsPage() {
           localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
           localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
           setSocials(updatedSocials)
-          alert('Appearance settings saved successfully!')
+          alert(t('Appearance settings saved successfully!'))
         } else {
           console.error('Failed to save appearance details')
-          alert('Failed to save appearance details to server.')
+          alert(t('Failed to save appearance details to server.'))
         }
       } else {
         setSocials(updatedSocials)
-        alert('Appearance settings updated locally!')
+        alert(t('Appearance settings updated locally!'))
       }
     } catch (err) {
       console.error('Appearance save error:', err)
-      alert('An error occurred during save.')
+      alert(t('An error occurred during save.'))
     } finally {
       setSaving(false)
     }
@@ -292,7 +303,7 @@ export default function AppearanceSettingsPage() {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
                 <Palette size={16} />
               </span>
-              <h2 className="text-[18px] font-bold text-slate-900">Settings</h2>
+              <h2 className="text-[18px] font-bold text-slate-900">{t('Settings')}</h2>
             </div>
 
             <nav className="space-y-2 p-3">
@@ -301,8 +312,8 @@ export default function AppearanceSettingsPage() {
                   key={item.label}
                   href={item.href}
                   icon={item.icon}
-                  label={item.label}
-                  description={item.description}
+                  label={t(item.label)}
+                  description={t(item.description)}
                   active={item.active}
                 />
               ))}
@@ -313,35 +324,35 @@ export default function AppearanceSettingsPage() {
           <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="min-w-0 space-y-6">
               <div>
-                <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">Appearance Settings</h1>
+                <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">{t('Appearance Settings')}</h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  Customize the look, color scheme, layout structure, and visibility of details.
+                  {t('Customize the look, color scheme, layout structure, and visibility of details.')}
                 </p>
               </div>
 
               {/* Theme Selector Card */}
-              <Card title="Accent Theme Color" icon={Palette}>
+              <Card title={t('Accent Theme Color')} icon={Palette}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <ColorBox
-                    label="Violet"
+                    label={t('Violet')}
                     colorClass="bg-violet-600"
                     selected={themeColor === 'violet'}
                     onSelect={() => setThemeColor('violet')}
                   />
                   <ColorBox
-                    label="Ocean"
+                    label={t('Ocean')}
                     colorClass="bg-sky-500"
                     selected={themeColor === 'ocean'}
                     onSelect={() => setThemeColor('ocean')}
                   />
                   <ColorBox
-                    label="Emerald"
+                    label={t('Emerald')}
                     colorClass="bg-emerald-500"
                     selected={themeColor === 'emerald'}
                     onSelect={() => setThemeColor('emerald')}
                   />
                   <ColorBox
-                    label="Slate"
+                    label={t('Slate')}
                     colorClass="bg-slate-600"
                     selected={themeColor === 'slate'}
                     onSelect={() => setThemeColor('slate')}
@@ -350,9 +361,9 @@ export default function AppearanceSettingsPage() {
               </Card>
 
               {/* Layout Density Card */}
-              <Card title="Layout Structure" icon={Settings2}>
+              <Card title={t('Layout Structure')} icon={Settings2}>
                 <div className="space-y-4">
-                  <Field label="Layout Density" description="Select structure comfort layout">
+                  <Field label={t('Layout Density')} description={t('Select structure comfort layout')}>
                     <div className="flex gap-4">
                       <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
                         <input
@@ -363,7 +374,7 @@ export default function AppearanceSettingsPage() {
                           onChange={() => setLayoutDensity('comfortable')}
                           className="text-violet-600 focus:ring-violet-500"
                         />
-                        Comfortable
+                        {t('Comfortable')}
                       </label>
                       <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
                         <input
@@ -374,7 +385,7 @@ export default function AppearanceSettingsPage() {
                           onChange={() => setLayoutDensity('compact')}
                           className="text-violet-600 focus:ring-violet-500"
                         />
-                        Compact
+                        {t('Compact')}
                       </label>
                     </div>
                   </Field>
@@ -382,19 +393,19 @@ export default function AppearanceSettingsPage() {
               </Card>
 
               {/* Public Visibilities */}
-              <Card title="Customer Page Info Visibility" icon={Sparkles}>
+              <Card title={t('Customer Page Info Visibility')} icon={Sparkles}>
                 <div className="divide-y divide-slate-100">
                   <div className="flex items-center justify-between py-4">
                     <div>
-                      <div className="text-sm font-semibold text-slate-900">Show Shop Email</div>
-                      <div className="text-xs text-slate-500 mt-1">Display your email address to scanning customers</div>
+                      <div className="text-sm font-semibold text-slate-900">{t('Show Shop Email')}</div>
+                      <div className="text-xs text-slate-500 mt-1">{t('Display your email address to scanning customers')}</div>
                     </div>
                     <ToggleSwitch enabled={showEmail} onToggle={() => setShowEmail(!showEmail)} />
                   </div>
                   <div className="flex items-center justify-between py-4">
                     <div>
-                      <div className="text-sm font-semibold text-slate-900">Show Shop Phone</div>
-                      <div className="text-xs text-slate-500 mt-1">Display shop phone number on customer landing pages</div>
+                      <div className="text-sm font-semibold text-slate-900">{t('Show Shop Phone')}</div>
+                      <div className="text-xs text-slate-500 mt-1">{t('Display shop phone number on customer landing pages')}</div>
                     </div>
                     <ToggleSwitch enabled={showPhone} onToggle={() => setShowPhone(!showPhone)} />
                   </div>
@@ -403,7 +414,7 @@ export default function AppearanceSettingsPage() {
 
               <div className="flex justify-end">
                 <PrimaryButton type="button" onClick={handleSave} disabled={saving} className="px-8 py-3">
-                  Save Customizations
+                  {t('Save Customizations')}
                 </PrimaryButton>
               </div>
             </div>
@@ -411,9 +422,9 @@ export default function AppearanceSettingsPage() {
             {/* Right Preview Side panel */}
             <aside className="min-w-0 xl:pt-[46px]">
               <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
-                <div className="text-sm font-bold text-violet-700 mb-2">Live Preview</div>
+                <div className="text-sm font-bold text-violet-700 mb-2">{t('Live Preview')}</div>
                 <p className="text-xs text-slate-500 leading-relaxed mb-4">
-                  See accent style preview for selected configuration.
+                  {t('See accent style preview for selected configuration.')}
                 </p>
                 <div className="rounded-2xl border border-slate-100 p-4 bg-slate-50">
                   <div className="flex items-center gap-2 mb-3">
@@ -422,7 +433,7 @@ export default function AppearanceSettingsPage() {
                       themeColor === 'ocean' ? 'bg-sky-500' :
                       themeColor === 'emerald' ? 'bg-emerald-500' : 'bg-slate-600'
                     }`} />
-                    <span className="text-xs font-bold text-slate-900 uppercase">Button Sample</span>
+                    <span className="text-xs font-bold text-slate-900 uppercase">{t('Button Sample')}</span>
                   </div>
                   <button
                     type="button"
@@ -433,7 +444,7 @@ export default function AppearanceSettingsPage() {
                       'bg-slate-600 hover:bg-slate-700'
                     }`}
                   >
-                    Interactive Action
+                    {t('Interactive Action')}
                   </button>
                 </div>
               </div>

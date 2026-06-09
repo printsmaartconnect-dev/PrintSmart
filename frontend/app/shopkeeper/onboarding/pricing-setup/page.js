@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, MapPin, Printer, Settings2 } from 'lucide-react'
+import { ArrowLeft, FileText, MapPin, Printer, Settings2 } from 'lucide-react'
 import {
   getContact,
   getLoggedInShopkeeper,
@@ -13,6 +13,7 @@ import {
   validateProfileRequired,
   setPricing,
   setSetupCompleted,
+  syncLocalStorageFromDb,
   STORAGE_KEYS,
 } from '../_components/onboardingStorage'
 import {
@@ -33,11 +34,40 @@ export default function PricingSetupPage() {
   const [pricing, setPricingState] = useState(() => getPricing())
 
   useEffect(() => {
+    const token = localStorage.getItem('authToken')
     const loggedIn = getLoggedInShopkeeper()
-    if (!loggedIn) {
+    if (!token || !loggedIn) {
       router.replace('/shopkeeper/login')
       return
     }
+
+    const checkOnboardingStatus = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (response.ok) {
+          const shopkeeper = await response.json()
+          localStorage.setItem('loggedInShopkeeper', JSON.stringify(shopkeeper))
+          localStorage.setItem('shopkeeper', JSON.stringify(shopkeeper))
+          
+          // Sync database profile to local storage so validation has matching values
+          syncLocalStorageFromDb(shopkeeper)
+
+          if (shopkeeper.isOnboarded) {
+            router.replace('/shopkeeper/dashboard')
+            return
+          }
+        }
+      } catch (err) {
+        console.warn('Pricing setup onboarding check failed:', err)
+      }
+    }
+
+    checkOnboardingStatus()
   }, [router])
 
   const onChange = (key) => (e) => {
@@ -45,18 +75,21 @@ export default function PricingSetupPage() {
     setPricingState((prev) => ({ ...prev, [key]: value }))
   }
 
-  const showCustomAutoDelete = pricing.autoDeleteAfterHours === 'Custom'
-
   const summary = useMemo(() => {
     const safe = (v) => (v === '' || v == null ? '0.00' : v)
     return {
       bwA4: safe(pricing.bwA4),
       bwA3: safe(pricing.bwA3),
+      bwA5: safe(pricing.bwA5),
+      bwLegal: safe(pricing.bwLegal),
+      bwLetter: safe(pricing.bwLetter),
       colorA4: safe(pricing.colorA4),
       colorA3: safe(pricing.colorA3),
+      colorA5: safe(pricing.colorA5),
+      colorLegal: safe(pricing.colorLegal),
+      colorLetter: safe(pricing.colorLetter),
       bwDoubleSide: safe(pricing.bwDoubleSide),
       colorDoubleSide: safe(pricing.colorDoubleSide),
-      expressPrint: safe(pricing.expressPrint),
     }
   }, [pricing])
 
@@ -100,9 +133,13 @@ export default function PricingSetupPage() {
               subCategory: activeProfile.subCategory,
               languagePref: activeProfile.languagePreference,
               gstNumber: activeProfile.gstNumber,
+              businessDescription: activeProfile.businessDescription,
+              businessEstablishedYear: activeProfile.businessEstablishedYear,
+              website: activeContact.website,
+              alternatePhone: activeContact.alternatePhone,
               socials: activeSocials,
               pricing: pricing,
-              logoUrl: activeProfile.logoDataUrl || null,
+              logoUrl: activeProfile.logoDataUrl || activeProfile.logoUrl || null,
               phone: activeContact.phoneNumber,
             })
           })
@@ -148,21 +185,33 @@ export default function PricingSetupPage() {
   return (
     <div>
       {/* Page Header */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Pricing Setup</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Set your print pricing and service charges. You can change these anytime.
-          </p>
-        </div>
-        <SecondaryButton
+      <div className="mb-6 flex items-start gap-4">
+        <button
           type="button"
-          className="gap-2 self-start"
-          onClick={() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          onClick={() => router.back()}
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-800 hover:bg-slate-50 transition mt-1 flex-shrink-0"
+          aria-label="Back"
         >
-          <FileText size={16} />
-          Pricing Summary
-        </SecondaryButton>
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Pricing Setup</h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Set your print pricing and service charges. You can change these anytime.
+              </p>
+            </div>
+            <SecondaryButton
+              type="button"
+              className="gap-2 self-start"
+              onClick={() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            >
+              <FileText size={16} />
+              Pricing Summary
+            </SecondaryButton>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -176,6 +225,15 @@ export default function PricingSetupPage() {
                 </Field>
                 <Field label="A3 (Per Page)">
                   <RupeeInput value={pricing.bwA3} onChange={onChange('bwA3')} placeholder="2.00" />
+                </Field>
+                <Field label="A5 (Per Page)">
+                  <RupeeInput value={pricing.bwA5} onChange={onChange('bwA5')} placeholder="1.00" />
+                </Field>
+                <Field label="Legal (Per Page)">
+                  <RupeeInput value={pricing.bwLegal} onChange={onChange('bwLegal')} placeholder="1.50" />
+                </Field>
+                <Field label="Letter (Per Page)">
+                  <RupeeInput value={pricing.bwLetter} onChange={onChange('bwLetter')} placeholder="1.00" />
                 </Field>
                 <Field label="Double Side (Per Page)">
                   <RupeeInput
@@ -195,6 +253,15 @@ export default function PricingSetupPage() {
                 <Field label="A3 (Per Page)">
                   <RupeeInput value={pricing.colorA3} onChange={onChange('colorA3')} placeholder="8.00" />
                 </Field>
+                <Field label="A5 (Per Page)">
+                  <RupeeInput value={pricing.colorA5} onChange={onChange('colorA5')} placeholder="4.00" />
+                </Field>
+                <Field label="Legal (Per Page)">
+                  <RupeeInput value={pricing.colorLegal} onChange={onChange('colorLegal')} placeholder="6.00" />
+                </Field>
+                <Field label="Letter (Per Page)">
+                  <RupeeInput value={pricing.colorLetter} onChange={onChange('colorLetter')} placeholder="5.00" />
+                </Field>
                 <Field label="Double Side (Per Page)">
                   <RupeeInput
                     value={pricing.colorDoubleSide}
@@ -202,51 +269,6 @@ export default function PricingSetupPage() {
                     placeholder="3.00"
                   />
                 </Field>
-              </div>
-            </Card>
-
-            <Card title="Other Settings" icon={Settings2}>
-              <div className="space-y-4">
-                <Field label="Express Print (Extra Charges)">
-                  <RupeeInput
-                    value={pricing.expressPrint}
-                    onChange={onChange('expressPrint')}
-                    placeholder="10.00"
-                  />
-                </Field>
-                <Field label="Auto Delete After (Hours)">
-                  <SelectInput
-                    value={pricing.autoDeleteAfterHours}
-                    onChange={(e) =>
-                      setPricingState((prev) => ({
-                        ...prev,
-                        autoDeleteAfterHours: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="1 hrs">1 hrs</option>
-                    <option value="24 hrs">24 hrs</option>
-                    <option value="Custom">Custom</option>
-                  </SelectInput>
-                </Field>
-
-                {showCustomAutoDelete ? (
-                  <Field label="Custom Hours">
-                    <TextInput
-                      type="number"
-                      min={1}
-                      value={pricing.customAutoDeleteHours || ''}
-                      onChange={(e) =>
-                        setPricingState((prev) => ({
-                          ...prev,
-                          customAutoDeleteHours: e.target.value,
-                        }))
-                      }
-                      placeholder="Enter hours"
-                      inputMode="numeric"
-                    />
-                  </Field>
-                ) : null}
               </div>
             </Card>
           </div>
@@ -264,11 +286,16 @@ export default function PricingSetupPage() {
             <div className="space-y-3 text-sm">
               <SummaryRow label="B&W A4" value={summary.bwA4} />
               <SummaryRow label="B&W A3" value={summary.bwA3} />
+              <SummaryRow label="B&W A5" value={summary.bwA5} />
+              <SummaryRow label="B&W Legal" value={summary.bwLegal} />
+              <SummaryRow label="B&W Letter" value={summary.bwLetter} />
               <SummaryRow label="Color A4" value={summary.colorA4} />
               <SummaryRow label="Color A3" value={summary.colorA3} />
+              <SummaryRow label="Color A5" value={summary.colorA5} />
+              <SummaryRow label="Color Legal" value={summary.colorLegal} />
+              <SummaryRow label="Color Letter" value={summary.colorLetter} />
               <SummaryRow label="Double Side B&W" value={summary.bwDoubleSide} />
               <SummaryRow label="Double Side Color" value={summary.colorDoubleSide} />
-              <SummaryRow label="Express Print" value={summary.expressPrint} />
             </div>
           </Card>
         </div>
@@ -281,7 +308,14 @@ export default function PricingSetupPage() {
           Need Help?
         </div>
         <div className="mt-1 text-xs text-slate-500">We&apos;re here to help you set up your shop.</div>
-        <PrimaryButton type="button" className="mt-3 w-full">Get Support</PrimaryButton>
+        <a
+          href="https://forms.gle/VBK48SwGSWm7prgUA"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+        >
+          Get Support
+        </a>
       </div>
     </div>
   )

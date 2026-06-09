@@ -1,16 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Eye, EyeOff, Headphones, Home } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import {
+  getLoggedInShopkeeper,
+  isOnboardingComplete,
+} from '../onboarding/_components/onboardingStorage'
 
 export default function ShopkeeperLoginPage() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
+
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const handleChange = (e) => {
     setFormData({
@@ -36,7 +44,8 @@ export default function ShopkeeperLoginPage() {
         localStorage.setItem('authToken', data.token)
         localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
         localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
-        router.push('/shopkeeper/dashboard')
+        const destination = '/shopkeeper/dashboard'
+        router.push(destination)
         return
       }
       
@@ -44,7 +53,6 @@ export default function ShopkeeperLoginPage() {
       alert(errorData.message || 'Invalid credentials!')
     } catch (err) {
       console.warn('Backend connection failed, trying fallback mockup authentication:', err)
-      // Fallback local storage logic
       const shopkeeper = JSON.parse(localStorage.getItem('shopkeeper') || '{}')
       if (
         shopkeeper.email === formData.email &&
@@ -58,6 +66,72 @@ export default function ShopkeeperLoginPage() {
     }
   }
 
+  useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '1028741369527-mockclientid.apps.googleusercontent.com'
+    if (!clientId) return
+
+    const initializeGoogle = () => {
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) return
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response) => {
+          try {
+            const tokenRes = await fetch('http://localhost:5000/api/auth/google', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ credential: response.credential }),
+            })
+            if (!tokenRes.ok) {
+              const errorData = await tokenRes.json()
+              alert((errorData.message || 'Google login failed') + (errorData.error ? '\nDetails: ' + errorData.error : ''))
+              return
+            }
+            const data = await tokenRes.json()
+            localStorage.setItem('authToken', data.token)
+            localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
+            localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
+            const destination = '/shopkeeper/dashboard'
+            router.push(destination)
+          } catch (authErr) {
+            console.error('Google auth response failed:', authErr)
+            alert('Google authentication failed')
+          } finally {
+            setGoogleLoading(false)
+          }
+        },
+      })
+
+      const container = document.getElementById('google-signin-button')
+      window.google.accounts.id.renderButton(
+        container,
+        {
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular',
+          width: container ? Math.min(container.offsetWidth, 400) : 360,
+        }
+      )
+    }
+
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      initializeGoogle()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = initializeGoogle
+    document.head.appendChild(script)
+    return () => {
+      if (document.head.contains(script)) {
+        document.head.removeChild(script)
+      }
+    }
+  }, [router])
+
   return (
     <div className="wave-bg min-h-screen relative">
       <div className="min-h-screen flex flex-col md:flex-row">
@@ -66,7 +140,7 @@ export default function ShopkeeperLoginPage() {
           <img
             src="/shopkeeper_login.jpeg"
             alt="Shopkeeper login"
-            className="w-full h-full md:h-screen object-cover"
+            className="w-full h-full md:h-screen object-cover object-left"
           />
         </div>
 
@@ -102,13 +176,13 @@ export default function ShopkeeperLoginPage() {
             </div>
 
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-black">Welcome Back!</h2>
-              <p className="text-gray-600 mt-2">Login to continue</p>
+              <h2 className="text-3xl font-bold text-black">{t('Welcome Back!')}</h2>
+              <p className="text-gray-600 mt-2">{t('Login to continue')}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-gray-700 font-semibold mb-2">Gmail</label>
+                <label className="block text-gray-700 font-semibold mb-2">{t('Gmail')}</label>
                 <input
                   type="email"
                   name="email"
@@ -118,13 +192,13 @@ export default function ShopkeeperLoginPage() {
                   autoCapitalize="none"
                   spellCheck={false}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition"
-                  placeholder="your@gmail.com"
+                  placeholder={t('your@gmail.com')}
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-2">Password</label>
+                <label className="block text-gray-700 font-semibold mb-2">{t('Password')}</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -135,7 +209,7 @@ export default function ShopkeeperLoginPage() {
                     autoCapitalize="none"
                     spellCheck={false}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition pr-12"
-                    placeholder="Enter your password"
+                    placeholder={t('Enter your password')}
                     required
                   />
                   <button
@@ -153,8 +227,12 @@ export default function ShopkeeperLoginPage() {
                 type="submit"
                 className="w-full gradient-button py-3 px-4 rounded-xl font-semibold transition text-white mt-6"
               >
-                Login
+                {t('Login')}
               </button>
+
+              <div className="w-full flex justify-center mt-3">
+                <div id="google-signin-button" className="w-full max-w-[380px]"></div>
+              </div>
             </form>
 
             <div className="text-center mt-6">
@@ -162,7 +240,7 @@ export default function ShopkeeperLoginPage() {
                 href="/shopkeeper/register"
                 className="text-blue-600 font-semibold hover:underline"
               >
-                Register account?
+                {t('Register account?')}
               </a>
             </div>
           </div>
@@ -171,9 +249,11 @@ export default function ShopkeeperLoginPage() {
 
       {/* Help & Support Floating Button */}
       <a
-        href="#"
+        href="https://forms.gle/VBK48SwGSWm7prgUA"
+        target="_blank"
+        rel="noopener noreferrer"
         className="fixed left-5 bottom-5 z-50 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/90 border border-gray-200 text-gray-800 font-semibold shadow-sm hover:bg-white transition"
-        aria-label="Help & Support"
+        aria-label={t('Help & Support')}
       >
         <span className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100">
           <Headphones size={18} className="text-blue-600" />

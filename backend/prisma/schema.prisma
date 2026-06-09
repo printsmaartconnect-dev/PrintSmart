@@ -83,7 +83,8 @@ model Shopkeeper {
   password        String
   phone           String
   shopkeeperIdCode String?  @unique
-
+  upiId           String?
+  paymentQrUrl    String?
   shopName        String
   ownerName       String?
   shopSlug        String   @unique
@@ -92,9 +93,16 @@ model Shopkeeper {
   subCategory     String?  @default("Xerox & Digital Prints")
   languagePref    String?  @default("English")
   gstNumber       String?
+  businessDescription String?
+  businessEstablishedYear Int?
+  website         String?
+  alternatePhone  String?
   socials         Json?
   pricing         Json?
   logoUrl         String?
+  isOnboarded     Boolean  @default(false)
+  profileCompleted Boolean @default(false)
+  pricingCompleted Boolean @default(false)
 
   // QR Code
   qrCode          String?  @unique
@@ -129,6 +137,7 @@ model Order {
 
   customerName         String   @default("Anonymous")
   phone                String?
+  customerComment      String?  // Optional comment from customer during upload
 
   printConfiguration   PrintConfiguration?
   orderFiles          OrderFile[]

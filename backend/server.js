@@ -12,6 +12,7 @@ const feedbackRoutes = require("./routes/feedback.routes");
 const statisticsRoutes = require("./routes/statistics.routes");
 const userRoutes = require("./routes/user.routes");
 const shopkeeperRoutes = require("./routes/shopkeeper.routes");
+const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,6 +41,7 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/statistics", statisticsRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/shopkeeper", shopkeeperRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -65,7 +67,19 @@ app.use((err, req, res, next) => {
 app.listen(PORT, async () => {
   console.log(`PrintSmart backend running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`);
   
-  // Run db push and prisma generate programmatically to keep schema in sync
+  // DNS Diagnostics
+  try {
+    const dns = require('dns');
+    dns.lookup('db.hqlnmdtsdmehfsfjtucd.supabase.co', (err, address, family) => {
+      if (err) console.error('DNS LOOKUP ERROR FOR SUPABASE:', err.message);
+      else console.log(`DNS LOOKUP SUCCESS: IP=${address}, Family=IPv${family}`);
+    });
+  } catch (dnsErr) {
+    console.error('DNS test setup failed:', dnsErr.message);
+  }
+
+  // Programmatic DB schema sync commented out to avoid DNS/IPv6 startup conflicts
+  /*
   try {
     const { execSync } = require("child_process");
     console.log("Syncing database schema and generating Prisma client...");
@@ -75,6 +89,7 @@ app.listen(PORT, async () => {
   } catch (syncErr) {
     console.warn("Prisma schema sync failed:", syncErr.message);
   }
+  */
 
   // Seed default shopkeeper details on start
   try {
@@ -84,3 +99,4 @@ app.listen(PORT, async () => {
     console.error("Failed to run seed service on startup:", seedErr);
   }
 });
+// Nodemon reload trigger: updated database connection string in .env
