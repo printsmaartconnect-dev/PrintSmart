@@ -1,13 +1,16 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useEffect } from 'react'
-import { Shield, AlertCircle, Loader, ArrowLeft } from 'lucide-react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
+import { Shield, AlertCircle, Loader, ArrowLeft, Cloud, X, FileText, CheckCircle } from 'lucide-react'
+import { useDropzone } from 'react-dropzone'
 import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import { setCurrentShop, getActiveShop } from '../../../lib/shop-context'
+import CustomerHeader from '../../components/customer/CustomerHeader'
+import FilePreviewSection from '../../components/customer/FilePreviewSection'
 
 const LANGUAGES = [
   { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
@@ -23,7 +26,7 @@ const OTHER_LANGUAGES = [
   { code: 'te', name: 'Telugu', native: 'తెలుగు' },
   { code: 'kn', name: 'Kannada', native: 'ಕನ್ನಡ' },
   { code: 'ml', name: 'Malayalam', native: 'മലയാളം' },
-  { code: 'or', name: 'Odia', native: 'ଓଡ଼ିଆ' },
+  { code: 'or', name: 'Odia', native: 'ଓડ଼ିଆ' },
   { code: 'ur', name: 'Urdu', native: 'اردو' },
 ]
 
@@ -38,14 +41,189 @@ const LEGACY_OTHER_LANGUAGE_CODES = {
   Urdu: 'ur',
 }
 
-export default function CustomerLanguagePage() {
+const getFileExtension = (name = '') => {
+  const lastDotIndex = name.lastIndexOf('.')
+  return lastDotIndex >= 0 ? name.slice(lastDotIndex).toLowerCase() : ''
+}
+
+const getFileBaseName = (name = '') => {
+  const lastDotIndex = name.lastIndexOf('.')
+  return lastDotIndex >= 0 ? name.slice(0, lastDotIndex) : name
+}
+
+const getPlaceholderTheme = (extension) => {
+  switch (extension) {
+    case '.xls':
+    case '.xlsx':
+      return { label: extension.slice(1).toUpperCase(), primary: '#14804A', secondary: '#DDF6E8', accent: '#0F5C33', pattern: 'grid' }
+    case '.doc':
+    case '.docx':
+      return { label: extension.slice(1).toUpperCase(), primary: '#2563EB', secondary: '#DCEBFF', accent: '#1E40AF', pattern: 'lines' }
+    case '.txt':
+    case '.csv':
+      return { label: extension.slice(1).toUpperCase(), primary: '#D97706', secondary: '#FEF3C7', accent: '#92400E', pattern: 'text' }
+    case '.pdf':
+      return { label: 'PDF', primary: '#DC2626', secondary: '#FEE2E2', accent: '#991B1B', pattern: 'pdf' }
+    default:
+      return { label: extension ? extension.slice(1).toUpperCase() : 'FILE', primary: '#374151', secondary: '#E5E7EB', accent: '#111827', pattern: 'generic' }
+  }
+}
+
+const buildPlaceholderThumbnail = (file) => {
+  const extension = getFileExtension(file.name)
+  const theme = getPlaceholderTheme(extension)
+  const initial = extension ? extension.slice(1).toUpperCase() : 'FILE'
+
+  const gridMarkup = theme.pattern === 'grid'
+    ? `
+      <g opacity="0.9" stroke="${theme.accent}" stroke-width="2">
+        <path d="M74 96h72M74 122h72M74 148h72M74 174h72" />
+        <path d="M82 88v96M106 88v96M130 88v96" />
+      </g>`
+    : theme.pattern === 'lines'
+      ? `
+      <g opacity="0.8" stroke="${theme.accent}" stroke-linecap="round" stroke-width="4">
+        <path d="M72 104h92" />
+        <path d="M72 126h82" />
+        <path d="M72 148h92" />
+        <path d="M72 170h72" />
+      </g>`
+      : theme.pattern === 'text'
+        ? `
+      <g opacity="0.85" fill="${theme.accent}">
+        <rect x="72" y="100" width="92" height="12" rx="6" />
+        <rect x="72" y="122" width="112" height="12" rx="6" />
+        <rect x="72" y="144" width="86" height="12" rx="6" />
+        <rect x="72" y="166" width="68" height="12" rx="6" />
+      </g>`
+        : `
+      <g opacity="0.8" fill="${theme.accent}">
+        <rect x="72" y="98" width="108" height="14" rx="7" />
+        <rect x="72" y="124" width="92" height="14" rx="7" />
+        <rect x="72" y="150" width="76" height="14" rx="7" />
+      </g>`
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="${initial} file preview">
+      <defs>
+        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="${theme.secondary}" />
+          <stop offset="100%" stop-color="#ffffff" />
+        </linearGradient>
+        <linearGradient id="card" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff" />
+          <stop offset="100%" stop-color="${theme.secondary}" stop-opacity="0.7" />
+        </linearGradient>
+      </defs>
+      <rect width="240" height="240" rx="28" fill="url(#bg)" />
+      <rect x="24" y="24" width="192" height="192" rx="22" fill="url(#card)" stroke="${theme.primary}" stroke-width="2.5" />
+      <rect x="44" y="44" width="152" height="34" rx="10" fill="${theme.primary}" opacity="0.12" />
+      <circle cx="62" cy="61" r="8" fill="${theme.primary}" />
+      <rect x="78" y="55" width="52" height="12" rx="6" fill="${theme.primary}" opacity="0.75" />
+      <rect x="150" y="52" width="34" height="18" rx="9" fill="${theme.primary}" opacity="0.2" />
+      <text x="164" y="65" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" fill="${theme.primary}">${initial}</text>
+      <rect x="44" y="90" width="152" height="110" rx="18" fill="#ffffff" opacity="0.7" stroke="${theme.primary}" stroke-opacity="0.18" />
+      ${gridMarkup}
+      <rect x="58" y="186" width="124" height="10" rx="5" fill="${theme.primary}" opacity="0.16" />
+      <text x="120" y="208" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="${theme.accent}">${theme.label}</text>
+    </svg>`
+
+  return `data:image/svg+xml;base64,${btoa(svg)}`
+}
+
+const isVisualFile = (file) => file.type.startsWith('image/') || file.type === 'application/pdf' || getFileExtension(file.name) === '.pdf'
+
+const generateThumbnail = async (file) => {
+  try {
+    if (file.type.startsWith('image/')) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 150;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > maxDim) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              }
+            } else {
+              if (height > maxDim) {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.75));
+          };
+          img.onerror = () => resolve(null);
+          img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+    } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async function () {
+          try {
+            const arrayBuffer = this.result;
+            if (!window.pdfjsLib) {
+              const script = document.createElement('script');
+              script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+              document.head.appendChild(script);
+              await new Promise((r) => {
+                script.onload = r;
+              });
+            }
+
+            const pdfjsLib = window.pdfjsLib;
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+            const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+
+            const viewport = page.getViewport({ scale: 0.3 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({
+              canvasContext: context,
+              viewport: viewport
+            }).promise;
+
+            resolve(canvas.toDataURL('image/jpeg', 0.75));
+          } catch (err) {
+            console.error('Error generating PDF thumbnail:', err);
+            resolve(buildPlaceholderThumbnail(file));
+          }
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsArrayBuffer(file);
+      });
+    }
+  } catch (err) {
+    console.error('Error in generateThumbnail:', err);
+  }
+
+  return buildPlaceholderThumbnail(file);
+};
+
+function CustomerLanguagePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const shopId = searchParams.get('shopId')
   const { t, setLanguage } = useTranslation()
 
-  const initialStep = searchParams.get('step') || 'language'
-  const [step, setStep] = useState(initialStep) // 'language' or 'details'
   const [selectedLanguage, setSelectedLanguage] = useState(null)
   const [selectedOther, setSelectedOther] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -58,6 +236,99 @@ export default function CustomerLanguagePage() {
     phone: '',
     email: ''
   })
+
+  const [files, setFiles] = useState([])
+  const [renames, setRenames] = useState({})
+  const [uploading, setUploading] = useState(false)
+
+  const onDrop = useCallback((acceptedFiles) => {
+    const newFiles = acceptedFiles.map(file => ({
+      file,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      thumbnailUrl: null,
+      isLoadingThumbnail: true
+    }))
+
+    setFiles((prev) => {
+      const updated = [...prev, ...newFiles]
+
+      newFiles.forEach((item, index) => {
+        const globalIndex = prev.length + index;
+        if (item.isLoadingThumbnail) {
+          generateThumbnail(item.file).then((base64) => {
+            setFiles((current) =>
+              current.map((f, i) =>
+                i === globalIndex
+                  ? {
+                    ...f,
+                    thumbnailUrl: base64,
+                    previewUrl: base64 || f.previewUrl,
+                    isLoadingThumbnail: false
+                  }
+                  : f
+              )
+            )
+          })
+        }
+      })
+
+      return updated
+    })
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
+      'text/plain': ['.txt'],
+      'text/csv': ['.csv'],
+    },
+    maxSize: 52428800,
+  })
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      files.forEach(f => {
+        if (f.previewUrl && f.previewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(f.previewUrl)
+        }
+      })
+    }
+  }, [files])
+
+  const removeFile = (index) => {
+    const target = files[index]
+    if (target.previewUrl && target.previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(target.previewUrl)
+    }
+    setFiles((prev) => prev.filter((_, i) => i !== index))
+
+    // Cleanup rename entry
+    const newRenames = { ...renames }
+    delete newRenames[index]
+    setRenames(newRenames)
+  }
+
+  const handleRenameChange = (index, value) => {
+    setRenames(prev => ({
+      ...prev,
+      [index]: value
+    }))
+  }
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
 
   // Auto-detect browser language or load persisted language
   useEffect(() => {
@@ -94,21 +365,14 @@ export default function CustomerLanguagePage() {
       if (!shopId) {
         // Check if shop exists in localStorage (from QR scan on homepage)
         const activeShop = getActiveShop()
-        
-        if (step === 'language') {
-          // On language step without query param, check if we have shop from QR
-          if (!activeShop) {
-            // No shop in localStorage and no query param - clear stale data
-            localStorage.removeItem('activeShopId')
-            localStorage.removeItem('activeShopSlug')
-            localStorage.removeItem('selectedShop')
-          }
+        if (!activeShop) {
+          // No shop in localStorage and no query param - clear stale data
+          localStorage.removeItem('activeShopId')
+          localStorage.removeItem('activeShopSlug')
+          localStorage.removeItem('selectedShop')
+          setShopError(t('No printing shop selected. Please scan a QR code or enter a shop ID.'))
+        } else {
           setShopError(null)
-        } else if (step === 'details') {
-          // On details step, we need a shop
-          if (!activeShop) {
-            setShopError(t('No printing shop selected. Please scan a QR code or enter a shop ID.'))
-          }
         }
         return
       }
@@ -135,36 +399,26 @@ export default function CustomerLanguagePage() {
     }
 
     validateShop()
-  }, [shopId, step, t])
+  }, [shopId, t])
 
-  const handleLanguageSelect = (code) => {
-    setSelectedLanguage(code)
-    setSelectedOther(null)
-    setLanguage(code)
-  }
-
-  const handleOtherLanguageSelect = (code) => {
+  const handleLanguageChange = (code) => {
     if (!code) {
       setSelectedOther(null)
+      setSelectedLanguage('en')
+      setLanguage('en')
+      localStorage.setItem('customerLanguage', 'en')
       return
     }
-    setSelectedLanguage(null)
-    setSelectedOther(code)
-    setLanguage(code)
-  }
 
-  const handleLanguageContinue = () => {
-    const finalLanguage = selectedOther || selectedLanguage
-    if (finalLanguage) {
-      setLanguage(finalLanguage)
-      // Check if we have shop from query param or from QR scan localStorage
-      const activeShop = getActiveShop()
-      if (shopId || activeShop) {
-        setStep('details')
-      } else {
-        router.push('/take-a-print')
-      }
+    if (LANGUAGES.some(l => l.code === code)) {
+      setSelectedLanguage(code)
+      setSelectedOther(null)
+    } else {
+      setSelectedLanguage(null)
+      setSelectedOther(code)
     }
+    setLanguage(code)
+    localStorage.setItem('customerLanguage', code)
   }
 
   const handleDetailsSubmit = async (e) => {
@@ -175,11 +429,16 @@ export default function CustomerLanguagePage() {
       return
     }
 
+    if (files.length === 0) {
+      setError(t('Please upload at least one document to proceed.'))
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     try {
-      const finalLanguage = selectedOther || selectedLanguage
+      const finalLanguage = selectedOther || selectedLanguage || 'en'
 
       // Create user in database
       const response = await fetch(
@@ -210,12 +469,58 @@ export default function CustomerLanguagePage() {
         language: finalLanguage
       }))
 
-      // Redirect to upload page
+      // Start file uploads
+      setUploading(true)
+      const uploadedFilesData = []
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+
+      for (let i = 0; i < files.length; i++) {
+        const item = files[i]
+        const originalName = item.file.name
+        const fileExt = getFileExtension(originalName)
+
+        const customBaseName = renames[i] !== undefined ? renames[i].trim() : getFileBaseName(originalName)
+        let customName = customBaseName || getFileBaseName(originalName)
+
+        if (fileExt && !customName.toLowerCase().endsWith(fileExt.toLowerCase())) {
+          customName = `${customName}${fileExt}`
+        }
+
+        const formDataPayload = new FormData()
+        formDataPayload.append('file', item.file)
+
+        const uploadRes = await fetch(`${apiUrl}/api/files/upload`, {
+          method: 'POST',
+          body: formDataPayload,
+        })
+
+        if (!uploadRes.ok) {
+          throw new Error(`Failed to upload ${originalName}`)
+        }
+
+        const result = await uploadRes.json()
+
+        uploadedFilesData.push({
+          originalFileName: originalName,
+          customFileName: customName,
+          fileExtension: fileExt,
+          fileUrl: result.fileUrl,
+          fileSize: item.file.size,
+          thumbnailUrl: item.thumbnailUrl || item.previewUrl || result.fileUrl || null,
+          uploadTimestamp: new Date().toISOString()
+        })
+      }
+
+      // Store complete file metadata in localStorage
+      localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
+      localStorage.setItem('uploadCart', JSON.stringify(uploadedFilesData))
+
+      // Redirect to configuration page
       const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
       const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
       let nextUrl = resolvedShopId 
-        ? `/customer/upload?shopId=${resolvedShopId}&userId=${userId}`
-        : `/customer/upload?userId=${userId}`
+        ? `/customer/configuration?shopId=${resolvedShopId}&userId=${userId}`
+        : `/customer/configuration?userId=${userId}`
       
       if (isShopkeeper) {
         nextUrl += `&shopkeeperAddOrder=true`
@@ -224,6 +529,7 @@ export default function CustomerLanguagePage() {
       router.push(nextUrl)
     } catch (err) {
       setError(err.message || t('Failed to proceed'))
+      setUploading(false)
     } finally {
       setLoading(false)
     }
@@ -234,36 +540,11 @@ export default function CustomerLanguagePage() {
   return (
     <div className="wave-bg min-h-screen flex flex-col">
       {/* Header */}
-      <header className="px-6 py-4 flex items-center justify-between">
-        {step === 'details' ? (
-          <button
-            onClick={() => setStep('language')}
-            className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors font-medium"
-            aria-label="Go back to language selection"
-          >
-            <ArrowLeft size={18} />
-            <span>{t('Go Back')}</span>
-          </button>
-        ) : isShopkeeper ? (
-          <button
-            onClick={() => router.push('/shopkeeper/dashboard')}
-            className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors font-medium"
-            aria-label="Go back to dashboard"
-          >
-            <ArrowLeft size={18} />
-            <span>{t('Go Back')}</span>
-          </button>
-        ) : (
-          <BackButton />
-        )}
-        <span className="text-sm text-gray-600">
-          {step === 'language' ? t('Step 1 of 6') : t('Step 3 of 6')}
-        </span>
-      </header>
+      <CustomerHeader stepText={t('Step 1 of 3')} />
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-xl animate-fade-in">
           {validatingShop ? (
             <div className="bg-white rounded-xl shadow-lg p-8 text-center flex flex-col items-center justify-center gap-3">
               <Loader size={36} className="animate-spin text-indigo-600" />
@@ -289,164 +570,220 @@ export default function CustomerLanguagePage() {
                 </div>
               )}
 
-              {step === 'language' ? (
-                <>
-                  {/* Language Selection */}
-                  <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('Choose Language')}</h1>
-                    <p className="text-gray-600">{t('Select your preferred language to continue')}</p>
-                  </div>
+              {/* Consolidation Form Card */}
+              <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
+                <div className="text-center pb-2 border-b border-gray-100">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-1">{t('Your Details')} & {t('Upload')}</h1>
+                  <p className="text-sm text-gray-500 font-medium">{t('Select language, fill details and upload documents')}</p>
+                </div>
 
-                  <div className="bg-white rounded-xl shadow-lg p-6 space-y-3">
-                    {/* Primary Languages */}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-2 flex gap-3">
+                    <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
+                    <p className="text-red-700 text-sm">{error}</p>
+                  </div>
+                )}
+
+                {/* 1. Language Selection (One Line Dropdown) */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    {t('Select Language')}
+                  </label>
+                  <select
+                    value={selectedOther || selectedLanguage || 'en'}
+                    onChange={(e) => handleLanguageChange(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 cursor-pointer"
+                  >
                     {LANGUAGES.map((lang) => (
-                      <button
-                        key={lang.code}
-                        onClick={() => handleLanguageSelect(lang.code)}
-                        className={`w-full p-4 text-left rounded-lg border-2 transition ${
-                          selectedLanguage === lang.code
-                            ? 'border-indigo-600 bg-indigo-50'
-                            : 'border-gray-200 bg-white hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold text-gray-900">{t(lang.name)}</p>
-                            <p className="text-sm text-gray-500">{lang.native}</p>
-                          </div>
-                          <span className="text-2xl">{lang.flag}</span>
-                        </div>
-                      </button>
+                      <option key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.name} {lang.native ? `(${lang.native})` : ''}
+                      </option>
                     ))}
+                    {OTHER_LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        🇮🇳 {lang.name} {lang.native ? `(${lang.native})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                    {/* Other Languages Dropdown */}
-                    <div className={`rounded-lg border-2 p-4 transition ${
-                      selectedOther
-                        ? 'border-indigo-600 bg-indigo-50'
-                        : 'border-gray-200 bg-white'
-                    }`}>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        {t('Other Languages')}
-                      </label>
-                      <select
-                        value={selectedOther || ''}
-                        onChange={(event) => handleOtherLanguageSelect(event.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                      >
-                        <option value="">{t('Select a language')}</option>
-                        {OTHER_LANGUAGES.map((lang) => (
-                          <option key={lang.code} value={lang.code}>
-                            {lang.name} {lang.native ? `(${lang.native})` : ''}
-                          </option>
+                {/* 2. Details Form */}
+                <form onSubmit={handleDetailsSubmit} className="space-y-4 pt-2">
+                  {/* Name (Required) */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      {t('Full Name')} <span className="text-red-600">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder={t('Enter your name')}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
+                      required
+                    />
+                  </div>
+
+                  {/* Phone (Optional) */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      {t('Phone Number')} <span className="text-gray-400 font-normal">({t('optional')})</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder={t('10-digit mobile number')}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
+                    />
+                  </div>
+
+                  {/* Email (Optional) */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      {t('Email')} <span className="text-gray-400 font-normal">({t('optional')})</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder={t('your@email.com')}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
+                    />
+                  </div>
+
+                  {/* 3. Document Upload Section */}
+                  <div className="pt-4 border-t border-gray-100 space-y-4">
+                    <label className="block text-sm font-semibold text-gray-700">
+                      {t('Upload Documents')} <span className="text-red-650">*</span>
+                    </label>
+
+                    {/* Dropzone */}
+                    <div
+                      {...getRootProps()}
+                      className={`border-2 border-dashed rounded-xl p-6 text-center transition cursor-pointer ${isDragActive
+                          ? 'border-indigo-500 bg-indigo-50'
+                          : 'border-gray-300 bg-white hover:border-gray-400'
+                        }`}
+                    >
+                      <input {...getInputProps()} />
+                      <Cloud size={40} className="mx-auto mb-3 text-indigo-500" />
+                      <p className="text-gray-750 font-bold text-sm mb-1">{t('Drag & Drop files here')}</p>
+                      <p className="text-gray-500 text-xs mb-3">{t('or')}</p>
+                      <button type="button" className="gradient-button py-2 px-5 text-xs text-white font-semibold">
+                        {t('Choose Files')}
+                      </button>
+                    </div>
+
+                    {/* Document Previews Grid */}
+                    {files.length > 0 && (
+                      <div className="border-b border-gray-200 pb-4 space-y-4">
+                        {files.map((item, index) => (
+                          <FilePreviewSection
+                            key={index}
+                            file={{
+                              customFileName: renames[index] !== undefined ? renames[index] : getFileBaseName(item.file.name),
+                              originalFileName: item.file.name
+                            }}
+                            thumbnailUrl={item.thumbnailUrl}
+                            isBW={false}
+                            isLoading={item.isLoadingThumbnail}
+                          />
                         ))}
-                      </select>
-                      <p className="mt-2 text-xs text-gray-500">
-                        {selectedOther ? t('Selected language will be saved for your next visit') : t('More language options')}
-                      </p>
-                    </div>
+                      </div>
+                    )}
 
-                    {/* Continue Button */}
-                    <button
-                      onClick={handleLanguageContinue}
-                      disabled={!selectedLanguage && !selectedOther}
-                      className={`w-full mt-6 py-3 rounded-lg font-semibold transition ${
-                        selectedLanguage || selectedOther
-                          ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                          : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      }`}
-                    >
-                      {shopId || (typeof window !== 'undefined' && (localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')))
-                        ? t('Continue to Details →')
-                        : t('Continue to Scan QR →')}
-                    </button>
-                    <FeedbackLink />
+                    {/* File List */}
+                    {files.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-bold text-gray-700">{t('Uploaded Files & Rename Options:')}</p>
+                        {files.map((item, index) => {
+                          const fileBaseName = getFileBaseName(item.file.name)
+                          return (
+                            <div
+                              key={index}
+                              className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 p-3 rounded-xl gap-3 border border-gray-200"
+                            >
+                              <div className="flex items-center gap-3 flex-1 w-full">
+                                {/* Thumbnail Preview */}
+                                <div className="w-10 h-10 bg-white rounded border border-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                  {item.isLoadingThumbnail ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500"></div>
+                                  ) : item.previewUrl ? (
+                                    <img
+                                      src={item.previewUrl}
+                                      alt="Thumbnail preview"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <FileText size={20} className="text-red-500" />
+                                  )}
+                                </div>
+
+                                {/* File Renaming Input */}
+                                <div className="flex-1 min-w-0">
+                                  <input
+                                    type="text"
+                                    value={renames[index] !== undefined ? renames[index] : fileBaseName}
+                                    onChange={(e) => handleRenameChange(index, e.target.value)}
+                                    placeholder={t('Enter custom filename')}
+                                    className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  />
+                                  <span className="text-[10px] text-gray-500 mt-0.5 block truncate">
+                                    {t('Original:')} {item.file.name} • {formatFileSize(item.file.size)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => removeFile(index)}
+                                className="p-1 hover:bg-gray-200 rounded transition self-end sm:self-auto"
+                                aria-label="Remove file"
+                              >
+                                <X size={16} className="text-gray-500" />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* Security Message */}
+                    <p className="text-center text-gray-650 text-xs mt-4 flex items-center justify-center gap-1.5 font-semibold">
+                      <CheckCircle size={14} className="text-green-600" />
+                      {t('Your files are encrypted and automatically deleted.')}
+                    </p>
                   </div>
-                </>
-              ) : (
-                <>
-                  {/* Your Details */}
-                  <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('Your Details')}</h1>
-                    <p className="text-gray-600">{t('Help us personalize your experience')}</p>
-                  </div>
 
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex gap-3">
-                      <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
-                      <p className="text-red-700 text-sm">{error}</p>
-                    </div>
-                  )}
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={loading || uploading}
+                    className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    {loading || uploading ? (
+                      <>
+                        <Loader size={18} className="animate-spin" />
+                        {uploading ? t('Uploading Files...') : t('Processing...')}
+                      </>
+                    ) : (
+                      t('Continue to Print Settings →')
+                    )}
+                  </button>
+                </form>
 
-                  <form onSubmit={handleDetailsSubmit} className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-                    {/* Name (Required) */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('Full Name')} <span className="text-red-600">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder={t('Enter your name')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        required
-                      />
-                    </div>
-
-                    {/* Phone (Optional) */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('Phone Number')} <span className="text-gray-400">({t('optional')})</span>
-                      </label>
-                      <input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder={t('10-digit mobile number')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-
-                    {/* Email (Optional) */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('Email')} <span className="text-gray-400">({t('optional')})</span>
-                      </label>
-                      <input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder={t('your@email.com')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader size={18} className="animate-spin" />
-                          {t('Processing...')}
-                        </>
-                      ) : (
-                        t('Continue to Upload →')
-                      )}
-                    </button>
-                    <FeedbackLink />
-                  </form>
-                </>
-              )}
+                <div className="text-center pt-2 border-t border-gray-100">
+                  <FeedbackLink />
+                </div>
+              </div>
             </>
           )}
 
           {/* Footer */}
           <div className="flex items-center justify-center gap-2 mt-8 text-gray-600">
             <Shield size={16} />
-            <span className="text-sm">{t('Your data is secured')}</span>
+            <span className="text-xs sm:text-sm font-semibold">{t('Your data is secured')}</span>
           </div>
         </div>
       </main>
@@ -454,5 +791,17 @@ export default function CustomerLanguagePage() {
       {/* Floating Feedback Button */}
       <FeedbackButton />
     </div>
+  )
+}
+
+export default function CustomerLanguagePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader size={36} className="animate-spin text-indigo-600" />
+      </div>
+    }>
+      <CustomerLanguagePageContent />
+    </Suspense>
   )
 }
