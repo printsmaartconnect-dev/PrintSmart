@@ -620,119 +620,94 @@ function OrderDistributionChart({ orders }) {
 }
 
 function RevenueBarChart({ orders }) {
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const { t } = useTranslation()
+  const [hoveredIdx, setHoveredIdx] = useState(null)
 
-  const allHourIntervals = [
-    "12 AM", "2 AM", "4 AM", "6 AM", "8 AM", "10 AM",
-    "12 PM", "2 PM", "4 PM", "6 PM", "8 PM", "10 PM"
-  ];
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-  // Aggregate revenue by hour of day (across all days)
-  const revenueByHour = (() => {
-    const revenue = Array(12).fill(0);
+  // Aggregate revenue by weekday
+  const revenueByDayOfWeek = (() => {
+    const revenue = Array(7).fill(0)
     orders.forEach((o) => {
-      const date = new Date(o.createdAt);
-      const hour = date.getHours();
-      const hourIdx = Math.min(11, Math.floor(hour / 2));
-      revenue[hourIdx] += o.price || 0;
-    });
-    return revenue;
-  })();
+      const date = new Date(o.createdAt)
+      const day = date.getDay() // 0-6
+      revenue[day] += o.price || 0
+    })
+    return revenue
+  })()
 
-  // Adaptive chunking: if all 12 hours don't fit, show fewer
-  const chunkSize = revenueByHour.length > 8 ? 2 : 1;
-  const chunkedData = [];
-  for (let i = 0; i < revenueByHour.length; i += chunkSize) {
-    const chunk = revenueByHour.slice(i, i + chunkSize);
-    const chunkRevenue = chunk.reduce((a, b) => a + b, 0);
-    const labelStart = allHourIntervals[i];
-    const labelEnd = chunkSize > 1 ? allHourIntervals[Math.min(i + chunkSize, 11)] : labelStart;
-    const label = chunkSize > 1 ? `${labelStart} - ${labelEnd}` : labelStart;
-    
-    chunkedData.push({
-      label,
-      revenue: chunkRevenue,
-      originalIdx: i
-    });
-  }
+  const chartData = weekdays.map((dayName, idx) => ({
+    label: t(dayName),
+    revenue: revenueByDayOfWeek[idx],
+  }))
 
-  const maxRevenue = Math.max(...chunkedData.map(d => d.revenue), 100);
-  const totalRevenue = chunkedData.reduce((sum, d) => sum + d.revenue, 0);
+  const maxRevenue = Math.max(...chartData.map(d => d.revenue), 100)
+  const totalRevenue = chartData.reduce((sum, d) => sum + d.revenue, 0)
 
   return (
     <div className="w-full bg-white p-4 rounded-2xl">
       <div className="space-y-4">
-        {/* Horizontal Bar Chart with X-axis and Y-axis */}
-        <div className="flex gap-4">
-          {/* Y-axis labels */}
-          <div className="flex flex-col justify-between pt-6 pb-6 text-xs font-semibold text-slate-600 w-16">
-            {chunkedData.map((_, idx) => (
-              <div key={idx} className="h-6 flex items-center justify-end pr-2 text-right">
-                {chunkedData[idx]?.label}
-              </div>
-            ))}
+        {/* Y-Axis scale label */}
+        <div className="text-right text-[10px] font-bold text-slate-400">
+          {t('Max')}: ₹{maxRevenue.toFixed(0)}
+        </div>
+
+        {/* Vertical Bar Chart area */}
+        <div className="relative border-b border-slate-200 pb-2">
+          {/* Grid lines */}
+          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 pt-2">
+            <div className="border-t border-slate-100 w-full" />
+            <div className="border-t border-slate-100 w-full" />
+            <div className="border-t border-slate-100 w-full" />
           </div>
 
-          {/* Chart area */}
-          <div className="flex-1">
-            {/* X-axis header */}
-            <div className="flex items-end gap-2 mb-2 px-2 h-6 text-xs font-semibold text-slate-600">
-              <span className="ml-auto">₹0</span>
-              <span className="ml-auto">₹{(maxRevenue / 2).toFixed(0)}</span>
-              <span className="ml-auto">₹{maxRevenue.toFixed(0)}</span>
-            </div>
+          {/* Bars */}
+          <div className="relative flex items-end justify-between gap-2 h-48 pt-4 z-10">
+            {chartData.map((item, idx) => {
+              const percentage = (item.revenue / maxRevenue) * 100
+              const isHovered = hoveredIdx === idx
 
-            {/* Bars */}
-            <div className="space-y-2">
-              {chunkedData.map((item, idx) => {
-                const percentage = (item.revenue / maxRevenue) * 100;
-                const isHovered = hoveredIdx === idx;
-                
-                return (
-                  <div
-                    key={idx}
-                    onMouseEnter={() => setHoveredIdx(idx)}
-                    onMouseLeave={() => setHoveredIdx(null)}
-                    className="flex items-center gap-2 cursor-pointer group h-6"
-                  >
-                    <div className="flex-1 relative bg-slate-100 rounded-lg overflow-hidden h-6">
-                      <div
-                        className={`h-full rounded-lg transition-all duration-300 flex items-center justify-end pr-3 ${
-                          isHovered 
-                            ? 'bg-gradient-to-r from-violet-500 to-violet-600 shadow-lg' 
-                            : 'bg-gradient-to-r from-violet-400 to-violet-500'
-                        }`}
-                        style={{ width: `${Math.max(percentage, 3)}%` }}
-                      >
-                        {isHovered && percentage > 15 && (
-                          <span className="text-xs font-bold text-white whitespace-nowrap">
-                            ₹{item.revenue.toFixed(0)}
-                          </span>
-                        )}
-                      </div>
-                      {!isHovered && percentage <= 15 && (
-                        <div className="absolute inset-0 flex items-center justify-start pl-2">
-                          <span className="text-xs font-bold text-slate-900">
-                            ₹{item.revenue.toFixed(0)}
-                          </span>
+              return (
+                <div
+                  key={idx}
+                  onMouseEnter={() => setHoveredIdx(idx)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                  className="flex-1 flex flex-col items-center h-full justify-end cursor-pointer group relative"
+                >
+                  {/* Tooltip on hover directly above bar */}
+                  {isHovered && (
+                    <div className="absolute -top-10 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md pointer-events-none whitespace-nowrap z-25">
+                      ₹{item.revenue.toFixed(2)} ({((item.revenue / (totalRevenue || 1)) * 100).toFixed(1)}%)
+                    </div>
+                  )}
+
+                  <div className="w-full flex justify-center items-end h-[85%]">
+                    <div
+                      className={`w-8 sm:w-10 rounded-t-lg transition-all duration-300 relative ${
+                        isHovered
+                          ? 'bg-gradient-to-t from-violet-500 to-violet-600 shadow-md scale-x-105'
+                          : 'bg-gradient-to-t from-violet-400 to-violet-500'
+                      }`}
+                      style={{ height: `${Math.max(percentage, 4)}%` }}
+                    >
+                      {/* Short text value inside bar if space permits */}
+                      {!isHovered && percentage > 20 && (
+                        <div className="absolute top-2 left-0 right-0 text-[9px] font-bold text-white text-center">
+                          ₹{Math.round(item.revenue)}
                         </div>
                       )}
                     </div>
-                    
-                    {isHovered && (
-                      <div className="text-xs font-bold text-slate-700 w-12 text-right">
-                        {((item.revenue / totalRevenue) * 100).toFixed(1)}%
-                      </div>
-                    )}
                   </div>
-                );
-              })}
-            </div>
 
-            {/* X-axis line */}
-            <div className="border-t border-slate-300 mt-2 pt-2 text-xs text-slate-400 font-medium text-center">
-              Revenue (₹)
-            </div>
+                  {/* Label */}
+                  <span className={`text-[11px] font-extrabold mt-2 transition-colors duration-200 ${
+                    isHovered ? 'text-violet-600' : 'text-slate-500'
+                  }`}>
+                    {item.label}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -740,20 +715,20 @@ function RevenueBarChart({ orders }) {
         <div className="border-t border-slate-100 pt-3 mt-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg bg-slate-50 p-2">
-              <div className="text-xs text-slate-500 font-medium">Total Revenue</div>
+              <div className="text-xs text-slate-500 font-medium">{t('Total Revenue')}</div>
               <div className="mt-1 text-lg font-bold text-slate-900">₹{totalRevenue.toFixed(2)}</div>
             </div>
             <div className="rounded-lg bg-slate-50 p-2">
-              <div className="text-xs text-slate-500 font-medium">Peak Period</div>
+              <div className="text-xs text-slate-500 font-medium">{t('Peak Period')}</div>
               <div className="mt-1 text-sm font-bold text-violet-600">
-                {chunkedData[chunkedData.indexOf(chunkedData.reduce((max, d) => d.revenue > max.revenue ? d : max))]?.label}
+                {chartData[chartData.indexOf(chartData.reduce((max, d) => d.revenue > max.revenue ? d : max))]?.label}
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 function StatHeaderControls({ activeChannel, setActiveChannel }) {

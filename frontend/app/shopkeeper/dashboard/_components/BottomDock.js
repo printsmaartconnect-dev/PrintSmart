@@ -11,7 +11,7 @@ import {
   FileText,
   Sparkles,
   Settings,
-  Home,
+  Store,
   User,
   XCircle,
   Plus,
@@ -26,7 +26,7 @@ const iconMap = {
   completed: CheckCircle2,
   downloaded: Download,
   cancelled: XCircle,
-  coupon: Home,
+  coupon: Store,
   printsmartAi: Sparkles,
   addOrder: Plus,
 }
@@ -133,7 +133,7 @@ function DockItem({ item, activeFilter, onFilterChange }) {
 export default function BottomDock({ items, activeFilter, onFilterChange }) {
   return (
     <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-max max-w-[95vw] overflow-x-auto no-scrollbar">
-      <div className="rounded-[32px] bg-white/70 backdrop-blur-xl border border-white/50 shadow-[0_15px_35px_rgba(0,0,0,0.05),0_5px_15px_rgba(124,58,237,0.03)] px-4 py-2 hover:shadow-[0_20px_45px_rgba(124,58,237,0.08)] transition-all duration-300">
+      <div className="rounded-[32px] bg-white/95 backdrop-blur-xl border-2 border-indigo-500/30 shadow-[0_15px_35px_rgba(124,58,237,0.12)] px-4 py-2 hover:border-indigo-500/50 hover:shadow-[0_20px_45px_rgba(124,58,237,0.18)] transition-all duration-300">
         <div className="flex items-end justify-center gap-2 flex-nowrap">
           {items.map((i) => (
             <DockItem
