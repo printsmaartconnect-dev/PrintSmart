@@ -8,11 +8,8 @@ import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import RewardCardModal from '../../components/customer/RewardCardModal'
-<<<<<<< HEAD
-import { validateUpiParams, generateUpiUrl } from '../../../lib/upi'
-=======
 import CustomerHeader from '../../components/customer/CustomerHeader'
->>>>>>> origin/yash_main
+import { validateUpiParams, generateUpiUrl } from '../../../lib/upi'
 
 export function OrdersPageContent() {
   const { t } = useTranslation()
