@@ -1,9 +1,0 @@
-{
-  "/shopkeeper/login/page": "app/shopkeeper/login/page.js",
-  "/shopkeeper/dashboard/page": "app/shopkeeper/dashboard/page.js",
-  "/shopkeeper/settings/support-feedback/page": "app/shopkeeper/settings/support-feedback/page.js",
-  "/shopkeeper/profile/page": "app/shopkeeper/profile/page.js",
-  "/shopkeeper/register/page": "app/shopkeeper/register/page.js",
-  "/shopkeeper/settings/page": "app/shopkeeper/settings/page.js",
-  "/shopkeeper/settings/printers-support/page": "app/shopkeeper/settings/printers-support/page.js"
-}
