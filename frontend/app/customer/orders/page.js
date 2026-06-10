@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Inbox, Upload, RotateCcw, Download, Trash2, Home, Clock, AlertCircle, FileText, Gift } from 'lucide-react'
 import useTranslation from '../../../src/hooks/useTranslation'
@@ -8,8 +8,9 @@ import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import RewardCardModal from '../../components/customer/RewardCardModal'
+import CustomerHeader from '../../components/customer/CustomerHeader'
 
-export default function OrdersPage() {
+export function OrdersPageContent() {
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -161,40 +162,42 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="wave-bg min-h-screen flex flex-col items-center justify-start px-4 sm:px-6 lg:px-10 py-8 lg:py-10">
-      {/* Step Header */}
-      <div className="w-full max-w-md sm:max-w-xl lg:max-w-4xl mb-8">
-        <div className="step-header">
-          <div className="step-number">7</div>
-          <div>
-            <h1 className="text-3xl font-bold text-black font-brand">{t('My Orders')}</h1>
-            <p className="text-gray-600">{t('Track printing queues and download invoices')}</p>
-          </div>
-        </div>
-      </div>
+    <div className="wave-bg min-h-screen flex flex-col">
+      <CustomerHeader stepText={t('Step 3 of 3')} />
 
-      {/* Card Container */}
-      <div className="glassmorphism w-full max-w-md sm:max-w-xl lg:max-w-4xl p-6 sm:p-8 lg:p-10">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <BackButton />
-            <button
-              onClick={() => router.push('/')}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition"
-            >
-              <Home size={18} />
-              {t('Home')}
-            </button>
-            <button
-              onClick={() => router.push(`/customer/upload?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition"
-            >
-              <Upload size={18} />
-              {t('Upload File')}
-            </button>
+      <main className="w-full max-w-md sm:max-w-xl lg:max-w-4xl px-4 py-8 mx-auto flex-grow flex flex-col justify-start">
+        {/* Step Header */}
+        <div className="w-full mb-8 animate-fade-in">
+          <div className="step-header mb-0">
+            <div className="step-number">3</div>
+            <div>
+              <h1 className="text-3xl font-bold text-black font-brand">{t('My Orders')}</h1>
+              <p className="text-gray-600">{t('Track printing queues and download invoices')}</p>
+            </div>
           </div>
-          <span className="text-sm font-semibold text-gray-600">{t('Step 7 of 7')}</span>
         </div>
+
+        {/* Card Container */}
+        <div className="glassmorphism w-full p-6 sm:p-8 lg:p-10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <BackButton />
+              <button
+                onClick={() => router.push('/')}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-indigo-655 hover:bg-indigo-50 transition"
+              >
+                <Home size={18} />
+                {t('Home')}
+              </button>
+              <button
+                onClick={() => router.push(`/customer/language?shopId=${shopId || ''}&userId=${customerUserId || ''}`)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-indigo-655 hover:bg-indigo-50 transition"
+              >
+                <Upload size={18} />
+                {t('Upload File')}
+              </button>
+            </div>
+          </div>
 
         {/* Premium Scratch & Win Section */}
         {orders.length > 0 && (
@@ -463,6 +466,7 @@ export default function OrdersPage() {
         {/* Reusable help links */}
         <FeedbackLink />
       </div>
+      </main>
 
       <FeedbackButton />
       
@@ -578,4 +582,16 @@ function useCanvasRef(scratchRevealed, setScratchRevealed) {
   }, [scratchRevealed])
 
   return canvasRef
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <OrdersPageContent />
+    </Suspense>
+  )
 }
