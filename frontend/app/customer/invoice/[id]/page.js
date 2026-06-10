@@ -7,6 +7,7 @@ import useTranslation from '../../../../src/hooks/useTranslation'
 import BackButton from '../../../components/BackButton'
 import FeedbackButton from '../../../components/FeedbackButton'
 import FeedbackLink from '../../../components/FeedbackLink'
+import { formatCurrency } from '../../../../lib/currency'
 
 export default function InvoicePage() {
   const { t } = useTranslation()
@@ -218,7 +219,7 @@ export default function InvoicePage() {
               <div className="flex justify-between items-start">
                 <div>
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('Amount Paid')}</h4>
-                  <p className="text-2xl sm:text-3xl font-black text-slate-800 mt-1">₹{totalAmount.toFixed(2)}</p>
+                  <p className="text-2xl sm:text-3xl font-black text-slate-800 mt-1">{formatCurrency(totalAmount)}</p>
                 </div>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-green-50 border border-green-150 text-green-700">
                   {t('Paid')}
@@ -268,10 +269,10 @@ export default function InvoicePage() {
                             {copies}
                           </td>
                           <td class="py-4 px-3 text-right font-mono text-slate-500">
-                            ₹{singleUnitPrice.toFixed(2)}
+                            {formatCurrency(singleUnitPrice)}
                           </td>
                           <td class="py-4 px-4 sm:px-6 text-right font-bold text-slate-800 font-mono">
-                            ₹{itemPrice.toFixed(2)}
+                            {formatCurrency(itemPrice)}
                           </td>
                         </tr>
                       )
@@ -293,10 +294,10 @@ export default function InvoicePage() {
                         {order.printConfiguration?.copies || 1}
                       </td>
                       <td class="py-4 px-3 text-right font-mono text-slate-500">
-                        ₹{(totalAmount / (order.printConfiguration?.copies || 1)).toFixed(2)}
+                        {formatCurrency(totalAmount / (order.printConfiguration?.copies || 1))}
                       </td>
                       <td class="py-4 px-4 sm:px-6 text-right font-bold text-slate-800 font-mono">
-                        ₹{totalAmount.toFixed(2)}
+                        {formatCurrency(totalAmount)}
                       </td>
                     </tr>
                   )}
@@ -326,23 +327,23 @@ export default function InvoicePage() {
             <div className="w-full sm:w-72 text-xs sm:text-sm text-slate-500 space-y-2.5">
               <div className="flex justify-between">
                 <span>{t('Subtotal')}</span>
-                <span className="font-semibold text-slate-800 font-mono">₹{subtotal.toFixed(2)}</span>
+                <span className="font-semibold text-slate-800 font-mono">{formatCurrency(subtotal)}</span>
               </div>
               
               {/* IGST / SGST Breakdowns */}
               <div className="flex justify-between items-center text-xs text-slate-400">
                 <span>{t('CGST (9%)')}</span>
-                <span className="font-medium font-mono">₹{cgstAmount.toFixed(2)}</span>
+                <span className="font-medium font-mono">{formatCurrency(cgstAmount)}</span>
               </div>
               <div className="flex justify-between items-center text-xs text-slate-400 border-b border-slate-100 pb-3">
                 <span>{t('SGST (9%)')}</span>
-                <span className="font-medium font-mono">₹{sgstAmount.toFixed(2)}</span>
+                <span className="font-medium font-mono">{formatCurrency(sgstAmount)}</span>
               </div>
 
               {discount > 0 && (
                 <div className="flex justify-between text-emerald-600">
                   <span>{t('Discount')}</span>
-                  <span className="font-bold font-mono">-₹{discount.toFixed(2)}</span>
+                  <span className="font-bold font-mono">-{formatCurrency(discount)}</span>
                 </div>
               )}
 
@@ -350,7 +351,7 @@ export default function InvoicePage() {
               <div className="flex justify-between items-baseline pt-2">
                 <span className="text-sm sm:text-base font-bold text-slate-800">{t('Total Amount')}</span>
                 <span className="text-xl sm:text-2xl font-black text-indigo-600 font-mono">
-                  ₹{totalAmount.toFixed(2)} <span className="text-[10px] sm:text-xs font-normal text-slate-400 font-sans">INR</span>
+                  {formatCurrency(totalAmount)} <span className="text-[10px] sm:text-xs font-normal text-slate-400 font-sans">INR</span>
                 </span>
               </div>
             </div>

@@ -216,11 +216,13 @@ PrintSmart/
 │   ├── config/                       # Configuration modules
 │   │   └── db.js                     # Prisma client initializer instance
 │   ├── controllers/                  # Route controller functions
+│   │   ├── admin.controller.js       # Platform administrator dashboard analytics [NEW]
 │   │   ├── auth.controller.js        # Authentication & Profile management
 │   │   ├── feedback.controller.js    # Customer support submissions & updates
 │   │   ├── file.controller.js        # Multer-to-S3 file uploading bridge
 │   │   ├── order.controller.js       # Placement, queues, and invoices
 │   │   ├── queue.controller.js       # Queue lists & positions editor
+│   │   ├── reward.controller.js      # Random rewards & scratch persistence logic [NEW]
 │   │   ├── statistics.controller.js  # Shop analytics compiling engine
 │   │   └── user.controller.js        # Client profile onboarding sync
 │   ├── middleware/                   # Request filters
@@ -229,11 +231,13 @@ PrintSmart/
 │   │   ├── dev.db                    # Active SQLite development DB
 │   │   └── schema.prisma             # Entity models & cascades schema
 │   ├── routes/                       # REST endpoint routing mappings
+│   │   ├── admin.routes.js           # Admin stats & dashboard routes [NEW]
 │   │   ├── auth.routes.js            # Auth routing definitions
 │   │   ├── feedback.routes.js        # Customer issues routes
 │   │   ├── file.routes.js            # Multer upload route
 │   │   ├── order.routes.js           # Client & Shopkeeper order management
 │   │   ├── queue.routes.js           # Position checking endpoints
+│   │   ├── reward.routes.js          # Customer reward & shopkeeper stats routes [NEW]
 │   │   ├── shopkeeper.routes.js      # Public shop specs & QR tools
 │   │   ├── statistics.routes.js      # Earnings & counts logs endpoints
 │   │   └── user.routes.js            # Core customer profiles creation
@@ -243,7 +247,7 @@ PrintSmart/
 │   │   ├── qr.service.js             # Basic UUID QR codes generator
 │   │   ├── qrcode.service.js         # Base64 Data URL & Slug QR code builder
 │   │   ├── seed.service.js           # Automatic default shopkeeper registers
-│   │   ├── session.service.js        # In-memory concurrent session tracker and 2-PC limit controller [NEW]
+│   │   ├── session.service.js        # Database-backed concurrent session tracker and 2-PC limit controller [NEW]
 │   │   └── storage.service.js        # AWS S3 file upload with local folder fallback
 │   ├── uploads/                      # Local file fallback directory (git-ignored)
 │   │   ├── invoices/                 # Generated PDF invoices
@@ -258,6 +262,14 @@ PrintSmart/
     │   ├── page.js                   # Homepage (detects scanned QRs, renders Partner specs)
     │   ├── globals.css               # Tailwind directives & Glassmorphism definitions
     │   ├── I18nProvider.js           # Multi-language i18n translation context provider [NEW]
+    │   │
+    │   ├── api/                      # Client-side backend routes
+    │   │   └── ai/
+    │   │       └── generate-config/
+    │   │           └── route.js      # Groq AI structured poster config endpoint [NEW]
+    │   │
+    │   ├── dashboard/
+    │   │   └── page.js               # Simple redirect to shopkeeper dashboard [NEW]
     │   │
     │   ├── admin/                    # Admin portal pages
     │   │   ├── page.js               # Admin authentication gateway
@@ -2927,6 +2939,13 @@ All notable changes to PrintSmart are documented in this file.
 - Mock data only
 - localStorage limited to browser
 
+## [3.2.1] - 2026-06-07
+
+### Fixed
+- Fixed order placement server-side crash (500 Error) caused by PDFKit winansi encoding errors when rendering the Rupee symbol `₹` using standard Helvetica; replaced with `Rs.`.
+- Fixed duplicate key database conflicts on `orderId` unique constraint by querying the latest monthly order file to resolve sequence baseline instead of using `count()`, making sequence generation robust against file/order deletions.
+- Fixed customer success screen redirection issue where orders placed via normal checkout resulted in a "No active order found." error page; added the missing `currentOrder` localStorage item write on order placement completion.
+
 ## [3.1.0] - 2026-06-05
 
 ### Added
@@ -3570,19 +3589,26 @@ Tracks ongoing performance metrics for a specific shop.
 ## Core System Workflows
 
 ### 1. QR Code Generation & Entry Flow
-- **Generation**: On shopkeeper registration or manual request via `/api/shopkeeper/regenerate-qr`, the backend creates a QR code image pointing to `${FRONTEND_URL}/take-a-print?shopId=${shopSlug}`.
+- **Generation**: On shopkeeper registration or manual request via `/api/shopkeeper/regenerate-qr`, the backend creates a QR code image pointing to `${FRONTEND_URL}/?shopId=${shopSlug}`.
 - **Service Implementation**:
   - `qrcode.service.js` generates a local PNG file under `/uploads/qrcodes/` and a base64 Data URL using the `qrcode` library.
   - `qr.service.js` creates a QR file under `/uploads/qrs/` containing the UUID of the shop.
-- **Entry Flow**: The customer scans the code, landing on `/take-a-print?shopId=slug`. If the QR scan fails, a manual entry field is provided.
-- **Testing Shortcut**: Entering code `0000` automatically maps to the default seeded shop `smart-print-hub`, bypasses scanning, and fetches database configuration parameters instantly.
+- **Entry Flow (QR-Aware Homepage)**:
+  - When the customer scans the QR code, they land on the homepage `/?shopId=slug`.
+  - The frontend detects the `shopId` parameter in the URL and triggers `fetchShopDetails(shopId)` from `/api/shopkeeper/by-slug/:shopId`.
+  - Upon success, the full shop object is cached in `localStorage.activeShop` (retaining `activeShopId` and `activeShopSlug` for backward compatibility), and the UI displays a verified print partner card.
+  - Clicking "Get Started" routes the user to `/customer/language` without needing URL parameters anymore.
+- **Backward/Legacy Compatibility Flows**:
+  - If a customer opens the homepage without a QR parameter, they see the default "Take a Print" card which routes to `/take-a-print`.
+  - If a legacy QR code points to `/take-a-print?shopId=slug`, it continues to work: the page resolves details and forwards the user to `/customer/language?shopId=slug`.
+- **Testing Shortcut**: Entering code `0000` on `/take-a-print` automatically maps to the default seeded shop `smart-print-hub`, bypasses scanning, and fetches database configuration parameters instantly.
 
 ### 2. Custom Order ID Generation
 To ensure shopkeepers have short, human-readable IDs to track orders, the backend generates IDs using the format `MMYYP[BW|C][sequence]` in `order.service.js`:
 1. `MM` (Month) and `YY` (Year) are extracted from the current date.
 2. `P` represents "Print".
 3. `BW` or `C` signifies Black & White or Color print types respectively.
-4. `sequence` is calculated by querying the database for all orders placed in the current calendar month matching that print type, adding `1`, and zero-padding it to 2 digits (e.g., `0526PBW01`, `0526PC02`).
+4. `sequence` is resolved dynamically by querying the database for the most recently created order file this month, parsing its sequence suffix, and incrementing it (falling back to 0 if none exist). This makes sequence generation robust against intermediate order or file deletions, preventing database duplicate key collisions.
 
 ### 3. Estimated Wait Time Algorithm
 Upon order creation, the system calculates estimated queue waiting times dynamically:
@@ -3605,6 +3631,7 @@ When an order is created, the backend triggers the `invoice.service.js` using `p
    - **ORDER DETAILS** block specifying order ID, quality, copies, paper size, and print sides.
    - **FILES** list displaying custom names of uploaded documents.
    - **FINANCIAL SUMMARY** showing subtotal, 18% GST (Tax), and total amount.
+   - **Note on Currency Rendering**: The PDF uses the ASCII-compatible `Rs.` representation instead of the Unicode `₹` symbol to ensure standard PDFKit fonts (like Helvetica) render successfully without triggering character encoding exceptions.
 3. Streams the PDF buffer into `/uploads/invoices/invoice-[orderId]-[timestamp].pdf`.
 4. Saves metadata (invoice number, pdfUrl, totals) to the `Invoice` table, making it available for client-side download via `/api/orders/:id/invoice`.
 
@@ -3692,6 +3719,38 @@ Manages the ordering workflow.
 | `/api/statistics/:shopkeeperId/weekly` | `GET` | None | None | `{ weekStart, weekEnd, totalOrders, totalEarnings, growthPercentage, dailyBreakdown: [...] }` |
 | `/api/statistics/:shopkeeperId/monthly/:month/:year?` | `GET` | None | None | `{ month, year, totalRevenue, totalOrders, totalCopies, avgOrderValue, topPaperSize, paperSizeDistribution, printTypeDistribution: { BW, COLOR } }` |
 
+### 8. Admin API Endpoints
+Used by platform administrators to manage the application and monitor statistics.
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/admin/stats` | `GET` | None | None | `{ totalOrders, activeShops, revenue, activeCustomers }` |
+| `/api/admin/recent-orders` | `GET` | None | None | `Order[]` (Each order includes shopkeeper name) |
+| `/api/admin/users` | `GET` | None | None | `User[]` |
+| `/api/admin/shops` | `GET` | None | None | `Shopkeeper[]` (Select fields: id, email, shopName, ownerName, phone, isOnboarded, totalOrders, totalEarnings, createdAt) |
+| `/api/admin/shops/:id/onboard` | `PUT` | None | None | `{ message: "Shop onboarding status updated successfully", shop: Shopkeeper }` |
+| `/api/admin/analytics` | `GET` | None | None | `{ statusDistribution, printTypeDistribution, dailyTrends }` |
+
+### 9. AI Marketing Studio API
+Used by shopkeepers within the AI Marketing Studio to generate content suggestions and create AI-generated designs.
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/ai/suggest-prompt` | `POST` | JWT token | `{ title: string }` | `{ businessDescription, audience, theme, cta, posterType, colorPalette, language }` |
+| `/api/ai/generate` | `POST` | JWT token | `{ title, businessName, description, language, audience, posterType, posterSize, themeStyle, colorPreference, cta }` | `{ id, generatedImageUrl, optimizedPrompt }` |
+| `/api/ai/regenerate` | `POST` | JWT token | `{ title, businessName, description, language, audience, posterType, posterSize, themeStyle, colorPreference, cta }` | `{ id, generatedImageUrl, optimizedPrompt }` |
+| `/api/ai/history` | `GET` | JWT token | None | `AIAsset[]` |
+
+### 10. Scratch Card Reward System
+Used to manage the order-specific customer scratch loyalty cards and aggregate metrics.
+
+| Route | Method | Headers/Auth | Request Body | Success Response |
+|---|---|---|---|---|
+| `/api/rewards/order/:orderId` | `GET` | None | None | `{ id, orderId, shopId, rewardType, rewardCategory, scratched, applied, rewardMessage, customerSession }` (Fetches or initializes a card pre-created during order placement) |
+| `/api/rewards/:id/scratch` | `POST` | None | None | `{ id, orderId, shopId, rewardType, rewardCategory, scratched: true, applied: true/false, ... }` (Marks card as scratched & applies coupon) |
+| `/api/rewards/shopkeeper/stats` | `GET` | JWT token | None | `{ rewardsGeneratedToday, freePrintRewardsUsed, discountRewardsUsed, customerEngagementLevel, totalScratched, totalGenerated }` |
+| `/api/rewards/admin/stats` | `GET` | None | None | `{ totalScratches, monetaryRewardsUsed, nonMonetaryRewardsViewed, scratchRate, totalCardsGenerated }` |
+
 ---
 
 ## Frontend-Backend Integration Walkthrough
@@ -3717,7 +3776,7 @@ Manages the ordering workflow.
     - Shopkeepers log in or register via `/api/auth/login`, `/api/auth/register`, or Google OAuth (`/api/auth/google`), receiving a JWT.
     - **Concurrent Login Limit (2 PCs Max)**: The backend strictly enforces a session limit of 2 active devices per shopkeeper. Logging in on a 3rd device automatically invalidates the oldest session token (rolling logout) without locking the user out entirely.
     - Subsequent requests from the invalidated device receive a `401 Unauthorized` error with a clear error payload: `"Session limit exceeded. You have been logged out because you logged in on another device."`
-    - The in-memory session manager (`session.service.js`) handles server restarts seamlessly, registering existing tokens on-the-fly on first request to prevent mass logouts.
+    - The database-backed session manager (`session.service.js`) handles server restarts seamlessly, persisting active logins in the database and registering existing tokens on-the-fly on first request to prevent mass logouts.
     - The login page does NOT automatically bypass/redirect to the dashboard if a token exists. This allows multiple shopkeepers to log in or switch accounts on the same machine.
     - Shopkeepers can clear their session and log out using the **Logout** button in the dashboard header, which removes `authToken` and user state from `localStorage` and routes back to `/shopkeeper/login`.
  2. **Global Translations & Accessibility**:
@@ -3733,15 +3792,30 @@ Manages the ordering workflow.
     - **Database Enum Mapping**: When a shopkeeper downloads a customer file, the status change request is automatically mapped to `COMPLETED` in the backend. This prevents Prisma/PostgreSQL enum constraint errors while keeping the order completion data intact.
  5. **Real-time Queue & Print**: Shopkeeper updates items to `Completed` which calls the browser's printing service, downloads the invoice, and updates statistics.
  6. **Dynamic Shop Statistics**: All statistics card counts (Pending, Completed, Downloaded, Cancelled), bottom dock navigation badges, print sizes (A4, A3, etc.), document formats, revenue totals, and customer acquisition bar graphs are computed dynamically in real-time from the database order logs, ensuring exact reflections of database states.
- 
+ 7. **AI Marketing Studio**:
+    - Shopkeepers can navigate to the AI Studio (`/shopkeeper/printsmart-ai`) to access a dedicated marketing workshop with 6 distinct tool modes: AI Poster Maker, AI Banner Maker, Offer Flyer Generator, Festival Marketing Generator, Social Media Post Maker, and WhatsApp Promotion Poster.
+    - **Suggest Prompt**: By typing a promotion title and clicking "Suggest Prompt", shopkeepers invoke Google Gemini API (`POST /api/ai/suggest-prompt`) to automatically generate high-converting details and autofill the rest of the form.
+    - **AI Generation**: Clicking "Generate" or "Regenerate" sends form inputs to the backend (`POST /api/ai/generate` or `POST /api/ai/regenerate`), where Gemini optimizes the image prompt. The backend then contacts Pollinations AI (with random seeds for design variations) to generate a completely unique, visually premium poster/banner image, which is saved in S3/local storage and logged in the database (`AIAsset` model).
+    - **Preview & Loading**: The live dynamic preview is removed in favor of a real AI-generated design showcase under a *"✨ Generated by AI"* badge. A premium step-by-step progress loader keeps the user engaged during design computation.
+    - **Print Queue Integration**: Clicking "Print Now" converts the generated asset details and pushes the print job directly into the active order queues (`POST /api/orders/create`), updating shop stats and billing sheets seamlessly.
+    - **Archive**: An archive shelf renders past designs from the database (`GET /api/ai/history`), permitting instant loading and printing of previous assets.
+ 8. **Scratch Card Loyalty Program & Gemini Key Overrides**:
+    - **Google Gemini v3.5-Flash**: The AI Poster Studio runs on the updated `gemini-3.5-flash` model, resolving 404 retired model exceptions.
+    - **Customer-Supplied API Keys**: Shopkeepers can input their own Gemini API keys in the header panel. The key is saved locally in the browser context and forwarded in headers as `X-Gemini-API-Key`. The backend reads this header first, executing model queries against the user's personal API key quota, before falling back to server environment variables.
+    - **Instant Order-Linked Scratch Cards**: Scratch cards are pre-created instantly in the database at the time of order placement while the order is still `PENDING`, rather than waiting for order completion.
+    - **Monetary Reward Application**: If the order is eligible and wins a monetary discount (`FREE_PRINT` with 1% probability for eligible B/W prints, or `HALF_PRICE_COLOR` with 0.50% probability for eligible Color prints), the discount is calculated and applied to the print order total instantly at creation.
+    - **Non-Monetary Content Sourcing**: Non-eligible or losing rolls trigger a non-monetary card (`DID_YOU_KNOW` or `ASTROLOGY` on a 50/50 split). Card details are dynamically cached from local Excel/CSV worksheets (`Do You Know,Astrology.xlsx` converted to assets on startup).
+    - **Immediate Customer Scratch Access**: Customers can view and scratch cards immediately from the orders queue page (`/customer/orders`) even while the order is pending or accepted. The scratch card modal dynamically parses JSON entries case-insensitively (supporting columns like `scratch_text`, `category`, `sub_category`, and `reference_link`) and renders clickable source references for facts.
+    - **Real-Time Reward Metrics**: The Shopkeeper Statistics panel displays dynamic grids summarizing active scratch rate progress bars, total card distributions, and customer engagement tiers.
+
  ---
  
  ## Document Version
  
- - **Version:** 3.1.0
- - **Last Updated:** June 05, 2026
+ - **Version:** 3.2.1
+ - **Last Updated:** June 07, 2026
  - **Author:** Antigravity AI
- - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, and interactive Google Pay style Scratch & Win loyalty reward coupon modal).
+ - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, Gemini 3.5 custom API key overrides, and fixes for order placement server errors and success redirection).
  
  ---
  

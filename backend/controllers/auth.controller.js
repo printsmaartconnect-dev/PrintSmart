@@ -113,7 +113,7 @@ exports.register = async (req, res) => {
     );
 
     // Register session with session manager
-    sessionService.registerSession(shopkeeper.id, token);
+    await sessionService.registerSession(shopkeeper.id, token);
 
     const returnedShopkeeper = await prisma.shopkeeper.findUnique({
       where: { id: shopkeeper.id },
@@ -165,7 +165,7 @@ exports.login = async (req, res) => {
     );
 
     // Register session with session manager
-    sessionService.registerSession(shopkeeper.id, token);
+    await sessionService.registerSession(shopkeeper.id, token);
 
     res.json(createAuthResponse(shopkeeper, token));
   } catch (err) {
@@ -299,7 +299,7 @@ exports.googleAuth = async (req, res) => {
     });
 
     // Register session with session manager
-    sessionService.registerSession(shopkeeper.id, token);
+    await sessionService.registerSession(shopkeeper.id, token);
 
     res.json(createAuthResponse(shopkeeper, token));
   } catch (err) {

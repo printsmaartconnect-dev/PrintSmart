@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
 import {
   Sparkles,
   Play,
   RotateCcw,
-  Upload,
   Image as ImageIcon,
   HelpCircle,
   Grid,
@@ -15,15 +14,10 @@ import {
   Percent,
   Flame,
   ThumbsUp,
-  ZoomIn,
-  Maximize2,
   Download,
   Share2,
   ClipboardCheck,
-  ChevronRight,
-  Sparkle,
   Loader2,
-  Trash2,
   AlertTriangle,
   Info,
   Send,
@@ -32,46 +26,29 @@ import {
   FileText,
   Sliders,
   Settings,
-  Plus,
+  Upload,
   Minus,
-  Rotate3d
+  Plus,
+  Trash2,
+  ZoomIn,
+  Maximize2
 } from 'lucide-react'
 
 // Import Hero and Footer banners statically from the root of frontend
 import TopHeroImage from '../../../Top-Of-Ai-Page.jpg'
 import BottomImage from '../../../bottom-of-page.jpeg'
 
-// Swatch gradients for background selection
+const PAPER_SIZES = ['A4', 'A3', 'Banner', 'Square Post']
+
 const SWATCHES = [
-  { name: 'Royal Diwali Red', gradient: 'from-amber-950 via-red-950 to-amber-950', border: 'border-yellow-500' },
-  { name: 'Premium Maroon', gradient: 'from-rose-950 to-red-900', border: 'border-rose-500' },
-  { name: 'Warm Orange Glow', gradient: 'from-amber-900 to-orange-700', border: 'border-orange-500' },
-  { name: 'Deep Purple Blue', gradient: 'from-violet-950 to-indigo-950', border: 'border-purple-500' },
-  { name: 'Royal Cyan Gradient', gradient: 'from-cyan-950 to-indigo-950', border: 'border-cyan-500' },
-  { name: 'Sleek Dark Gray', gradient: 'from-slate-950 to-slate-800', border: 'border-slate-500' },
-  { name: 'Radiant Cyan Light', gradient: 'from-cyan-900 to-sky-700', border: 'border-sky-500' },
-  { name: 'Festive Gold Texture', gradient: 'from-amber-800 via-yellow-700 to-amber-900', border: 'border-amber-500' }
+  { name: 'Royal Gold', gradient: 'from-amber-500 via-yellow-400 to-amber-600', border: 'border-yellow-300' },
+  { name: 'Sunset Glow', gradient: 'from-orange-500 to-rose-500', border: 'border-orange-300' },
+  { name: 'Ocean Breeze', gradient: 'from-cyan-500 to-blue-600', border: 'border-cyan-300' },
+  { name: 'Midnight Purple', gradient: 'from-indigo-600 to-purple-800', border: 'border-indigo-400' },
+  { name: 'Emerald Luxe', gradient: 'from-emerald-600 to-teal-800', border: 'border-emerald-400' }
 ]
 
-// Paper sizes config matching customer flow
-const PAPER_SIZES = ['A4', 'A3', 'Legal', 'Letter', 'Executive', 'Ledger', 'Tabloid']
-
-// Diwali Mandala pattern SVG for canvas background
-const MandalaPattern = () => (
-  <svg className="absolute inset-0 w-full h-full opacity-10 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="0.5" />
-    <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="0.5" />
-    <circle cx="50" cy="50" r="20" fill="none" stroke="currentColor" strokeWidth="0.5" />
-    {[...Array(12)].map((_, i) => {
-      const angle = (i * 30 * Math.PI) / 180
-      const x1 = 50 + 10 * Math.cos(angle)
-      const y1 = 50 + 10 * Math.sin(angle)
-      const x2 = 50 + 45 * Math.cos(angle)
-      const y2 = 50 + 45 * Math.sin(angle)
-      return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="currentColor" strokeWidth="0.3" />
-    })}
-  </svg>
-)
+const bgCategories = ['All', 'Festive', 'Corporate', 'Minimalist', 'Creative']
 
 export default function PrintSmartAiPage() {
   const { t } = useTranslation()
@@ -79,23 +56,90 @@ export default function PrintSmartAiPage() {
   const [shopName, setShopName] = useState('Default Shop')
   const [toasts, setToasts] = useState([])
 
-  // Choose background categories list
-  const bgCategories = [
-    'Popular', 'Festival', 'Diwali', 'Christmas', 'New Year', 'Summer', 'Spring', 'Abstract',
-    'Gradient', 'Black & Dark', 'White & Light', 'Nature', 'Flowers', 'Texture', 'Patterns',
-    'Business', 'Food', 'Fashion', 'Technology', 'Sports', 'Education', 'Travel', 'Wedding',
-    'Birthday', 'Kids', 'Vintage', 'Minimal', 'Luxury', '3D Style', 'Cartoon', 'Watercolor', 'Others'
+  // Feature selector state
+  const [activeFeature, setActiveFeature] = useState('poster') // 'poster' | 'banner' | 'flyer' | 'festival' | 'social' | 'whatsapp'
+
+  // Form State
+  const [formData, setFormData] = useState({
+    title: '',
+    businessName: '',
+    description: '',
+    language: 'English',
+    audience: 'General public',
+    posterType: 'Poster',
+    posterSize: 'A4',
+    themeStyle: 'Modern',
+    colorPreference: '',
+    cta: 'Visit Today'
+  })
+
+  // Studio asset state
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [loadingStep, setLoadingStep] = useState(0)
+  const [generatedImageUrl, setGeneratedImageUrl] = useState('')
+  const [generatedAssetId, setGeneratedAssetId] = useState('')
+
+  // Autofill state
+  const [isSuggesting, setIsSuggesting] = useState(false)
+
+  // Print Queue submission state
+  const [isPrinting, setIsPrinting] = useState(false)
+
+  // History state
+  const [history, setHistory] = useState([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
+  const [creationMethod, setCreationMethod] = useState('manual') // 'manual' | 'chat'
+  const [creationType, setCreationType] = useState('Poster')
+  const [targetIntent, setTargetIntent] = useState('Sale / Offer')
+  const [posterData, setPosterData] = useState({
+    headline: '',
+    subheadline: '',
+    description: '',
+    offerText: '',
+    cta: '',
+    theme: ''
+  })
+  const [selectedCategory, setSelectedCategory] = useState('All')
+  const [selectedBgSwatch, setSelectedBgSwatch] = useState(0)
+  const [uploadedRefFile, setUploadedRefFile] = useState(null)
+  const [bgRemovedFile, setBgRemovedFile] = useState(null)
+  
+  const [promptText, setPromptText] = useState('')
+  const [chatFiles, setChatFiles] = useState([])
+  const [generatedConfig, setGeneratedConfig] = useState(null)
+  const [promptHistory, setPromptHistory] = useState([])
+  const [errorState, setErrorState] = useState(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [canvasScale, setCanvasScale] = useState(1)
+  
+  const [printType, setPrintType] = useState('COLOR')
+  const [copies, setCopies] = useState(1)
+  const [paperSize, setPaperSize] = useState('A4')
+  const [sides, setSides] = useState('SINGLE')
+  const [orientation, setOrientation] = useState('PORTRAIT')
+  const [quality, setQuality] = useState('NORMAL')
+
+  const [geminiApiKey, setGeminiApiKey] = useState('')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedKey = localStorage.getItem('gemini_api_key') || ''
+      setGeminiApiKey(savedKey)
+    }
+  }, [])
+
+  const activeSwatchConfig = SWATCHES[selectedBgSwatch] || SWATCHES[0]
+
+  const loadingTexts = [
+    "Analyzing business context...",
+    "Creating marketing layout...",
+    "Generating premium typography...",
+    "Applying branding...",
+    "Finalizing AI design..."
   ]
 
-  // Method Selection State (manual vs chat prompting)
-  const [creationMethod, setCreationMethod] = useState('manual') // 'manual' | 'chat'
-
-  // Input Sanitizer to remove dangerous HTML tags/scripts
-  const sanitizeText = (text) => {
-    return text.replace(/<\/?[^>]+(>|$)/g, '')
-  }
-
-  // Helper to show inline toasts
+  // Add toast notifications
   const addToast = (message, type = 'info') => {
     const id = Date.now()
     setToasts((prev) => [...prev, { id, message, type }])
@@ -104,60 +148,7 @@ export default function PrintSmartAiPage() {
     }, 4000)
   }
 
-  // 1. CORE COMPONENT CONFIGURATION STATE
-  const [activeTab, setActiveTab] = useState('poster') // Options: 'poster', 'flyer', 'festival', 'social'
-  const [creationType, setCreationType] = useState('Poster') // Options: 'Poster', 'Banner', 'Square Post', 'Custom Size'
-  const [targetIntent, setTargetIntent] = useState('Sale / Offer') // Options: 'Sale / Offer', 'Festival', 'New Arrival', etc.
-
-  const [posterData, setPosterData] = useState({
-    headline: 'BIG DIWALI SALE',
-    subheadline: 'Shop More, Save More',
-    offerText: '50% OFF',
-    description: 'Up to 50% OFF on all products. Celebrate this Diwali with amazing deals.',
-    cta: 'Order Now',
-    theme: 'Popular'
-  })
-
-  const [selectedCategory, setSelectedCategory] = useState('Popular')
-  const [selectedBgSwatch, setSelectedBgSwatch] = useState(0)
-
-  // Optional files (Manual uploads)
-  const [uploadedRefFile, setUploadedRefFile] = useState(null)
-  const [bgRemovedFile, setBgRemovedFile] = useState(null)
-
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [canvasScale, setCanvasScale] = useState(1.0) // Float Zoom tracking scale
-
-  // Print Layout Config States (AI updates these, user can tweak manually)
-  const [copies, setCopies] = useState(1)
-  const [printType, setPrintType] = useState('BW') // 'BW' | 'COLOR'
-  const [paperSize, setPaperSize] = useState('A4')
-  const [sides, setSides] = useState('SINGLE') // 'SINGLE' | 'DOUBLE'
-  const [quality, setQuality] = useState('NORMAL') // 'DRAFT' | 'NORMAL' | 'HIGH'
-  const [orientation, setOrientation] = useState('PORTRAIT') // 'PORTRAIT' | 'LANDSCAPE'
-
-  // 2. CHAT PROMPTING SPECIFIC STATE
-  const [promptText, setPromptText] = useState('')
-  const [chatFiles, setChatFiles] = useState([])
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [errorState, setErrorState] = useState(null)
-  const [generatedConfig, setGeneratedConfig] = useState(null)
-  const [promptHistory, setPromptHistory] = useState([
-    {
-      id: 1,
-      text: "Print 50 black and white thesis pages A4 double sided high quality",
-      timestamp: "11:32 AM",
-      result: { copies: 50, printType: "BW", paperSize: "A4", sides: "DOUBLE", quality: "HIGH", orientation: "PORTRAIT", swatchName: "Sleek Dark Gray" }
-    },
-    {
-      id: 2,
-      text: "20 color copies of a wedding brochure landscape A3 double sided",
-      timestamp: "10:15 AM",
-      result: { copies: 20, printType: "COLOR", paperSize: "A3", sides: "DOUBLE", quality: "HIGH", orientation: "LANDSCAPE", swatchName: "Festive Gold Texture" }
-    }
-  ])
-
-  // Sync shop keeper profile details
+  // Load shopkeeper data and previous history
   useEffect(() => {
     const loggedIn = localStorage.getItem('authToken')
     if (!loggedIn) {
@@ -169,431 +160,497 @@ export default function PrintSmartAiPage() {
       const account = JSON.parse(localStorage.getItem('shopkeeper') || 'null')
       if (account?.shopName) {
         setShopName(account.shopName)
+        setFormData(prev => ({ ...prev, businessName: account.shopName }))
       }
     } catch {
-      // Keep default shopName
+      // Keep defaults
     }
 
-    // Retrieve previous design configuration from localStorage if present
-    const cachedConfig = localStorage.getItem('printsmart_last_ai_poster')
-    if (cachedConfig) {
-      try {
-        const config = JSON.parse(cachedConfig)
-        if (config.activeTab) setActiveTab(config.activeTab)
-        if (config.creationType) setCreationType(config.creationType)
-        if (config.targetIntent) setTargetIntent(config.targetIntent)
-        if (config.posterData) {
-          setPosterData(config.posterData)
-        } else if (config.formData) {
-          setPosterData({
-            headline: config.formData.mainHeading || '',
-            subheadline: config.formData.subHeading || '',
-            offerText: '50% OFF',
-            description: config.formData.description || '',
-            cta: 'Order Now',
-            theme: 'Popular'
-          })
-        }
-        if (config.selectedCategory) setSelectedCategory(config.selectedCategory)
-        if (config.selectedBgSwatch !== undefined) setSelectedBgSwatch(config.selectedBgSwatch)
-        if (config.canvasScale !== undefined) setCanvasScale(config.canvasScale)
-        if (config.creationMethod) setCreationMethod(config.creationMethod)
-
-        // Restore print configs
-        if (config.copies) setCopies(config.copies)
-        if (config.printType) setPrintType(config.printType)
-        if (config.paperSize) setPaperSize(config.paperSize)
-        if (config.sides) setSides(config.sides)
-        if (config.quality) setQuality(config.quality)
-        if (config.orientation) setOrientation(config.orientation)
-
-        addToast('Restored last active AI poster configurations!', 'info')
-      } catch (err) {
-        console.warn('Failed to load cached AI configurations:', err)
-      }
-    }
+    fetchHistory()
   }, [router])
 
-  // Swatch configuration mapping based on active selection
-  const activeSwatchConfig = useMemo(() => {
-    return SWATCHES[selectedBgSwatch] || SWATCHES[0]
-  }, [selectedBgSwatch])
-
-  // Form input update handlers with inline sanitization
-  const handleInputChange = (key, value, maxLength) => {
-    const sanitized = sanitizeText(value).substring(0, maxLength)
-    setPosterData((prev) => ({
-      ...prev,
-      [key]: sanitized
-    }))
-  }
-
-  // 3. GENERATION ACTION CONTROLLERS (MANUAL & REAL GROQ AI CHAT)
-  const handleGeneratePoster = async (e) => {
-    if (e) e.preventDefault()
-    if (isGenerating) return
-
-    setIsGenerating(true)
-    addToast('Analyzing inputs and preparing AI design templates...', 'info')
-
-    // Simulate AI Generation routine
-    setTimeout(() => {
-      setIsGenerating(false)
-      addToast('Poster successfully generated by PrintSmart AI!', 'success')
-
-      // Save parameters securely to Local Storage
-      const currentConfig = {
-        activeTab,
-        creationType,
-        targetIntent,
-        posterData,
-        selectedCategory,
-        selectedBgSwatch,
-        canvasScale,
-        creationMethod,
-        copies,
-        printType,
-        paperSize,
-        sides,
-        quality,
-        orientation
-      }
-      localStorage.setItem('printsmart_last_ai_poster', JSON.stringify(currentConfig))
-    }, 1500)
-  }
-
-  // Real conversational AI generation calling our API Route
-  const handleChatGenerate = async (e) => {
-    if (e) e.preventDefault()
-    if (!promptText.trim()) {
-      addToast('Please enter a prompt instruction first.', 'error')
-      return
-    }
-    if (isGenerating) return
-
-    setIsGenerating(true)
-    setErrorState(null)
-    addToast('Contacting Groq AI schema extractor...', 'info')
-
+  // Fetch past assets
+  const fetchHistory = async () => {
+    setIsLoadingHistory(true)
     try {
-      const response = await fetch('/api/ai/generate-config', {
-        method: 'POST',
+      const token = localStorage.getItem('authToken')
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/ai/history`, {
         headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ prompt: promptText })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to contact Groq model server endpoint.')
-      }
-
-      const aiConfig = await response.json()
-
-      // Set posterData state instantly to trigger canvas re-render
-      setPosterData({
-        headline: aiConfig.headline || '',
-        subheadline: aiConfig.subheadline || '',
-        offerText: aiConfig.offerText || '',
-        description: aiConfig.description || '',
-        cta: aiConfig.cta || '',
-        theme: aiConfig.theme || ''
-      })
-
-      // Save to generatedConfig state to display the premium AI card
-      setGeneratedConfig(aiConfig)
-
-      // Dynamically select background swatch based on the AI generated theme
-      const themeLower = (aiConfig.theme || '').toLowerCase()
-      let swatchIdx = 3 // Default: Deep Purple Blue
-      if (themeLower.includes('red') || themeLower.includes('maroon') || themeLower.includes('diwali') || themeLower.includes('festival')) {
-        swatchIdx = 0 // Royal Diwali Red
-      } else if (themeLower.includes('warm') || themeLower.includes('orange') || themeLower.includes('glow')) {
-        swatchIdx = 2 // Warm Orange Glow
-      } else if (themeLower.includes('cyan') || themeLower.includes('blue') || themeLower.includes('light')) {
-        swatchIdx = 6 // Radiant Cyan Light
-      } else if (themeLower.includes('dark') || themeLower.includes('gray') || themeLower.includes('sleek') || themeLower.includes('black')) {
-        swatchIdx = 5 // Sleek Dark Gray
-      } else if (themeLower.includes('gold') || themeLower.includes('yellow')) {
-        swatchIdx = 7 // Festive Gold Texture
-      } else if (themeLower.includes('purple') || themeLower.includes('violet')) {
-        swatchIdx = 3 // Deep Purple Blue
-      } else if (themeLower.includes('rose') || themeLower.includes('pink')) {
-        swatchIdx = 1 // Premium Maroon
-      }
-      setSelectedBgSwatch(swatchIdx)
-
-      // Add to prompt history list
-      const newPromptEntry = {
-        id: Date.now(),
-        text: promptText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        result: {
-          headline: aiConfig.headline || '',
-          subheadline: aiConfig.subheadline || '',
-          offerText: aiConfig.offerText || '',
-          description: aiConfig.description || '',
-          cta: aiConfig.cta || '',
-          theme: aiConfig.theme || '',
-          swatchIdx: swatchIdx,
-          swatchName: SWATCHES[swatchIdx].name
+          'Authorization': `Bearer ${token}`
         }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setHistory(data)
       }
-      setPromptHistory(prev => [newPromptEntry, ...prev])
-
-      addToast('PrintSmart AI configured layout successfully!', 'success')
-
-      // Save settings to Local Storage
-      const currentConfig = {
-        activeTab,
-        creationType,
-        targetIntent,
-        posterData: {
-          headline: aiConfig.headline || '',
-          subheadline: aiConfig.subheadline || '',
-          offerText: aiConfig.offerText || '',
-          description: aiConfig.description || '',
-          cta: aiConfig.cta || '',
-          theme: aiConfig.theme || ''
-        },
-        selectedCategory,
-        selectedBgSwatch: swatchIdx,
-        canvasScale,
-        creationMethod,
-        copies,
-        printType,
-        paperSize,
-        sides,
-        quality,
-        orientation
-      }
-      localStorage.setItem('printsmart_last_ai_poster', JSON.stringify(currentConfig))
-
-    } catch (err) {
-      console.error('Groq generation error:', err)
-      setErrorState(err.message || 'Error occurred during AI generation.')
-      addToast(err.message || 'Error occurred during AI generation.', 'error')
+    } catch (error) {
+      console.error('History fetch error:', error)
     } finally {
-      setIsGenerating(false)
+      setIsLoadingHistory(false)
     }
   }
 
-  // 4. MULTI-FILE ATTACHMENT & DROPZONE SIMULATOR LOGIC
-  const processUploadedFile = (e, fileSetter) => {
+  const handleZoomIn = () => setCanvasScale(prev => Math.min(prev + 0.1, 2))
+  const handleZoomOut = () => setCanvasScale(prev => Math.max(prev - 0.1, 0.5))
+  const handleFit = () => setCanvasScale(1)
+
+  const processUploadedFile = (e, callback) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // MIME type check
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg']
-    if (!allowedTypes.includes(file.type)) {
-      addToast('Unsupported file type. Please upload a PNG or JPEG image.', 'error')
-      e.target.value = ''
-      return
-    }
-
-    // Size check (10MB)
     if (file.size > 10 * 1024 * 1024) {
-      addToast('File too large! Maximum allowed reference file size is 10MB.', 'error')
-      e.target.value = ''
+      addToast('File is too large! Max 10MB allowed.', 'error')
       return
     }
 
-    // Build URL pathways
-    const objectUrl = URL.createObjectURL(file)
-    fileSetter(objectUrl)
-    addToast(`Successfully processed file: ${file.name}`, 'success')
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      callback(event.target.result)
+      addToast('File uploaded successfully!', 'success')
+    }
+    reader.readAsDataURL(file)
   }
 
-  // Chat prompting file upload handler
-  const handleChatFileUpload = (e) => {
-    const files = Array.from(e.target.files || [])
-    const parsedFiles = []
+  const handleInputChange = (field, value, maxLength) => {
+    const truncatedValue = maxLength ? value.substring(0, maxLength) : value
+    setPosterData(prev => ({
+      ...prev,
+      [field]: truncatedValue
+    }))
+  }
 
-    for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) {
-        addToast(`File ${file.name} is too large (Max 10MB)`, 'error')
-        continue
-      }
-      parsedFiles.push({
-        id: Date.now() + Math.random(),
-        name: file.name,
-        size: (file.size / 1024).toFixed(1) + ' KB',
-        url: URL.createObjectURL(file)
+  const handleCancelAction = () => {
+    setPromptText('')
+    setChatFiles([])
+    addToast('Inputs cleared.', 'info')
+  }
+
+  const handleChatGenerate = async (e) => {
+    if (e) e.preventDefault()
+    if (!promptText.trim()) return
+
+    setIsGenerating(true)
+    setLoadingStep(0)
+    setGeneratedImageUrl('')
+    setErrorState(null)
+    addToast('AI auto-configuring parameters...', 'info')
+
+    const stepTimer = setInterval(() => {
+      setLoadingStep(prev => (prev < loadingTexts.length - 1 ? prev + 1 : prev))
+    }, 3000)
+
+    try {
+      const token = localStorage.getItem('authToken')
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/ai/chat-generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          ...(geminiApiKey ? { 'X-Gemini-API-Key': geminiApiKey } : {})
+        },
+        body: JSON.stringify({ prompt: promptText, currentConfig: formData })
       })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.error ? `${errData.message} (${errData.error})` : (errData.message || 'AI Chat Generation failed'))
+      }
+
+      const result = await response.json()
+      
+      setGeneratedConfig(result.config)
+      setGeneratedImageUrl(result.generatedImageUrl)
+      setGeneratedAssetId(result.id)
+      
+      setPosterData({
+        headline: result.config.headline || '',
+        subheadline: result.config.subheadline || '',
+        description: result.config.description || '',
+        offerText: result.config.offerText || '',
+        cta: result.config.cta || '',
+        theme: result.config.theme || ''
+      })
+      
+      const historyItem = {
+        id: result.id || Date.now().toString(),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: promptText,
+        result: {
+          headline: result.config.headline || '',
+          subheadline: result.config.subheadline || '',
+          offerText: result.config.offerText || '',
+          description: result.config.description || '',
+          cta: result.config.cta || '',
+          theme: result.config.theme || '',
+          swatchIdx: 0,
+          swatchName: 'Royal Gold'
+        }
+      }
+      setPromptHistory(prev => [historyItem, ...prev])
+      addToast('Poster successfully configured and generated by AI!', 'success')
+      fetchHistory()
+    } catch (error) {
+      console.error('Chat generate error:', error)
+      setErrorState(error.message)
+      addToast(error.message || 'Failed to auto-configure layout', 'error')
+    } finally {
+      clearInterval(stepTimer)
+      setIsGenerating(false)
+    }
+  }
+
+  const handleChatFileUpload = (e) => {
+    let files = []
+    if (e.target && e.target.files) {
+      files = Array.from(e.target.files)
+    } else if (e.dataTransfer && e.dataTransfer.files) {
+      files = Array.from(e.dataTransfer.files)
     }
 
-    setChatFiles(prev => [...prev, ...parsedFiles])
-    if (parsedFiles.length > 0) {
-      addToast(`Attached ${parsedFiles.length} file(s) for AI prompt reference`, 'success')
+    if (files.length === 0) return
+
+    const newFiles = files.map(file => ({
+      id: Math.random().toString(36).substr(2, 9),
+      name: file.name,
+      size: (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+    }))
+
+    setChatFiles(prev => [...prev, ...newFiles])
+    addToast(`${files.length} file(s) attached!`, 'success')
+  }
+
+  const handleGeneratePoster = (e) => {
+    if (e) e.preventDefault()
+    handleGenerate(e)
+  }
+
+  const handleReset = () => {
+    setFormData({
+      title: '',
+      businessName: shopName,
+      description: '',
+      language: 'English',
+      audience: 'General public',
+      posterType: 'Poster',
+      posterSize: 'A4',
+      themeStyle: 'Modern',
+      colorPreference: '',
+      cta: 'Visit Today'
+    })
+    setPosterData({
+      headline: '',
+      subheadline: '',
+      description: '',
+      offerText: '',
+      cta: '',
+      theme: ''
+    })
+    setGeneratedImageUrl('')
+    setGeneratedAssetId('')
+    addToast('Configuration settings reset.', 'info')
+  }
+
+  const handleSaveConfiguration = () => {
+    addToast('Layout configuration saved!', 'success')
+  }
+
+  // Handle Tab / Feature selection to preset fields
+  const handleFeatureSelect = (featureId, type, size, theme) => {
+    setActiveFeature(featureId)
+    setFormData(prev => ({
+      ...prev,
+      posterType: type,
+      posterSize: size,
+      themeStyle: theme || prev.themeStyle
+    }))
+    addToast(`Preset fields configured for ${type}!`, 'info')
+  }
+
+  // Handle tab selection translation
+  const handleTabChange = (tabId, label) => {
+    let type = 'Poster'
+    let size = 'A4'
+    let theme = 'Modern'
+
+    if (tabId === 'flyer') {
+      type = 'Flyer'
+    } else if (tabId === 'festival') {
+      type = 'Festival'
+      theme = 'Traditional'
+    } else if (tabId === 'social') {
+      type = 'Social Media'
+      size = 'Square Post'
+    }
+
+    handleFeatureSelect(tabId, type, size, theme)
+  }
+
+  // Handle "Suggest Prompt"
+  const handleSuggestPrompt = async () => {
+    if (!formData.title.trim()) {
+      addToast('Please enter a Promotion Title first!', 'error')
+      return
+    }
+
+    setIsSuggesting(true)
+    addToast('Google Gemini is generating field suggestions...', 'info')
+
+    try {
+      const token = localStorage.getItem('authToken')
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/ai/suggest-prompt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          ...(geminiApiKey ? { 'X-Gemini-API-Key': geminiApiKey } : {})
+        },
+        body: JSON.stringify({ title: formData.title })
+      })
+
+      if (!response.ok) {
+        let errMsg = 'Failed to fetch suggestions from Gemini API'
+        try {
+          const errData = await response.json()
+          errMsg = errData.error ? `${errData.message} (${errData.error})` : (errData.message || errMsg)
+        } catch (_) {}
+        throw new Error(errMsg)
+      }
+
+      const suggestions = await response.json()
+      setFormData(prev => ({
+        ...prev,
+        description: suggestions.businessDescription || prev.description,
+        audience: suggestions.audience || prev.audience,
+        themeStyle: suggestions.theme || prev.themeStyle,
+        language: suggestions.language || prev.language,
+        cta: suggestions.cta || prev.cta,
+        posterType: suggestions.posterType || prev.posterType,
+        colorPreference: suggestions.colorPalette || prev.colorPreference
+      }))
+
+      addToast('Form fields updated by Gemini AI!', 'success')
+    } catch (error) {
+      console.error('Suggest prompt error:', error)
+      addToast(error.message || 'Error occurred during prompt suggestions', 'error')
+    } finally {
+      setIsSuggesting(false)
     }
   }
 
-  // 5. LOCAL CANVAS CONTROL WORKFLOWS (ZOOM, FIT, DOWNLOAD, SHARE)
-  const handleZoomIn = () => {
-    setCanvasScale((prev) => {
-      const next = prev + 0.1
-      if (next > 1.4) {
-        addToast('Maximum zoom level reached!', 'info')
-        return 1.4
+  // Handle Generate
+  const handleGenerate = async (e) => {
+    if (e) e.preventDefault()
+    if (!formData.title.trim()) {
+      addToast('Title / Business Offer Title is required!', 'error')
+      return
+    }
+
+    setIsGenerating(true)
+    setLoadingStep(0)
+    setGeneratedImageUrl('')
+    addToast('PrintSmart AI is designing your poster...', 'info')
+
+    // Cycle through loading steps
+    const stepTimer = setInterval(() => {
+      setLoadingStep(prev => (prev < loadingTexts.length - 1 ? prev + 1 : prev))
+    }, 3000)
+
+    try {
+      const token = localStorage.getItem('authToken')
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/ai/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          ...(geminiApiKey ? { 'X-Gemini-API-Key': geminiApiKey } : {})
+        },
+        body: JSON.stringify(formData)
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.error ? `${errData.message} (${errData.error})` : (errData.message || 'Failed to generate poster'))
       }
-      return parseFloat(next.toFixed(1))
-    })
+
+      const result = await response.json()
+      setGeneratedImageUrl(result.generatedImageUrl)
+      setGeneratedAssetId(result.id)
+      addToast('Poster successfully generated by PrintSmart AI!', 'success')
+      fetchHistory()
+    } catch (error) {
+      console.error('Generation error:', error)
+      addToast(error.message || 'Error occurred during design generation', 'error')
+    } finally {
+      clearInterval(stepTimer)
+      setIsGenerating(false)
+    }
   }
 
-  const handleZoomOut = () => {
-    setCanvasScale((prev) => {
-      const next = prev - 0.1
-      if (next < 0.6) {
-        addToast('Minimum zoom level reached!', 'info')
-        return 0.6
+  // Handle Regenerate
+  const handleRegenerate = async () => {
+    setIsGenerating(true)
+    setLoadingStep(0)
+    setGeneratedImageUrl('')
+    addToast('PrintSmart AI is generating a new design variation...', 'info')
+
+    const stepTimer = setInterval(() => {
+      setLoadingStep(prev => (prev < loadingTexts.length - 1 ? prev + 1 : prev))
+    }, 3000)
+
+    try {
+      const token = localStorage.getItem('authToken')
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const response = await fetch(`${apiUrl}/api/ai/regenerate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          ...(geminiApiKey ? { 'X-Gemini-API-Key': geminiApiKey } : {})
+        },
+        body: JSON.stringify(formData)
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.error ? `${errData.message} (${errData.error})` : (errData.message || 'Failed to regenerate poster'))
       }
-      return parseFloat(next.toFixed(1))
-    })
+
+      const result = await response.json()
+      setGeneratedImageUrl(result.generatedImageUrl)
+      setGeneratedAssetId(result.id)
+      addToast('New design variation successfully generated!', 'success')
+      fetchHistory()
+    } catch (error) {
+      console.error('Regeneration error:', error)
+      addToast(error.message || 'Error occurred during design regeneration', 'error')
+    } finally {
+      clearInterval(stepTimer)
+      setIsGenerating(false)
+    }
   }
 
-  const handleFit = () => {
-    setCanvasScale(1.0)
-    addToast('Canvas scaled back to default fit layout.', 'info')
-  }
-
-  const handleDownload = () => {
-    addToast('Exporting design to image file...', 'info')
-
-    setTimeout(() => {
+  // Handle Download (CORS-friendly blob conversion)
+  const handleDownload = async () => {
+    if (!generatedImageUrl) return
+    addToast('Downloading generated design...', 'info')
+    try {
+      const response = await fetch(generatedImageUrl)
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.download = `printsmart-ai-poster-${Date.now()}.jpg`
-      link.href = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="100%" height="100%" fill="%236366F1"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="sans-serif" font-size="20">PrintSmart AI Poster</text></svg>'
+      link.href = blobUrl
+      link.download = `ai-marketing-design-${Date.now()}.jpg`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      addToast('Download completed successfully!', 'success')
-    }, 800)
+      URL.revokeObjectURL(blobUrl)
+      addToast('Download completed!', 'success')
+    } catch (error) {
+      console.error('Download error:', error)
+      window.open(generatedImageUrl, '_blank')
+    }
   }
 
+  // Handle Native Share or URL clipboard fallback
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/share/poster-preview`
-
+    if (!generatedImageUrl) return
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'PrintSmart AI Poster design',
-          text: `Check out our new festive poster: ${posterData.headline}`,
-          url: shareUrl
+          title: `AI Marketing Design: ${formData.title}`,
+          text: `Check out this AI-generated marketing design for ${formData.businessName}!`,
+          url: generatedImageUrl
         })
-        addToast('Design shared successfully!', 'success')
+        addToast('Shared successfully!', 'success')
       } catch (err) {
         console.warn('Native share failed or dismissed:', err)
       }
     } else {
       try {
-        await navigator.clipboard.writeText(shareUrl)
-        addToast('Share link copied to clipboard fallback!', 'success')
+        await navigator.clipboard.writeText(generatedImageUrl)
+        addToast('Design image URL copied to clipboard!', 'success')
       } catch (err) {
         addToast('Failed to copy link to clipboard.', 'error')
       }
     }
   }
 
-  // 6. FORM & SYSTEM RESET WORKFLOWS
-  const handleReset = () => {
-    setPosterData({
-      headline: 'BIG DIWALI SALE',
-      subheadline: 'Shop More, Save More',
-      offerText: '50% OFF',
-      description: 'Up to 50% OFF on all products. Celebrate this Diwali with amazing deals.',
-      cta: 'Order Now',
-      theme: 'Popular'
-    })
-    setSelectedBgSwatch(0)
-    setCreationType('Poster')
-    setTargetIntent('Sale / Offer')
-    setUploadedRefFile(null)
-    setBgRemovedFile(null)
-    setPromptText('')
-    setChatFiles([])
-    setCopies(1)
-    setPrintType('BW')
-    setPaperSize('A4')
-    setSides('SINGLE')
-    setQuality('NORMAL')
-    setOrientation('PORTRAIT')
-    setGeneratedConfig(null)
-    setErrorState(null)
-    addToast('Reset configurations to default settings.', 'info')
-  }
-
-  const handleCancelAction = () => {
-    setPromptText('')
-    setChatFiles([])
-    setErrorState(null)
-    addToast('Form action canceled.', 'info')
-  }
-
-  const handleSaveConfiguration = () => {
-    addToast('Layout configuration saved successfully!', 'success')
-  }
-
-  // Pre-fill prompt text helper
-  const selectExamplePrompt = (text) => {
-    setPromptText(text)
-    addToast(`Selected example prompt!`, 'info')
-  }
-
-  // Mock template switcher based on category tabs
-  const handleTabChange = (tabId, label) => {
-    setActiveTab(tabId)
-    addToast(`Switched mode to ${label}!`, 'info')
-
-    if (tabId === 'flyer') {
-      setPosterData({
-        headline: 'MEGA WEEKEND OFFER',
-        subheadline: 'Buy 1 Get 1 Free',
-        offerText: 'Buy 1 Get 1 Free',
-        description: 'Exclusive weekend special deals across all store sections. Grab yours now before stocks run out. High quality paper prints available!',
-        cta: 'Claim Now',
-        theme: 'Popular'
-      })
-      setSelectedBgSwatch(2) // Orange
-      setCreationType('Banner')
-      setTargetIntent('Sale / Offer')
-    } else if (tabId === 'festival') {
-      setPosterData({
-        headline: 'HAPPY DIWALI',
-        subheadline: 'Festival of Lights & Deals',
-        offerText: 'SPECIAL PRICE',
-        description: 'Celebrate the festive season with custom designs, traditional sweets patterns, and vibrant color configurations.',
-        cta: 'Shop Now',
-        theme: 'Festival'
-      })
-      setSelectedBgSwatch(7) // Gold
-      setCreationType('Poster')
-      setTargetIntent('Festival')
-    } else if (tabId === 'social') {
-      setPosterData({
-        headline: 'JOIN THE COMMUNITY',
-        subheadline: 'Follow Us on Social Media',
-        offerText: 'FREE JOIN',
-        description: 'Scan the barcode on print outputs to join our network. Weekly updates, custom design drops.',
-        cta: 'Follow Us',
-        theme: 'Popular'
-      })
-      setSelectedBgSwatch(3) // Deep Purple
-      setCreationType('Square Post')
-      setTargetIntent('Event')
-    } else {
-      setPosterData({
-        headline: 'BIG DIWALI SALE',
-        subheadline: 'Shop More, Save More',
-        offerText: '50% OFF',
-        description: 'Up to 50% OFF on all products. Celebrate this Diwali with amazing deals.',
-        cta: 'Order Now',
-        theme: 'Popular'
-      })
-      setSelectedBgSwatch(0)
-      setCreationType('Poster')
-      setTargetIntent('Sale / Offer')
+  // Print Now (integrating directly into the active print queue)
+  const handlePrintNow = async () => {
+    if (!generatedImageUrl) {
+      addToast('No generated design available to print!', 'error')
+      return
     }
+
+    setIsPrinting(true)
+    addToast('Submitting poster print job to queue...', 'info')
+
+    try {
+      const token = localStorage.getItem('authToken')
+      const account = JSON.parse(localStorage.getItem('shopkeeper') || '{}')
+      const shopkeeperId = account.id
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+
+      const orderData = {
+        userId: null,
+        shopkeeperId: shopkeeperId,
+        customerName: "AI Studio Walk-in",
+        phone: account.phone || "N/A",
+        items: [{
+          fileName: `AI_Poster_${formData.title.replace(/\s+/g, '_')}.jpg`,
+          fileUrl: generatedImageUrl,
+          fileSize: 1024 * 1024,
+          price: formData.posterSize === 'A3' ? 25.0 : 15.0,
+          config: {
+            printType: 'COLOR',
+            copies: 1,
+            paperSize: formData.posterSize || 'A4',
+            sides: 'SINGLE',
+            orientation: formData.posterSize === 'Banner' ? 'LANDSCAPE' : 'PORTRAIT',
+            quality: 'HIGH',
+            pageRange: 'all'
+          }
+        }]
+      }
+
+      const response = await fetch(`${apiUrl}/api/orders/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(orderData)
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || 'Failed to submit print job')
+      }
+
+      addToast('Print job successfully queued and invoice generated!', 'success')
+    } catch (error) {
+      console.error('Print queue error:', error)
+      addToast(error.message || 'Error pushing print job to queue', 'error')
+    } finally {
+      setIsPrinting(false)
+    }
+  }
+
+  // Load design from History shelf
+  const handleSelectHistoryItem = (item) => {
+    setGeneratedImageUrl(item.generatedImageUrl)
+    setGeneratedAssetId(item.id)
+    setFormData(prev => ({
+      ...prev,
+      title: item.title,
+      posterType: item.type
+    }))
+    addToast(`Loaded design: "${item.title}"`, 'info')
   }
 
   return (
@@ -605,10 +662,10 @@ export default function PrintSmartAiPage() {
           <div
             key={toast.id}
             className={`p-4 rounded-xl shadow-lg border flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100 pointer-events-auto ${toast.type === 'success'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : toast.type === 'error'
-                  ? 'bg-rose-50 border-rose-200 text-rose-800'
-                  : 'bg-indigo-50 border-indigo-200 text-indigo-800'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : toast.type === 'error'
+                ? 'bg-rose-50 border-rose-200 text-rose-800'
+                : 'bg-indigo-50 border-indigo-200 text-indigo-800'
               }`}
           >
             <div className="flex-shrink-0">
@@ -627,12 +684,12 @@ export default function PrintSmartAiPage() {
         ))}
       </div>
 
-      {/* 1. HEADER & BRANDING BAR WITH BACK BUTTON */}
+      {/* Header and Branding Bar */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push('/shopkeeper/dashboard')}
-            className="mr-3 p-2 hover:bg-slate-100 rounded-xl transition text-slate-600 flex items-center justify-center animate-pulse-slow"
+            className="mr-3 p-2 hover:bg-slate-100 rounded-xl transition text-slate-600 flex items-center justify-center"
             title="Back to Dashboard"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -641,25 +698,31 @@ export default function PrintSmartAiPage() {
           </button>
 
           <div className="bg-[#6366F1]/10 p-2 rounded-xl text-[#6366F1]">
-            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-              <circle cx="12" cy="13" r="4" />
-              <line x1="12" y1="13" x2="12.01" y2="13" strokeWidth="4" />
-            </svg>
+            <Sparkles size={20} className="animate-pulse" />
           </div>
-          <span className="text-xl font-brand tracking-tight text-[#1A1A1A] font-black">PrintSmart</span>
+          <span className="text-xl font-brand tracking-tight text-[#1A1A1A] font-black">AI Marketing Studio</span>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-full px-3.5 py-1.5 text-xs font-bold text-[#6366F1]">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="9" y1="21" x2="9" y2="9" />
-              <line x1="3" y1="9" x2="21" y2="9" />
-            </svg>
             <span>Shop Pro</span>
           </div>
-          <span className="text-xs font-bold text-[#64748B]">Shop ID: 1024</span>
+          <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-2.5 py-1.5 bg-slate-50">
+            <Settings size={14} className="text-slate-500 animate-spin-slow" />
+            <input
+              type="password"
+              placeholder="Gemini API Key..."
+              value={geminiApiKey}
+              onChange={(e) => {
+                const val = e.target.value
+                setGeminiApiKey(val)
+                localStorage.setItem('gemini_api_key', val)
+              }}
+              className="text-[10px] bg-transparent border-none outline-none font-mono w-28 text-slate-700 placeholder-slate-400 focus:ring-0 focus:outline-none"
+              title="Add client-side Gemini API key to override backend setting"
+            />
+          </div>
+          <span className="text-xs font-bold text-[#64748B]">Active Shop: {shopName}</span>
           <div className="h-9 w-9 rounded-full bg-[#6366F1] text-white flex items-center justify-center font-bold text-sm shadow-sm">
             SP
           </div>
@@ -669,12 +732,12 @@ export default function PrintSmartAiPage() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-        {/* A. HERO IMAGE BANNER (TOP OF PAGE) */}
+        {/* Top Hero Image Banner */}
         <div className="w-full relative rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-white">
           <img
             src={TopHeroImage.src}
             alt="PrintSmart AI Studio Hero Banner"
-            className="w-full h-auto object-cover max-h-[300px]"
+            className="w-full h-auto object-cover max-h-[220px]"
           />
         </div>
 
@@ -687,22 +750,22 @@ export default function PrintSmartAiPage() {
             { id: 'social', label: 'Social Media Post', icon: ThumbsUp, desc: 'Create digital square layouts' }
           ].map((tab) => {
             const TabIcon = tab.icon
-            const isActive = activeTab === tab.id
+            const isActive = activeFeature === tab.id
             return (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => handleTabChange(tab.id, t(tab.label))}
+                onClick={() => handleTabChange(tab.id, tab.label)}
                 className={`p-5 rounded-2xl border text-left transition-all ${isActive
-                    ? 'border-[#6366F1] bg-white ring-2 ring-[#6366F1]/20 shadow-md scale-[1.01]'
-                    : 'border-slate-200 bg-white hover:border-slate-300 shadow-sm hover:scale-[1.005]'
+                  ? 'border-[#6366F1] bg-white ring-2 ring-[#6366F1]/20 shadow-md scale-[1.01]'
+                  : 'border-slate-200 bg-white hover:border-slate-300 shadow-sm hover:scale-[1.005]'
                   }`}
               >
                 <div className={`p-2.5 rounded-xl w-fit ${isActive ? 'bg-[#6366F1] text-white' : 'bg-slate-100 text-[#64748B]'}`}>
                   <TabIcon size={20} />
                 </div>
-                <div className="mt-3.5 font-bold text-sm text-[#1A1A1A]">{t(tab.label)}</div>
-                <div className="text-xs font-semibold text-[#64748B] mt-1">{t(tab.desc)}</div>
+                <div className="mt-3.5 font-bold text-sm text-[#1A1A1A]">{tab.label}</div>
+                <div className="text-xs font-semibold text-[#64748B] mt-1">{tab.desc}</div>
               </button>
             )
           })}
@@ -717,13 +780,13 @@ export default function PrintSmartAiPage() {
               addToast('Switched to Manual Creation mode.', 'info')
             }}
             className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all transform hover:scale-[1.01] text-center w-full focus:outline-none ${creationMethod === 'manual'
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-800 shadow-md'
-                : 'border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50/60 text-indigo-700/80 hover:text-indigo-800 shadow-sm'
+              ? 'border-indigo-600 bg-indigo-50 text-indigo-800 shadow-md'
+              : 'border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50/60 text-indigo-700/80 hover:text-indigo-800 shadow-sm'
               }`}
           >
             <span className="text-2xl mb-1.5">⚙️</span>
-            <span className="text-sm font-extrabold">{t('Manual Creation')}</span>
-            <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Configure print layouts step-by-step manually')}</span>
+            <span className="text-sm font-extrabold">Manual Creation</span>
+            <span className="text-[10px] text-slate-400 font-normal mt-0.5">Configure print layouts step-by-step manually</span>
           </button>
 
           <button
@@ -733,20 +796,20 @@ export default function PrintSmartAiPage() {
               addToast('Switched to Chat Prompting mode.', 'info')
             }}
             className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all transform hover:scale-[1.01] text-center w-full focus:outline-none ${creationMethod === 'chat'
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-800 shadow-md'
-                : 'border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50/60 text-indigo-700/80 hover:text-indigo-800 shadow-sm'
+              ? 'border-indigo-600 bg-indigo-50 text-indigo-800 shadow-md'
+              : 'border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50/60 text-indigo-700/80 hover:text-indigo-800 shadow-sm'
               }`}
           >
             <span className="text-2xl mb-1.5">💬</span>
-            <span className="text-sm font-extrabold">{t('Chat Prompting')}</span>
-            <span className="text-[10px] text-slate-400 font-normal mt-0.5">{t('Generate prints and layouts using natural prompts')}</span>
+            <span className="text-sm font-extrabold">Chat Prompting</span>
+            <span className="text-[10px] text-slate-400 font-normal mt-0.5">Generate prints and layouts using natural prompts</span>
           </button>
         </div>
 
-        {/* D. SPLIT LAYOUT WORKSPACE */}
+        {/* Split Layout Workspace */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative">
 
-          {/* LEFT SIDE: CONFIGURATION AREA (Scrolls normally) */}
+          {/* Left Panel: Configuration Form */}
           <div className="lg:col-span-7 space-y-6">
 
             {/* PANEL A: MANUAL CREATION COMPONENT */}
@@ -757,7 +820,7 @@ export default function PrintSmartAiPage() {
               >
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <h2 className="text-lg font-bold text-[#1A1A1A]">
-                    {t('Tell us about what you want to create')}
+                    Tell us about what you want to create
                   </h2>
                   <div className="flex items-center gap-2">
                     <button
@@ -766,7 +829,7 @@ export default function PrintSmartAiPage() {
                       className="text-xs font-bold text-[#6366F1] hover:text-[#8B5CF6] transition flex items-center gap-1.5"
                     >
                       <RotateCcw size={12} />
-                      <span>{t('Reset Form')}</span>
+                      <span>Reset Form</span>
                     </button>
                   </div>
                 </div>
@@ -779,7 +842,7 @@ export default function PrintSmartAiPage() {
                       1
                     </div>
                     <div className="flex-1 space-y-3">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('What do you want to create?')}</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">What do you want to create?</label>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         {['Poster', 'Banner', 'Square Post', 'Custom Size'].map((type) => {
                           const isActive = creationType === type
@@ -792,11 +855,11 @@ export default function PrintSmartAiPage() {
                                 addToast(`Changed format to ${type}!`, 'info')
                               }}
                               className={`py-3 px-2 rounded-xl text-xs font-bold border transition ${isActive
-                                  ? 'bg-[#8B5CF6] text-white border-[#8B5CF6] shadow-sm'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                                ? 'bg-[#8B5CF6] text-white border-[#8B5CF6] shadow-sm'
+                                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                                 }`}
                             >
-                              {t(type)}
+                              {type}
                             </button>
                           )
                         })}
@@ -810,7 +873,7 @@ export default function PrintSmartAiPage() {
                       2
                     </div>
                     <div className="flex-1 space-y-3">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('Target Intent')}</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">What is it for? (Choose one)</label>
                       <div className="flex flex-wrap gap-2">
                         {['Sale / Offer', 'Festival', 'New Arrival', 'Grand Opening', 'Event', 'Other'].map((item) => {
                           const isActive = targetIntent === item
@@ -823,11 +886,11 @@ export default function PrintSmartAiPage() {
                                 addToast(`Set promotional intent to ${item}!`, 'info')
                               }}
                               className={`py-2 px-3.5 rounded-full text-xs font-bold border transition ${isActive
-                                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                                 }`}
                             >
-                              {t(item)}
+                              {item}
                             </button>
                           )
                         })}
@@ -842,7 +905,7 @@ export default function PrintSmartAiPage() {
                     </div>
                     <div className="flex-1 space-y-2">
                       <div className="flex justify-between items-center">
-                        <label className="block text-sm font-bold text-[#1A1A1A]">{t('Headline Text')}</label>
+                        <label className="block text-sm font-bold text-[#1A1A1A]">Main Heading (Headline)</label>
                         <span className="text-[10px] font-bold text-slate-400">
                           {(posterData.headline || '').length}/100
                         </span>
@@ -851,7 +914,7 @@ export default function PrintSmartAiPage() {
                         type="text"
                         value={posterData.headline}
                         onChange={(e) => handleInputChange('headline', e.target.value, 100)}
-                        placeholder={t('Headline Text')}
+                        placeholder="Enter main headline text"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1]"
                       />
                     </div>
@@ -864,7 +927,7 @@ export default function PrintSmartAiPage() {
                     </div>
                     <div className="flex-1 space-y-2">
                       <div className="flex justify-between items-center">
-                        <label className="block text-sm font-bold text-[#1A1A1A]">{t('Subheadline Text')}</label>
+                        <label className="block text-sm font-bold text-[#1A1A1A]">Sub Heading (Subheadline)</label>
                         <span className="text-[10px] font-bold text-slate-400">
                           {(posterData.subheadline || '').length}/100
                         </span>
@@ -873,7 +936,7 @@ export default function PrintSmartAiPage() {
                         type="text"
                         value={posterData.subheadline}
                         onChange={(e) => handleInputChange('subheadline', e.target.value, 100)}
-                        placeholder={t('Subheadline Text')}
+                        placeholder="Enter subheadline text"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1]"
                       />
                     </div>
@@ -887,7 +950,7 @@ export default function PrintSmartAiPage() {
                     <div className="flex-1 space-y-2">
                       <div className="flex justify-between items-center">
                         <label className="block text-sm font-bold text-[#1A1A1A]">
-                          {t('Description / Details')}
+                          Description (Details to display on the poster)
                         </label>
                         <span className="text-[10px] font-bold text-slate-400">
                           {(posterData.description || '').length}/500
@@ -897,7 +960,7 @@ export default function PrintSmartAiPage() {
                         rows={3}
                         value={posterData.description}
                         onChange={(e) => handleInputChange('description', e.target.value, 500)}
-                        placeholder={t('Description / Details')}
+                        placeholder="Describe details for AI poster layout"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] resize-none"
                       />
                     </div>
@@ -911,7 +974,7 @@ export default function PrintSmartAiPage() {
                     <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <label className="block text-xs font-bold text-[#1A1A1A]">{t('Offer / Discount Text')}</label>
+                          <label className="block text-xs font-bold text-[#1A1A1A]">Offer Text</label>
                           <span className="text-[10px] font-bold text-slate-400">
                             {(posterData.offerText || '').length}/50
                           </span>
@@ -920,13 +983,13 @@ export default function PrintSmartAiPage() {
                           type="text"
                           value={posterData.offerText}
                           onChange={(e) => handleInputChange('offerText', e.target.value, 50)}
-                          placeholder={t('Offer / Discount Text')}
+                          placeholder="e.g. 50% OFF / Buy 1 Get 1"
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1]"
                         />
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <label className="block text-xs font-bold text-[#1A1A1A]">{t('Button Call To Action')}</label>
+                          <label className="block text-xs font-bold text-[#1A1A1A]">Call to Action (CTA)</label>
                           <span className="text-[10px] font-bold text-slate-400">
                             {(posterData.cta || '').length}/50
                           </span>
@@ -935,7 +998,7 @@ export default function PrintSmartAiPage() {
                           type="text"
                           value={posterData.cta}
                           onChange={(e) => handleInputChange('cta', e.target.value, 50)}
-                          placeholder={t('Button Call To Action')}
+                          placeholder="e.g. Order Now / Register Today"
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1]"
                         />
                       </div>
@@ -948,7 +1011,7 @@ export default function PrintSmartAiPage() {
                       6
                     </div>
                     <div className="flex-1 space-y-3">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('Select background swatch')}</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">Choose Background</label>
 
                       {/* Categories Microgrid */}
                       <div className="flex flex-wrap gap-1.5 bg-slate-50 border border-slate-200 p-2 rounded-2xl max-h-36 overflow-y-auto">
@@ -960,8 +1023,8 @@ export default function PrintSmartAiPage() {
                               type="button"
                               onClick={() => setSelectedCategory(cat)}
                               className={`py-1.5 px-3 rounded-xl text-xs font-bold border transition ${isActive
-                                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                                 }`}
                             >
                               {cat}
@@ -1010,7 +1073,7 @@ export default function PrintSmartAiPage() {
                       7
                     </div>
                     <div className="flex-1 space-y-3">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('Optional Advanced Integrations')}</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">Optional Advanced Integrations</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                         {/* Option A: Upload Reference */}
@@ -1028,7 +1091,7 @@ export default function PrintSmartAiPage() {
                                 className="absolute inset-0 bg-black/50 text-white flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity font-bold text-xs"
                               >
                                 <Trash2 size={14} />
-                                <span>{t('Delete Order')}</span>
+                                <span>Remove</span>
                               </button>
                             </div>
                           ) : null}
@@ -1043,7 +1106,7 @@ export default function PrintSmartAiPage() {
                           <div className="mx-auto w-fit p-2 rounded-xl bg-slate-200/50 text-slate-500 mb-1.5">
                             <Upload size={18} />
                           </div>
-                          <div className="text-xs font-extrabold text-slate-800">{t('Upload Reference Image')}</div>
+                          <div className="text-xs font-extrabold text-slate-800">Upload Reference (Optional)</div>
                           <div className="text-[10px] font-bold text-slate-400 mt-0.5">PNG, JPG (Max 10MB)</div>
 
                           <div className="text-[9px] font-semibold text-slate-500 mt-2 border-t border-slate-200/60 pt-2">
@@ -1066,7 +1129,7 @@ export default function PrintSmartAiPage() {
                                 className="absolute inset-0 bg-black/50 text-white flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity font-bold text-xs"
                               >
                                 <Trash2 size={14} />
-                                <span>{t('Delete Order')}</span>
+                                <span>Remove</span>
                               </button>
                             </div>
                           ) : null}
@@ -1089,7 +1152,7 @@ export default function PrintSmartAiPage() {
                               <path d="M14 22v.01" />
                             </svg>
                           </div>
-                          <div className="text-xs font-extrabold text-slate-800">{t('Remove Background AI')}</div>
+                          <div className="text-xs font-extrabold text-slate-800">Background Remover (Optional)</div>
                           <div className="text-[10px] font-bold text-slate-400 mt-0.5">Upload image to remove background</div>
 
                           <div className="text-[9px] font-semibold text-slate-500 mt-2 border-t border-slate-200/60 pt-2">
@@ -1107,38 +1170,38 @@ export default function PrintSmartAiPage() {
                       8
                     </div>
                     <div className="flex-1 space-y-4">
-                      <label className="block text-sm font-bold text-[#1A1A1A]">{t('Print Configuration')}</label>
+                      <label className="block text-sm font-bold text-[#1A1A1A]">Print Layout Configuration</label>
 
                       {/* Print Type */}
                       <div className="space-y-1.5">
-                        <span className="text-xs font-bold text-slate-500">{t('Print Type')}</span>
+                        <span className="text-xs font-bold text-slate-500">Print Color Mode</span>
                         <div className="grid grid-cols-2 gap-3">
                           <button
                             type="button"
                             onClick={() => { setPrintType('BW'); addToast('Set manual print to Black & White', 'info') }}
                             className={`py-2.5 px-4 rounded-xl font-bold text-xs transition border-2 ${printType === 'BW'
-                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                               }`}
                           >
-                            {t('Black & White')}
+                            Black &amp; White
                           </button>
                           <button
                             type="button"
                             onClick={() => { setPrintType('COLOR'); addToast('Set manual print to Color', 'info') }}
                             className={`py-2.5 px-4 rounded-xl font-bold text-xs transition border-2 ${printType === 'COLOR'
-                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                               }`}
                           >
-                            {t('Color')}
+                            🎨 Color Print
                           </button>
                         </div>
                       </div>
 
                       {/* Copies control */}
                       <div className="space-y-1.5">
-                        <span className="text-xs font-bold text-slate-500">{t('Copies')}</span>
+                        <span className="text-xs font-bold text-slate-500">Print Copies (Quantity)</span>
                         <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl w-fit border border-slate-200">
                           <button
                             type="button"
@@ -1167,41 +1230,41 @@ export default function PrintSmartAiPage() {
 
                       {/* Paper Sizing */}
                       <div className="space-y-1.5">
-                        <span className="text-xs font-bold text-slate-500">{t('Paper Size')}</span>
+                        <span className="text-xs font-bold text-slate-500">Paper Sizing Option</span>
                         <select
                           value={paperSize}
                           onChange={(e) => setPaperSize(e.target.value)}
                           className="w-full py-2.5 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                           {PAPER_SIZES.map(size => (
-                            <option key={size} value={size}>{t(size)}</option>
+                            <option key={size} value={size}>{size}</option>
                           ))}
                         </select>
                       </div>
 
                       {/* Sides Duplex selection */}
                       <div className="space-y-1.5">
-                        <span className="text-xs font-bold text-slate-500">{t('Print Sides')}</span>
+                        <span className="text-xs font-bold text-slate-500">Print Duplex Sides</span>
                         <div className="grid grid-cols-2 gap-3">
                           <button
                             type="button"
                             onClick={() => setSides('SINGLE')}
                             className={`py-2.5 px-4 rounded-xl font-bold text-xs transition border-2 ${sides === 'SINGLE'
-                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                               }`}
                           >
-                            {t('Single-sided')}
+                            Single-sided
                           </button>
                           <button
                             type="button"
                             onClick={() => setSides('DOUBLE')}
                             className={`py-2.5 px-4 rounded-xl font-bold text-xs transition border-2 ${sides === 'DOUBLE'
-                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                               }`}
                           >
-                            {t('Double-sided')}
+                            Double-sided
                           </button>
                         </div>
                       </div>
@@ -1209,33 +1272,33 @@ export default function PrintSmartAiPage() {
                       {/* Orientation & Print Quality */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <span className="text-xs font-bold text-slate-500">{t('Orientation')}</span>
+                          <span className="text-xs font-bold text-slate-500">Layout Orientation</span>
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
                               onClick={() => setOrientation('PORTRAIT')}
                               className={`py-2 px-1 rounded-lg font-bold text-[10px] transition border-2 text-center flex items-center justify-center gap-1 ${orientation === 'PORTRAIT'
-                                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                 }`}
                             >
-                              {t('Portrait')}
+                              Portrait
                             </button>
                             <button
                               type="button"
                               onClick={() => setOrientation('LANDSCAPE')}
                               className={`py-2 px-1 rounded-lg font-bold text-[10px] transition border-2 text-center flex items-center justify-center gap-1 ${orientation === 'LANDSCAPE'
-                                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                 }`}
                             >
-                              {t('Landscape')}
+                              Landscape
                             </button>
                           </div>
                         </div>
 
                         <div className="space-y-1.5">
-                          <span className="text-xs font-bold text-slate-500">{t('Print Quality')}</span>
+                          <span className="text-xs font-bold text-slate-500">Print Quality Output</span>
                           <div className="grid grid-cols-3 gap-1">
                             {['DRAFT', 'NORMAL', 'HIGH'].map(q => (
                               <button
@@ -1243,11 +1306,11 @@ export default function PrintSmartAiPage() {
                                 key={q}
                                 onClick={() => setQuality(q)}
                                 className={`py-2 px-0.5 rounded-lg font-bold text-[9px] transition border-2 text-center ${quality === q
-                                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                   }`}
                               >
-                                {t(q.charAt(0) + q.slice(1).toLowerCase())}
+                                {q}
                               </button>
                             ))}
                           </div>
@@ -1270,7 +1333,7 @@ export default function PrintSmartAiPage() {
                           className="py-3.5 px-4 border border-slate-200 bg-white hover:bg-slate-50 rounded-2xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5"
                         >
                           <RotateCcw size={14} />
-                          <span>{t('Reset Form')}</span>
+                          <span>Reset</span>
                         </button>
                         <button
                           type="submit"
@@ -1281,12 +1344,12 @@ export default function PrintSmartAiPage() {
                           {isGenerating ? (
                             <>
                               <Loader2 size={14} className="animate-spin text-white" />
-                              <span>{t('Processing...')}</span>
+                              <span>Generating...</span>
                             </>
                           ) : (
                             <>
                               <Sparkles size={14} className="text-yellow-200 animate-pulse" />
-                              <span>{t('Generate Design')}</span>
+                              <span>Generate Poster</span>
                             </>
                           )}
                         </button>
@@ -1312,8 +1375,8 @@ export default function PrintSmartAiPage() {
                       <Sparkles size={18} className="animate-pulse" />
                     </span>
                     <div>
-                      <h2 className="text-base font-bold text-[#1A1A1A]">{t('Conversational AI Print Setup')}</h2>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{t('Ask PrintSmart AI to setup your prints...')}</p>
+                      <h2 className="text-base font-bold text-[#1A1A1A]">AI Conversational Prompting</h2>
+                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Describe what you want to create and let AI configure it</p>
                     </div>
                   </div>
                   <button
@@ -1327,7 +1390,7 @@ export default function PrintSmartAiPage() {
 
                 {/* Example Prompts Shelf */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">{t('Example prompts:')}</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Try these example prompts</label>
                   <div className="flex flex-wrap gap-2">
                     {[
                       { text: "Print 50 black and white thesis pages A4 double sided high quality", icon: "✨" },
@@ -1370,13 +1433,13 @@ export default function PrintSmartAiPage() {
                   )}
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-bold text-[#1A1A1A]">{t('Tell us about what you want to create')}</label>
+                    <label className="block text-sm font-bold text-[#1A1A1A]">What are you printing today?</label>
                     <div className="relative">
                       <textarea
                         rows={3}
                         value={promptText}
                         onChange={(e) => setPromptText(e.target.value)}
-                        placeholder={t('Ask PrintSmart AI to setup your prints...')}
+                        placeholder='Describe your print job requirements (e.g. "Print 50 copies of A4 size wedding invitation cards, double-sided, color mode, with golden festive theme...")'
                         className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-[#1A1A1A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] resize-none"
                       />
                       <button
@@ -1393,7 +1456,7 @@ export default function PrintSmartAiPage() {
 
                   {/* Drag-Drop Upload Area */}
                   <div className="space-y-2">
-                    <label className="block text-sm font-bold text-[#1A1A1A]">{t('Upload Reference Image')} ({t('optional')})</label>
+                    <label className="block text-sm font-bold text-[#1A1A1A]">Upload Supporting Files (Optional)</label>
 
                     <div
                       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
@@ -1416,8 +1479,8 @@ export default function PrintSmartAiPage() {
                       <div className="p-2.5 bg-slate-200/50 text-slate-500 rounded-xl mb-2">
                         <Upload size={18} />
                       </div>
-                      <div className="text-xs font-extrabold text-slate-800">{t('Drag & Drop files here')}</div>
-                      <div className="text-[10px] font-bold text-slate-400 mt-1">{t('or')} {t('Choose Files')}</div>
+                      <div className="text-xs font-extrabold text-slate-800">Drag & Drop Files Here</div>
+                      <div className="text-[10px] font-bold text-slate-400 mt-1">or Click to Browse (PDF, Word, Images up to 10MB)</div>
                     </div>
 
                     {/* Render Uploaded Files in Chat */}
@@ -1457,7 +1520,7 @@ export default function PrintSmartAiPage() {
                       className="py-3.5 px-4 border border-slate-200 bg-white hover:bg-slate-50 rounded-2xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5"
                     >
                       <X size={14} />
-                      <span>{t('Cancel')}</span>
+                      <span>Cancel</span>
                     </button>
                     <button
                       type="submit"
@@ -1468,12 +1531,12 @@ export default function PrintSmartAiPage() {
                       {isGenerating ? (
                         <>
                           <Loader2 size={14} className="animate-spin text-white" />
-                          <span>{t('Processing...')}</span>
+                          <span>Generating...</span>
                         </>
                       ) : (
                         <>
                           <Sparkles size={14} className="text-yellow-200 animate-pulse" />
-                          <span>{t('Generate Design')}</span>
+                          <span>Generate Design</span>
                         </>
                       )}
                     </button>
@@ -1488,7 +1551,7 @@ export default function PrintSmartAiPage() {
                         <span className="p-1 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
                           <Check size={14} strokeWidth={3} />
                         </span>
-                        <span className="text-xs font-bold text-indigo-800">{t('Active')} AI {t('Print Configuration')}</span>
+                        <span className="text-xs font-bold text-indigo-800">Active AI Print Configuration</span>
                       </div>
                       <button
                         onClick={() => {
@@ -1497,34 +1560,34 @@ export default function PrintSmartAiPage() {
                         }}
                         className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition"
                       >
-                        {t('Clear Card', 'Clear Card')}
+                        Clear Card
                       </button>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       <div className="bg-white p-3 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold block mb-0.5">{t('Copies')}</span>
+                        <span className="text-slate-400 font-bold block mb-0.5">Copies Count</span>
                         <span className="font-extrabold text-slate-800 text-sm">{(generatedConfig.headline || '').substring(0, 35)}...</span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold block mb-0.5">{t('Offer / Discount Text')}</span>
+                        <span className="text-slate-400 font-bold block mb-0.5">Offer Text</span>
                         <span className="font-extrabold text-slate-800 text-xs">
                           {generatedConfig.offerText || 'N/A'}
                         </span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold block mb-0.5">{t('Button Call To Action')}</span>
+                        <span className="text-slate-400 font-bold block mb-0.5">CTA Button</span>
                         <span className="font-extrabold text-slate-800 text-xs">{generatedConfig.cta || 'N/A'}</span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-100">
-                        <span className="text-slate-400 font-bold block mb-0.5">{t('Subheadline Text')}</span>
+                        <span className="text-slate-400 font-bold block mb-0.5">Subheadline</span>
                         <span className="font-extrabold text-slate-800 text-[10px] block truncate">
                           {generatedConfig.subheadline || 'N/A'}
                         </span>
                       </div>
                       <div className="bg-white p-3 rounded-xl border border-slate-100 col-span-2 flex justify-between items-center">
                         <div>
-                          <span className="text-slate-400 font-bold block mb-0.5">{t('Theme category')}</span>
+                          <span className="text-slate-400 font-bold block mb-0.5">Theme &amp; Details</span>
                           <span className="font-extrabold text-slate-800 text-[10px] block truncate max-w-[200px]">
                             Theme: {generatedConfig.theme || 'Default'} • {generatedConfig.description ? 'Has description' : 'No description'}
                           </span>
@@ -1538,7 +1601,7 @@ export default function PrintSmartAiPage() {
                           className="text-[10px] font-bold text-[#6366F1] hover:text-[#8b5cf6] flex items-center gap-1 transition"
                         >
                           <Sliders size={11} />
-                          <span>{t('Configure print layouts step-by-step manually', 'Tweak Manually')}</span>
+                          <span>Tweak Manually</span>
                         </button>
                       </div>
                     </div>
@@ -1547,7 +1610,7 @@ export default function PrintSmartAiPage() {
 
                 {/* Prompt History List */}
                 <div className="space-y-3 pt-4 border-t border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('Prompt History')}</h3>
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Prompt Generation History</h3>
 
                   {promptHistory.length === 0 ? (
                     <div className="text-center py-6 border border-slate-100 rounded-2xl bg-slate-50/50">
@@ -1558,7 +1621,7 @@ export default function PrintSmartAiPage() {
                       {promptHistory.map((item) => (
                         <div key={item.id} className="p-3 border border-slate-100 bg-slate-50 rounded-xl space-y-2 hover:bg-slate-100/50 transition">
                           <div className="flex justify-between items-start">
-                            <span className="text-[10px] font-bold text-[#6366F1] bg-[#6366F1]/10 px-2 py-0.5 rounded-md font-brand">{t('AI Poster & Banner Maker')}</span>
+                            <span className="text-[10px] font-bold text-[#6366F1] bg-[#6366F1]/10 px-2 py-0.5 rounded-md font-brand">AI Poster Generated</span>
                             <span className="text-[9px] font-bold text-slate-400">{item.timestamp}</span>
                           </div>
                           <p className="text-xs font-bold text-slate-700 leading-normal font-mono">"{item.text}"</p>
@@ -1603,7 +1666,7 @@ export default function PrintSmartAiPage() {
                               className="text-[10px] font-extrabold text-[#6366F1] hover:text-[#8b5cf6] flex items-center gap-1 transition"
                             >
                               <RefreshCw size={10} />
-                              <span>{t('Apply to Panel', 'Apply to Panel')}</span>
+                              <span>Apply to Panel</span>
                             </button>
                             <button
                               type="button"
@@ -1613,7 +1676,7 @@ export default function PrintSmartAiPage() {
                               }}
                               className="text-[10px] font-extrabold text-slate-400 hover:text-rose-600 transition"
                             >
-                              {t('Delete Order')}
+                              Delete
                             </button>
                           </div>
                         </div>
@@ -1628,7 +1691,7 @@ export default function PrintSmartAiPage() {
             {/* QUICK ACTIONS UTILITY BAR */}
             <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-800">{t('Interactive Controls')}</h3>
+                <h3 className="text-sm font-bold text-slate-800">Quick Configuration Actions</h3>
                 <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Manage generation outputs instantly</p>
               </div>
               <div className="flex gap-2">
@@ -1637,14 +1700,14 @@ export default function PrintSmartAiPage() {
                   onClick={handleReset}
                   className="py-2 px-3.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs shadow-sm transition"
                 >
-                  {t('Reset Form')}
+                  Reset Settings
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveConfiguration}
                   className="py-2 px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition"
                 >
-                  {t('Save Configuration')}
+                  Save Layout
                 </button>
               </div>
             </div>
@@ -1656,7 +1719,7 @@ export default function PrintSmartAiPage() {
             <div className="flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
               <h2 className="text-sm font-bold text-[#1A1A1A] flex items-center gap-1.5">
                 <Sliders size={16} className="text-[#6366F1]" />
-                <span>{t('Canvas Preview')}</span>
+                <span>Live Studio Canvas</span>
               </h2>
               <div className="flex items-center gap-1.5">
                 <div className="flex border border-slate-200 rounded-lg overflow-hidden">
@@ -1683,7 +1746,7 @@ export default function PrintSmartAiPage() {
                   className="flex items-center gap-1 border border-slate-200 bg-white hover:bg-slate-50 px-2 py-1.5 rounded-lg text-xs font-bold text-[#64748B] transition"
                 >
                   <Maximize2 size={12} />
-                  <span>{t('Fit Screen')}</span>
+                  <span>Fit</span>
                 </button>
               </div>
             </div>
@@ -1732,209 +1795,213 @@ export default function PrintSmartAiPage() {
                   </span>
                 </div>
 
-                {/* Middle Section: Subheading tag ribbon */}
-                <div className="z-20 flex flex-col items-center space-y-4 my-auto relative px-2">
-                  <div className="bg-gradient-to-r from-amber-500 to-yellow-400 shadow-lg text-amber-950 font-black text-[10px] md:text-xs tracking-wider uppercase px-4 py-2.5 rounded-md border-b-2 border-amber-600 text-center max-w-full break-words">
-                    {posterData.subheadline || 'SHOP MORE, SAVE MORE'}
+                {/* Preview Panel States */}
+                {!generatedImageUrl && !isGenerating && (
+                  <div className="flex flex-col items-center justify-center p-8 text-center min-h-[480px] border-2 border-dashed border-slate-200 rounded-[28px] bg-slate-50/50">
+                    <div className="p-4 bg-indigo-50 text-indigo-500 rounded-full mb-4 animate-bounce">
+                      <Sparkles size={32} />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-800">Your AI-generated design will appear here</h3>
+                    <p className="text-[10px] font-bold text-slate-500 mt-1 max-w-[240px] leading-relaxed">
+                      Enter your business offer title and click "Generate" to construct a completely custom, professional flyer.
+                    </p>
                   </div>
+                )}
 
-                  {/* Core Promo Fraction Stack */}
-                  <div className="text-center bg-black/40 backdrop-blur-sm border border-white/10 rounded-2xl p-4.5 min-w-[200px] max-w-full">
-                    <div className="text-yellow-300 text-[10px] font-black tracking-widest uppercase">
-                      LIMITED OFFER
+                {isGenerating && (
+                  <div className="flex flex-col items-center justify-center p-8 text-center min-h-[480px] border border-slate-200 rounded-[28px] bg-white shadow-sm space-y-4">
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute w-24 h-24 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
+                      <Sparkles size={32} className="text-indigo-600 animate-pulse" />
                     </div>
-                    <div className="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-400 drop-shadow-md py-1 break-words uppercase leading-tight">
-                      {posterData.offerText || '50% OFF'}
+                    <div className="space-y-2 pt-4">
+                      <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest animate-pulse">
+                        AI Agent Designing
+                      </h3>
+                      <p className="text-xs font-bold text-slate-700">
+                        {loadingTexts[loadingStep]}
+                      </p>
                     </div>
-                    {posterData.description && (
-                      <div className="text-white/70 text-[9px] font-medium leading-relaxed my-1 max-h-16 overflow-hidden text-ellipsis line-clamp-2 px-1">
-                        {posterData.description}
+                    {/* Step indicators */}
+                    <div className="flex justify-center gap-1.5 pt-2">
+                      {loadingTexts.map((_, idx) => (
+                        <div
+                          key={idx}
+                          className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${idx <= loadingStep ? 'bg-indigo-600 w-3' : 'bg-slate-200'
+                            }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {generatedImageUrl && !isGenerating && (
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="w-full relative overflow-hidden bg-slate-100 border border-slate-200 rounded-[28px] flex items-center justify-center p-2 shadow-sm min-h-[480px]">
+                      <img
+                        src={generatedImageUrl}
+                        alt="AI Generated Marketing Design"
+                        className="max-h-[500px] w-auto object-contain rounded-2xl shadow-md"
+                      />
+                      <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md text-white text-[10px] font-black tracking-wider uppercase px-3 py-1.5 rounded-full border border-white/20 flex items-center gap-1">
+                        <Sparkles size={10} className="text-yellow-400" />
+                        <span>✨ Generated by AI</span>
+                      </div>
+                    </div>
+
+                    {/* Processing Overlay loader spinner */}
+                    {isGenerating && (
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white gap-2 transition-all">
+                        <Loader2 size={36} className="animate-spin text-[#6366F1]" />
+                        <span className="text-xs font-black tracking-widest text-[#F8F7FF] uppercase">AI Generating...</span>
                       </div>
                     )}
-                    <div className="text-white/95 text-[9px] font-bold tracking-widest mt-1.5 uppercase flex items-center justify-center gap-1 border-t border-white/10 pt-1.5">
-                      <span>{copies} COPIES</span>
-                      <span>•</span>
-                      <span>{paperSize}</span>
-                      <span>•</span>
-                      <span>{sides === 'DOUBLE' ? 'DUPLEX' : 'SIMPLEX'}</span>
-                    </div>
-                  </div>
-
-                  {/* Call to Action Button */}
-                  {posterData.cta && (
-                    <div className="bg-gradient-to-r from-yellow-400 to-amber-400 text-slate-950 font-black text-[10px] md:text-xs tracking-wider uppercase px-5 py-2.5 rounded-full shadow-lg border-t border-yellow-200 transition transform hover:scale-105 active:scale-95 text-center mt-1 z-20">
-                      {posterData.cta}
-                    </div>
-                  )}
-                </div>
-
-                {/* Base Elements: Diyas & Scarlet shelf */}
-                <div className="z-20 flex flex-col items-center justify-end mt-auto pt-4 relative">
-                  <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-red-950 to-red-900 border-t border-amber-500/20 -mx-6 -mb-6" />
-
-                  <div className="flex items-end justify-center gap-6 relative z-10 pb-1">
-                    {/* Left Diya */}
-                    <div className="flex flex-col items-center">
-                      <div className="w-3 h-5 bg-gradient-to-t from-orange-600 via-yellow-400 to-yellow-100 rounded-full animate-pulse shadow-[0_0_12px_4px_rgba(250,204,21,0.6)]" />
-                      <div className="w-8 h-4 bg-amber-700 rounded-b-full border-t-2 border-amber-800 shadow-md" />
-                    </div>
-
-                    {/* Gift boxes */}
-                    <div className="flex gap-1.5 items-end opacity-90">
-                      <div className="w-7 h-7 bg-red-600 border border-yellow-500 rounded relative shadow-md">
-                        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-yellow-500" />
-                        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 bg-yellow-500" />
-                      </div>
-                      <div className="w-9 h-9 bg-red-700 border border-yellow-500 rounded relative shadow-md">
-                        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-yellow-500" />
-                        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 bg-yellow-500" />
-                      </div>
-                    </div>
-
-                    {/* Right Diya */}
-                    <div className="flex flex-col items-center">
-                      <div className="w-3 h-5 bg-gradient-to-t from-orange-600 via-yellow-400 to-yellow-100 rounded-full animate-pulse shadow-[0_0_12px_4px_rgba(250,204,21,0.6)]" />
-                      <div className="w-8 h-4 bg-amber-700 rounded-b-full border-t-2 border-amber-800 shadow-md" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Processing Overlay loader spinner */}
-                {isGenerating && (
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white gap-2 transition-all">
-                    <Loader2 size={36} className="animate-spin text-[#6366F1]" />
-                    <span className="text-xs font-black tracking-widest text-[#F8F7FF] uppercase">{t('Processing...')}</span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Canvas Action Bar */}
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                onClick={handleDownload}
-                type="button"
-                className="flex items-center justify-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 py-3 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95"
-              >
-                <Download size={14} />
-                <span>{t('Download')}</span>
-              </button>
-              <button
-                onClick={handleShare}
-                type="button"
-                className="flex items-center justify-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 py-3 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95"
-              >
-                <Share2 size={14} />
-                <span>{t('Share QR')}</span>
-              </button>
-
-              {/* Tweak/Configure design mode toggler */}
-              {creationMethod === 'chat' ? (
+              {/* Canvas Action Bar */}
+              <div className="grid grid-cols-3 gap-3">
                 <button
-                  onClick={() => {
-                    setCreationMethod('manual')
-                    addToast('Loaded parameters in Manual setup configurations!', 'success')
-                  }}
+                  onClick={handleDownload}
                   type="button"
-                  className="flex items-center justify-center gap-1.5 bg-indigo-50 border border-indigo-100 text-[#6366F1] hover:bg-indigo-100 py-3 rounded-xl text-xs font-bold shadow-sm transition active:scale-95"
+                  className="flex items-center justify-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 py-3 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95"
                 >
-                  <Sliders size={14} />
-                  <span>{t('Configure printer', 'Configure')}</span>
+                  <Download size={14} />
+                  <span>Download</span>
                 </button>
-              ) : (
                 <button
-                  onClick={handleGeneratePoster}
+                  onClick={handleShare}
                   type="button"
-                  className="flex items-center justify-center gap-1.5 bg-indigo-50 border border-indigo-100 text-[#6366F1] hover:bg-indigo-100 py-3 rounded-xl text-xs font-bold shadow-sm transition active:scale-95"
+                  className="flex items-center justify-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 py-3 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition active:scale-95"
                 >
-                  <RotateCcw size={14} />
-                  <span>{t('Refresh Status', 'Refresh')}</span>
+                  <Share2 size={14} />
+                  <span>Share</span>
                 </button>
-              )}
-            </div>
 
-            {/* Base Footnote Tip Banner */}
-            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm">
-              <span className="text-yellow-500 mt-0.5">💡</span>
-              <p className="text-xs font-semibold text-indigo-950 leading-relaxed">
-                {t('💡 Tip:')} {t('AI Tip: Switch between creation styles above. Conversational prompt generation uses real Groq AI processing to prefill configuration settings!', 'Switch between creation styles above. Conversational prompt generation uses real Groq AI processing to prefill configuration settings!')}
-              </p>
-            </div>
-          </div>
-
-        </div>
-
-        {/* E. RESPONSIVE FOOTER IMAGE BANNER (BOTTOM OF PAGE) */}
-        <div className="w-full mt-8 rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-white">
-          <img
-            src={BottomImage.src}
-            alt="PrintSmart AI Features Bottom Banner"
-            className="w-full h-auto object-cover"
-          />
-        </div>
-
-        {/* F. INSTRUCTIONAL DISCOVERY DOCK */}
-        <div className="bg-white border border-slate-200 rounded-[28px] p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="flex items-center gap-2 text-[#6366F1] pb-4 border-b border-slate-100">
-            <HelpCircle size={20} />
-            <h2 className="text-base font-bold text-[#1A1A1A]">{t('How PrintSmart AI works?', 'How PrintSmart AI works?')}</h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-
-            {/* Milestone Step 1 */}
-            <div className="flex gap-3 items-start">
-              <div className="p-2.5 rounded-xl bg-violet-50 text-[#8B5CF6] flex-shrink-0">
-                <Grid size={18} />
+                {/* Tweak/Configure design mode toggler */}
+                {creationMethod === 'chat' ? (
+                  <button
+                    onClick={() => {
+                      setCreationMethod('manual')
+                      addToast('Loaded parameters in Manual setup configurations!', 'success')
+                    }}
+                    type="button"
+                    className="flex items-center justify-center gap-1.5 bg-indigo-50 border border-indigo-100 text-[#6366F1] hover:bg-indigo-100 py-3 rounded-xl text-xs font-bold shadow-sm transition active:scale-95"
+                  >
+                    <Sliders size={14} />
+                    <span>Configure</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleGeneratePoster}
+                    type="button"
+                    className="flex items-center justify-center gap-1.5 bg-indigo-50 border border-indigo-100 text-[#6366F1] hover:bg-indigo-100 py-3 rounded-xl text-xs font-bold shadow-sm transition active:scale-95"
+                  >
+                    <RotateCcw size={14} />
+                    <span>Refresh</span>
+                  </button>
+                )}
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-[#1A1A1A]">{t('1. Choose Creation Method', '1. Choose Creation Method')}</h3>
-                <p className="text-xs text-[#64748B] font-semibold mt-1">{t('Configure layout options manually or converse using AI prompting', 'Configure layout options manually or converse using AI prompting')}</p>
-              </div>
-            </div>
 
-            {/* Milestone Step 2 */}
-            <div className="flex gap-3 items-start">
-              <div className="p-2.5 rounded-xl bg-violet-50 text-[#8B5CF6] flex-shrink-0">
-                <ClipboardCheck size={18} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-[#1A1A1A]">{t('2. Attach Files & Details', '2. Attach Files & Details')}</h3>
-                <p className="text-xs text-[#64748B] font-semibold mt-1">{t('Provide sample attachments or descriptions to assist the generation process', 'Provide sample attachments or descriptions to assist the generation process')}</p>
-              </div>
-            </div>
-
-            {/* Milestone Step 3 */}
-            <div className="flex gap-3 items-start">
-              <div className="p-2.5 rounded-xl bg-violet-50 text-[#8B5CF6] flex-shrink-0">
-                <Sparkles size={18} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-[#1A1A1A]">{t('3. AI Computes Layout', '3. AI Computes Layout')}</h3>
-                <p className="text-xs text-[#64748B] font-semibold mt-1">{t('AI engine parses parameters, matches colors, and renders typography instantly', 'AI engine parses parameters, matches colors, and renders typography instantly')}</p>
-              </div>
-            </div>
-
-            {/* Milestone Step 4 */}
-            <div className="flex gap-3 items-start">
-              <div className="p-2.5 rounded-xl bg-violet-50 text-[#8B5CF6] flex-shrink-0">
-                <Download size={18} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-[#1A1A1A]">{t('4. Instant Download', '4. Instant Download')}</h3>
-                <p className="text-xs text-[#64748B] font-semibold mt-1">{t('Download your high-resolution layout and proceed to printing queues', 'Download your high-resolution layout and proceed to printing queues')}</p>
+              {/* Base Footnote Tip Banner */}
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm">
+                <span className="text-yellow-500 mt-0.5">💡</span>
+                <p className="text-xs font-semibold text-indigo-950 leading-relaxed">
+                  AI Tip: Switch between creation styles above. Conversational prompt generation uses real Groq AI processing to prefill configuration settings!
+                </p>
               </div>
             </div>
 
           </div>
-        </div>
 
-        {/* G. SUB-FOOTER CREDITS */}
-        <div className="text-center text-xs font-bold text-[#64748B] pt-4">
-          {t('Powered by PrintSmart AI  •  Made for Indian Print Shops 💜', 'Powered by PrintSmart AI  •  Made for Indian Print Shops 💜')}
-        </div>
+          {/* Responsive Footer Image Banner */}
+          <div className="w-full mt-8 rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-white">
+            <img
+              src={BottomImage.src}
+              alt="PrintSmart AI Features Bottom Banner"
+              className="w-full h-auto object-cover"
+            />
+          </div>
+
+          {/* Instructional Discovery Dock */}
+          <div className="bg-white border border-slate-200 rounded-[28px] p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex items-center gap-2 text-[#6366F1] pb-4 border-b border-slate-100">
+              <HelpCircle size={20} />
+              <h2 className="text-base font-bold text-[#1A1A1A]">How PrintSmart AI works?</h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="flex gap-3 items-start">
+                <div className="p-2.5 rounded-xl bg-violet-50 text-[#8B5CF6] flex-shrink-0">
+                  <Grid size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#1A1A1A]">1. Choose Creation Method</h3>
+                  <p className="text-xs text-[#64748B] font-semibold mt-1">Configure layout options manually or converse using AI prompting</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 items-start">
+                <div className="p-2.5 rounded-xl bg-violet-50 text-[#8B5CF6] flex-shrink-0">
+                  <ClipboardCheck size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#1A1A1A]">2. Attach Files &amp; Details</h3>
+                  <p className="text-xs text-[#64748B] font-semibold mt-1">Provide sample attachments or descriptions to assist the generation process</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 items-start">
+                <div className="p-2.5 rounded-xl bg-violet-50 text-[#8B5CF6] flex-shrink-0">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#1A1A1A]">3. AI Computes Layout</h3>
+                  <p className="text-xs text-[#64748B] font-semibold mt-1">AI engine parses parameters, matches colors, and renders typography instantly</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 items-start">
+                <div className="p-2.5 rounded-xl bg-violet-50 text-[#8B5CF6] flex-shrink-0">
+                  <Download size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#1A1A1A]">4. Instant Download</h3>
+                  <p className="text-xs text-[#64748B] font-semibold mt-1">Download your high-resolution layout and proceed to printing queues</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-Footer Credits */}
+          <div className="text-center text-xs font-bold text-[#64748B] pt-4">
+            Powered by PrintSmart AI  •  Made for Indian Print Shops 💜
+          </div>
 
       </main>
+    </div>
+  )
+}
+
+function MandalaPattern() {
+  return (
+    <div className="absolute inset-0 opacity-10 pointer-events-none flex items-center justify-center">
+      <svg className="w-64 h-64 text-yellow-200 animate-spin-slow" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="0.5">
+        <circle cx="50" cy="50" r="40" />
+        <circle cx="50" cy="50" r="30" />
+        <circle cx="50" cy="50" r="20" />
+        {[...Array(12)].map((_, i) => (
+          <line
+            key={i}
+            x1="50"
+            y1="50"
+            x2={50 + 40 * Math.cos((i * Math.PI) / 6)}
+            y2={50 + 40 * Math.sin((i * Math.PI) / 6)}
+          />
+        ))}
+      </svg>
     </div>
   )
 }

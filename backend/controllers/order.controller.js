@@ -81,14 +81,35 @@ exports.createOrder = async (req, res) => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    // Count existing monthly printed files to initialize the sequence counter
-    let thisMonthOrderCount = await prisma.orderFile.count({
+    // Find the latest order file this month to get the last sequence number
+    const lastOrderFile = await prisma.orderFile.findFirst({
       where: {
         order: {
           createdAt: { gte: startOfMonth, lt: endOfMonth }
         }
-      }
+      },
+      orderBy: { createdAt: "desc" }
     });
+
+    let lastSequence = 0;
+    if (lastOrderFile && lastOrderFile.customFileName) {
+      if (lastOrderFile.customFileName.includes('|')) {
+        try {
+          const parts = lastOrderFile.customFileName.split('|');
+          const parsedConfig = JSON.parse(parts[1]);
+          if (parsedConfig && parsedConfig.orderId) {
+            const match = parsedConfig.orderId.match(/P(BW|C)(\d+)$/);
+            if (match) {
+              lastSequence = parseInt(match[2], 10);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse last order file sequence from db:", e);
+        }
+      }
+    }
+
+    let thisMonthOrderCount = lastSequence;
 
     // 1. Generate sequential unique Order IDs for all items in the batch
     const fileOrderIds = [];
@@ -139,9 +160,57 @@ exports.createOrder = async (req, res) => {
     for (const item of items) {
       totalAmt += parseFloat(item.price) || 0.0;
     }
+
+    // Determine Scratch Card Reward instantly on order creation
+    let rewardType = null;
+    let rewardMessage = null;
+    let discountAmt = 0.0;
+
+    // Check eligibility
+    const isEligibleBW = items.length === 1 && 
+      (items[0].config?.copies ? parseInt(items[0].config.copies) : 1) === 1 && 
+      (items[0].config?.printType?.toUpperCase() === 'BW' || items[0].config?.printType?.toUpperCase() === 'B&W');
+      
+    const isEligibleColor = items.length === 1 && 
+      (items[0].config?.copies ? parseInt(items[0].config.copies) : 1) === 1 && 
+      (items[0].config?.printType?.toUpperCase() === 'COLOR');
+
+    if (isEligibleBW) {
+      // 1% probability for FREE_PRINT
+      if (Math.random() < 0.01) {
+        rewardType = 'FREE_PRINT';
+        rewardMessage = 'Congratulations! Your current black & white print order is FREE.';
+        discountAmt = totalAmt;
+      }
+    } else if (isEligibleColor) {
+      // 0.50% probability for HALF_PRICE_COLOR
+      if (Math.random() < 0.005) {
+        rewardType = 'HALF_PRICE_COLOR';
+        rewardMessage = 'Congratulations! 50% OFF has been applied to your current color print order.';
+        discountAmt = totalAmt * 0.5;
+      }
+    }
+
+    // If not winning or not eligible, select non-monetary (50/50 split)
+    if (!rewardType) {
+      const csvService = require("../services/csv.service");
+      const rand = Math.random();
+      if (rand < 0.5) {
+        rewardType = 'DID_YOU_KNOW';
+        const record = csvService.getRandomDidYouKnow();
+        rewardMessage = record ? JSON.stringify(record) : "Did you know? Facts are interesting!";
+      } else {
+        rewardType = 'ASTROLOGY';
+        const record = csvService.getRandomAstrology();
+        rewardMessage = record ? JSON.stringify(record) : "Astrology: Cosmic advice for you!";
+      }
+      discountAmt = 0.0;
+    }
+
+    const orderTotal = totalAmt - discountAmt;
     const taxRate = 0.18; // 18% GST
-    const subtotalAmt = totalAmt / (1 + taxRate);
-    const taxAmt = totalAmt - subtotalAmt;
+    const subtotalAmt = orderTotal / (1 + taxRate);
+    const taxAmt = orderTotal - subtotalAmt;
 
     // 5. Create the single unified Order
     const order = await prisma.order.create({
@@ -155,12 +224,20 @@ exports.createOrder = async (req, res) => {
         price: totalAmt,
         subtotal: subtotalAmt,
         tax: taxAmt,
-        discount: 0,
-        totalAmount: totalAmt,
+        discount: discountAmt,
+        totalAmount: orderTotal,
         status: "PENDING",
         estimatedTime,
       },
     });
+
+    // Pre-create the reward log entry instantly during order placement
+    try {
+      const rewardController = require("./reward.controller");
+      await rewardController.generateReward(order.id, targetShopkeeperId, rewardType, rewardMessage);
+    } catch (rewardErr) {
+      console.error("Failed to pre-create reward during order placement:", rewardErr);
+    }
 
     // 6. Create PrintConfiguration linked to Order using the last item's configuration
     const printConfig = await prisma.printConfiguration.create({
@@ -233,8 +310,8 @@ exports.createOrder = async (req, res) => {
         printConfig,
         subtotal: subtotalAmt,
         tax: taxAmt,
-        discount: 0,
-        totalAmount: totalAmt,
+        discount: discountAmt,
+        totalAmount: orderTotal,
         createdAt: order.createdAt,
       };
 
@@ -248,8 +325,8 @@ exports.createOrder = async (req, res) => {
           pdfUrl: invoiceResult.pdfUrl,
           subtotal: subtotalAmt,
           tax: taxAmt,
-          discount: 0,
-          totalAmount: totalAmt,
+          discount: discountAmt,
+          totalAmount: orderTotal,
         },
       });
     } catch (invErr) {
@@ -275,6 +352,7 @@ exports.createOrder = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        paymentLog: true,
       },
     });
 
@@ -284,6 +362,13 @@ exports.createOrder = async (req, res) => {
     });
   } catch (err) {
     console.error("Create order controller error:", err);
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      fs.writeFileSync(path.join(__dirname, "..", "order-error.log"), `${new Date().toISOString()}\n${err.stack}\n\n`, { flag: "a" });
+    } catch (logErr) {
+      console.error("Failed to write order error log:", logErr);
+    }
     res.status(500).json({ message: "Server error placing order", error: err.message });
   }
 };
@@ -304,6 +389,8 @@ exports.getCustomerOrders = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        rewardLog: true,
+        paymentLog: true,
         shopkeeper: {
           select: {
             shopName: true,
@@ -345,6 +432,7 @@ exports.getShopkeeperOrders = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        paymentLog: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -395,6 +483,7 @@ exports.updateOrderStatus = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        paymentLog: true,
       },
     });
 
@@ -408,6 +497,16 @@ exports.updateOrderStatus = async (req, res) => {
         where: { orderId: id },
         data: { status: queueStatus },
       });
+    }
+
+    // Generate reward card automatically on order completion
+    if (statusEnum === "COMPLETED") {
+      try {
+        const rewardController = require("./reward.controller");
+        await rewardController.generateReward(id, order.shopkeeperId);
+      } catch (err) {
+        console.error("Failed to generate reward automatically on order completion:", err);
+      }
     }
 
     res.json({
@@ -433,6 +532,7 @@ exports.getOrderById = async (req, res) => {
         queue: true,
         invoice: true,
         shopkeeper: true,
+        paymentLog: true,
       },
     });
 
@@ -446,6 +546,7 @@ exports.getOrderById = async (req, res) => {
           queue: true,
           invoice: true,
           shopkeeper: true,
+          paymentLog: true,
         },
       });
 
@@ -559,6 +660,7 @@ exports.updateOrderStatusByCustomer = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
+        paymentLog: true,
       },
     });
 

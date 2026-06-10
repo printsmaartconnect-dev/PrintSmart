@@ -83,9 +83,12 @@ const REWARDS = [
   }
 ]
 
-export default function RewardCardModal({ onClose }) {
+export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
   const { t } = useTranslation()
   const [reward, setReward] = useState(null)
+  const [dbReward, setDbReward] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [scratchRevealed, setScratchRevealed] = useState(false)
   const [isScratching, setIsScratching] = useState(false)
   const canvasRef = useRef(null)
@@ -93,11 +96,153 @@ export default function RewardCardModal({ onClose }) {
   const animationFrameId = useRef(null)
   const sparklesRef = useRef([])
 
-  // Choose a random reward card on component mount
+  // Load reward details from database
   useEffect(() => {
-    const randomIndex = Math.floor(Math.random() * REWARDS.length)
-    setReward(REWARDS[randomIndex])
-  }, [])
+    if (!orderId) {
+      setError("No Order ID provided")
+      setLoading(false)
+      return
+    }
+
+    const fetchReward = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/rewards/order/${orderId}`)
+        if (!response.ok) {
+          throw new Error('Failed to load scratch card details')
+        }
+        const data = await response.json()
+        setDbReward(data)
+        if (data) {
+          setScratchRevealed(data.scratched)
+          
+          // Map DB reward type to UI reward details
+          let uiReward = null
+          if (data.rewardType === 'FREE_PRINT') {
+            uiReward = {
+              type: "free_print",
+              category: "monetary",
+              statusTag: "🎉 Congratulations!",
+              badgeText: "YOU WON",
+              message: "1 FREE PRINT",
+              description: data.rewardMessage || "You won 1 Free Black & White print page!",
+              footerText: "Reward applied automatically",
+              icon: Printer,
+              themeColor: "green",
+              gradientClass: "from-emerald-400 to-green-500",
+              bgLight: "bg-emerald-50",
+              borderClass: "border-emerald-200",
+              textClass: "text-emerald-700",
+              tagClass: "bg-emerald-100 text-emerald-800 border-emerald-200",
+              buttonText: "Awesome!",
+              buttonClass: "bg-emerald-600 hover:bg-emerald-700 hover:shadow-emerald-200"
+            }
+          } else if (data.rewardType === 'DISCOUNT_50' || data.rewardType === 'HALF_PRICE_COLOR') {
+            uiReward = {
+              type: "discount",
+              category: "monetary",
+              statusTag: "🎉 Congratulations!",
+              badgeText: "YOU WON",
+              message: "50% OFF",
+              description: data.rewardMessage || "You got a 50% discount on your print order!",
+              footerText: "Reward applied automatically",
+              icon: Percent,
+              themeColor: "blue",
+              gradientClass: "from-blue-400 to-indigo-500",
+              bgLight: "bg-blue-50",
+              borderClass: "border-blue-200",
+              textClass: "text-blue-700",
+              tagClass: "bg-blue-100 text-blue-800 border-blue-200",
+              buttonText: "Awesome!",
+              buttonClass: "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200"
+            }
+          } else if (data.rewardType === 'ASTROLOGY') {
+            let desc = data.rewardMessage;
+            let sub = "Cosmic Advice";
+            let cat = "🔮 Astrology Insight";
+            if (data.rewardMessage && data.rewardMessage.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(data.rewardMessage);
+                desc = parsed.scratch_text || parsed.scratchtext || parsed.scratchText || parsed.message || parsed.description || data.rewardMessage;
+                sub = parsed.type || parsed.sub_category || parsed.subcategory || parsed.subCategory || sub;
+                cat = parsed.category ? `🔮 ${parsed.category}` : cat;
+              } catch (e) {
+                console.error("Failed parsing astrology rewardMessage JSON:", e);
+              }
+            }
+            uiReward = {
+              type: "astrology",
+              category: "non-monetary",
+              statusTag: cat,
+              badgeText: "TODAY'S INSIGHT",
+              message: sub,
+              description: desc,
+              footerText: "Keep shining bright",
+              icon: Moon,
+              themeColor: "purple",
+              gradientClass: "from-purple-400 to-violet-500",
+              bgLight: "bg-purple-50",
+              borderClass: "border-purple-200",
+              textClass: "text-purple-700",
+              tagClass: "bg-purple-100 text-purple-800 border-purple-200",
+              buttonText: "Thanks!",
+              buttonClass: "bg-purple-600 hover:bg-purple-700 hover:shadow-purple-200"
+            }
+          } else { // DID_YOU_KNOW
+            let desc = data.rewardMessage;
+            let sub = "Fun Fact";
+            let cat = "💡 Did You Know?";
+            let refLink = null;
+            let srcName = "";
+            if (data.rewardMessage && data.rewardMessage.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(data.rewardMessage);
+                desc = parsed.scratch_text || parsed.scratchtext || parsed.scratchText || parsed.message || parsed.description || data.rewardMessage;
+                sub = parsed.sub_category || parsed.subcategory || parsed.subCategory || parsed.type || sub;
+                cat = parsed.category ? `💡 ${parsed.category}` : cat;
+                refLink = parsed.reference_link || parsed.referencelink || parsed.referenceLink || parsed.link || null;
+                srcName = parsed.source_name || parsed.sourcename || parsed.sourceName || parsed.source || refLink || "";
+              } catch (e) {
+                console.error("Failed parsing did_you_know rewardMessage JSON:", e);
+              }
+            }
+            uiReward = {
+              type: "fact",
+              category: "non-monetary",
+              statusTag: cat,
+              badgeText: "USEFUL INFO",
+              message: sub,
+              description: desc,
+              referenceLink: refLink,
+              sourceName: srcName,
+              footerText: "Knowledge is power",
+              icon: Lightbulb,
+              themeColor: "orange",
+              gradientClass: "from-amber-400 to-orange-500",
+              bgLight: "bg-orange-50",
+              borderClass: "border-orange-200",
+              textClass: "text-orange-700",
+              tagClass: "bg-orange-100 text-orange-800 border-orange-200",
+              buttonText: "Got It",
+              buttonClass: "bg-orange-500 hover:bg-orange-600 hover:shadow-orange-200"
+            }
+          }
+          setReward(uiReward)
+        } else {
+          setError("No reward card is available for this order.")
+        }
+      } catch (err) {
+        console.error("Error fetching reward card:", err)
+        setError("Could not load scratch card. Please try again.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchReward()
+  }, [orderId])
 
   // Canvas Scratching & Sparkles rendering
   useEffect(() => {
@@ -200,6 +345,19 @@ export default function RewardCardModal({ onClose }) {
         setIsScratching(false)
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         triggerConfetti()
+
+        // Notify backend that reward is scratched
+        if (dbReward && dbReward.id) {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+          fetch(`${apiUrl}/api/rewards/${dbReward.id}/scratch`, {
+            method: 'POST',
+          })
+            .then(res => res.json())
+            .then(updated => {
+              if (onRewardApplied) onRewardApplied(updated)
+            })
+            .catch(err => console.error("Error scratching reward in backend:", err))
+        }
       }
     }
 
@@ -253,7 +411,7 @@ export default function RewardCardModal({ onClose }) {
       window.removeEventListener('touchend', handleTouchEnd)
       canvas.removeEventListener('touchmove', handleTouchMove)
     }
-  }, [reward, scratchRevealed])
+  }, [reward, scratchRevealed, dbReward])
 
   // Custom particle confetti and scratch sparkles render loop
   const triggerConfetti = () => {
@@ -392,7 +550,45 @@ export default function RewardCardModal({ onClose }) {
     }
   }, [scratchRevealed])
 
-  if (!reward) return null
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+        <div className="bg-white rounded-[32px] p-8 max-w-sm w-full relative overflow-hidden flex flex-col items-center justify-center text-center shadow-2xl">
+          <div className="w-12 h-12 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin mb-4" />
+          <p className="text-sm font-semibold text-slate-600">{t('Loading reward details...')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !reward) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+        <div className="bg-white rounded-[32px] p-6 max-w-sm w-full relative overflow-hidden flex flex-col items-center justify-center text-center shadow-2xl border border-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition p-1.5 rounded-full hover:bg-slate-50"
+            aria-label="Close modal"
+          >
+            <X size={20} />
+          </button>
+          <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-4">
+            <X size={24} />
+          </div>
+          <p className="text-sm font-bold text-slate-800 mb-2">{t('Scratch Card Unavailable')}</p>
+          <p className="text-xs text-slate-500 mb-5 leading-relaxed">{t(error || 'This order does not have a reward card available.')}</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
+          >
+            {t('Close')}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const RewardIcon = reward.icon
 
@@ -458,9 +654,20 @@ export default function RewardCardModal({ onClose }) {
           </h2>
 
           {/* 5. Description Text */}
-          <p className="text-xs text-slate-500 font-medium px-4 mb-6 leading-relaxed">
-            {t(reward.description)}
-          </p>
+          <div className="text-xs text-slate-500 font-medium px-4 mb-6 leading-relaxed">
+            <p className={reward.referenceLink ? "mb-2" : ""}>{t(reward.description)}</p>
+            {reward.referenceLink && (
+              <a
+                href={reward.referenceLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
+              >
+                <span>Source: {reward.sourceName || 'Link'}</span>
+                <span className="text-[10px]">↗</span>
+              </a>
+            )}
+          </div>
 
           {/* 6. Footer Mini Card */}
           <div className="w-full bg-white/70 border border-slate-100 rounded-xl p-3 flex items-center justify-center gap-2 text-[11px] font-bold text-slate-600 shadow-sm">

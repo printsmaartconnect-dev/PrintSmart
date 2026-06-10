@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const sessionService = require("../services/session.service");
 
-module.exports = function (req, res, next) {
+module.exports = async function (req, res, next) {
   // Get token from header
   const authHeader = req.header("Authorization");
 
@@ -15,7 +15,8 @@ module.exports = function (req, res, next) {
     
     // Enforce concurrent login limit for shopkeeper
     if (decoded.shopkeeper && decoded.shopkeeper.id) {
-      if (!sessionService.isSessionActive(decoded.shopkeeper.id, token)) {
+      const active = await sessionService.isSessionActive(decoded.shopkeeper.id, token);
+      if (!active) {
         return res.status(401).json({ 
           message: "Session limit exceeded. You have been logged out because you logged in on another device." 
         });
