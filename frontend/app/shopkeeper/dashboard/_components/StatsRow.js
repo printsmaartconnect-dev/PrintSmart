@@ -41,7 +41,7 @@ function StatCard({ label, count, tone }) {
   const Icon = cfg.icon
 
   return (
-    <div className="rounded-2xl bg-white shadow-sm border border-slate-200 p-5">
+    <div className="rounded-2xl bg-white shadow-sm border border-slate-200 p-5 min-w-[220px] md:min-w-0 flex-shrink-0 md:flex-shrink">
       <div className="flex items-center gap-3">
         <span className={`flex h-12 w-12 items-center justify-center rounded-2xl border ${cfg.ring}`}>
           <Icon size={20} className={cfg.iconColor} />
@@ -58,7 +58,7 @@ function StatCard({ label, count, tone }) {
 
 export default function StatsRow({ stats }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+    <div className="flex flex-row overflow-x-auto gap-5 pb-4 md:grid md:grid-cols-2 xl:grid-cols-4 md:pb-0 no-scrollbar">
       {stats.map((s) => (
         <StatCard key={s.key} label={s.label} count={s.count} tone={s.tone} />
       ))}

@@ -13,9 +13,86 @@ const statisticsRoutes = require("./routes/statistics.routes");
 const userRoutes = require("./routes/user.routes");
 const shopkeeperRoutes = require("./routes/shopkeeper.routes");
 const adminRoutes = require("./routes/admin.routes");
+const aiRoutes = require("./routes/ai.routes");
+const rewardRoutes = require("./routes/reward.routes");
+const paymentRoutes = require("./routes/payment.routes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Auto-install xlsx and convert Excel to CSV on startup
+const { exec } = require('child_process');
+const backendDir = path.resolve(__dirname);
+
+function runExcelConversion() {
+  try {
+    const XLSX = require('xlsx');
+    const excelPath = path.join(backendDir, 'Card', 'Do You Know,Astrology.xlsx');
+    if (!fs.existsSync(excelPath)) {
+      console.error('Excel file not found at:', excelPath);
+      return;
+    }
+
+    const workbook = XLSX.readFile(excelPath);
+    console.log('Excel Sheets found:', workbook.SheetNames);
+    
+    const didYouKnowSheetName = workbook.SheetNames.find(s => {
+      const clean = s.toLowerCase().replace(/[\s_-]/g, '');
+      return clean === 'doyouknow' || clean === 'didyouknow';
+    });
+    const astrologySheetName = workbook.SheetNames.find(s => {
+      const clean = s.toLowerCase().replace(/[\s_-]/g, '');
+      return clean === 'astrology';
+    });
+    
+    const targetDir = path.join(backendDir, 'assets', 'csv');
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    
+    if (didYouKnowSheetName) {
+      const sheet = workbook.Sheets[didYouKnowSheetName];
+      const csvContent = XLSX.utils.sheet_to_csv(sheet);
+      fs.writeFileSync(path.join(targetDir, 'did_you_know.csv'), csvContent, 'utf8');
+      console.log('Successfully extracted did_you_know.csv from Excel sheet:', didYouKnowSheetName);
+    } else {
+      console.warn('Do You Know sheet not found in Excel. Sheet names:', workbook.SheetNames);
+    }
+    
+    if (astrologySheetName) {
+      const sheet = workbook.Sheets[astrologySheetName];
+      const csvContent = XLSX.utils.sheet_to_csv(sheet);
+      fs.writeFileSync(path.join(targetDir, 'astrology.csv'), csvContent, 'utf8');
+      console.log('Successfully extracted astrology.csv from Excel sheet:', astrologySheetName);
+    } else {
+      console.warn('Astrology sheet not found in Excel. Sheet names:', workbook.SheetNames);
+    }
+    
+    // Trigger CSV loader update
+    try {
+      const csvService = require("./services/csv.service");
+      csvService.loadCSVFiles();
+    } catch (loadErr) {
+      console.error('Error reloading CSV files:', loadErr);
+    }
+  } catch (err) {
+    console.error('Failed to convert Excel to CSV:', err);
+  }
+}
+
+if (!fs.existsSync(path.join(backendDir, 'node_modules', 'xlsx'))) {
+  console.log('xlsx library not found. Auto-installing xlsx package...');
+  exec('npm install xlsx', { cwd: backendDir }, (err, stdout, stderr) => {
+    if (err) {
+      console.error('Auto-installation of xlsx failed:', err);
+    } else {
+      console.log('xlsx installed successfully.');
+      runExcelConversion();
+    }
+  });
+} else {
+  runExcelConversion();
+}
 
 // Enable CORS
 app.use(cors());
@@ -42,6 +119,9 @@ app.use("/api/statistics", statisticsRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/shopkeeper", shopkeeperRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/rewards", rewardRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -66,7 +146,7 @@ app.use((err, req, res, next) => {
 // Start listening
 app.listen(PORT, async () => {
   console.log(`PrintSmart backend running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`);
-  
+
   // DNS Diagnostics
   try {
     const dns = require('dns');
@@ -77,19 +157,6 @@ app.listen(PORT, async () => {
   } catch (dnsErr) {
     console.error('DNS test setup failed:', dnsErr.message);
   }
-
-  // Programmatic DB schema sync commented out to avoid DNS/IPv6 startup conflicts
-  /*
-  try {
-    const { execSync } = require("child_process");
-    console.log("Syncing database schema and generating Prisma client...");
-    execSync("npx prisma db push --accept-data-loss", { stdio: "inherit" });
-    execSync("npx prisma generate", { stdio: "inherit" });
-    console.log("Prisma client generated and DB synchronized.");
-  } catch (syncErr) {
-    console.warn("Prisma schema sync failed:", syncErr.message);
-  }
-  */
 
   // Seed default shopkeeper details on start
   try {

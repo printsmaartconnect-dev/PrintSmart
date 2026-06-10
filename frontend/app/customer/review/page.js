@@ -9,6 +9,7 @@ import FeedbackButton from '../../components/FeedbackButton'
 import FeedbackLink from '../../components/FeedbackLink'
 import DocumentPreview from '../../components/customer/DocumentPreview'
 import { getActiveShop } from '../../../lib/shop-context'
+import { formatCurrency } from '../../../lib/currency'
 
 export default function ReviewPage() {
   const { t } = useTranslation()
@@ -188,6 +189,16 @@ export default function ReviewPage() {
       }
 
       const result = await response.json()
+      const primaryOrder = result.orders?.[0]
+      if (primaryOrder) {
+        localStorage.setItem('currentOrder', JSON.stringify({
+          orderId: primaryOrder.orderId,
+          estimatedTime: primaryOrder.estimatedTime,
+          price: primaryOrder.totalAmount !== undefined ? primaryOrder.totalAmount.toFixed(2) : (primaryOrder.price !== undefined ? primaryOrder.price.toFixed(2) : '0.00'),
+          shopName: shopDetails?.shopName || localStorage.getItem('activeShopName') || 'Smart Print Station'
+        }))
+      }
+
       const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
       if (isShopkeeper) {
         router.push('/shopkeeper/dashboard')
@@ -211,7 +222,7 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="wave-bg min-h-screen flex flex-col items-center justify-start px-4 sm:px-6 lg:px-10 py-8 lg:py-10">
+    <div className="wave-bg min-h-screen flex flex-col items-center justify-start px-4 sm:px-6 lg:px-10 py-8 lg:py-10 pb-28 md:pb-10">
       {/* Step Header */}
       <div className="w-full max-w-5xl mb-8">
         <div className="step-header">
@@ -289,7 +300,7 @@ export default function ReviewPage() {
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <span className="font-bold text-gray-900 font-brand">₹{calculateItemPrice(item).toFixed(2)}</span>
+                <span className="font-bold text-gray-900 font-brand">{formatCurrency(calculateItemPrice(item))}</span>
               </div>
             </div>
           ))}
@@ -299,16 +310,16 @@ export default function ReviewPage() {
         <div className="bg-slate-50 p-5 rounded-xl border border-gray-200 mb-8 space-y-3 text-sm">
           <div className="flex justify-between items-center text-gray-700 font-medium">
             <span>{t('Subtotal')}</span>
-            <span>₹{subtotal.toFixed(2)}</span>
+            <span>{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between items-center pt-3 border-t border-gray-200 font-bold text-lg text-gray-900">
             <span>{t('Total Cost')}</span>
-            <span>₹{total.toFixed(2)}</span>
+            <span>{formatCurrency(total)}</span>
           </div>
         </div>
 
         {/* Place Order Button */}
-        <div className="max-w-md mx-auto space-y-3">
+        <div className="max-w-md mx-auto space-y-3 hidden md:block">
           <button
             onClick={handlePlaceOrder}
             disabled={loading || !shopDetails}
@@ -327,6 +338,21 @@ export default function ReviewPage() {
             <FeedbackLink />
           </div>
         </div>
+      </div>
+
+      {/* Sticky Bottom Bar for Mobile Screen sizes */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40 shadow-lg flex items-center justify-between md:hidden pb-safe">
+        <div className="flex flex-col text-left">
+          <span className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wide">{t('Total Cost')}</span>
+          <span className="text-xl font-bold text-gray-900 font-brand">{formatCurrency(total)}</span>
+        </div>
+        <button
+          onClick={handlePlaceOrder}
+          disabled={loading || !shopDetails}
+          className="flex-1 max-w-[200px] ml-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3.5 px-4 rounded-xl transition shadow-md text-sm flex items-center justify-center gap-2"
+        >
+          {loading ? t('Placing...') : t('Place Order')}
+        </button>
       </div>
 
       <FeedbackButton />

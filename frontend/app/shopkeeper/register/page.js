@@ -130,7 +130,7 @@ export default function ShopkeeperRegisterPage() {
           <img
             src="/shopkeeper_login.jpeg"
             alt="Shopkeeper registration"
-            className="w-full h-full md:h-screen object-cover"
+            className="w-full h-full md:h-screen object-cover object-left"
           />
         </div>
 
@@ -181,6 +181,8 @@ export default function ShopkeeperRegisterPage() {
                   autoCorrect="off"
                   autoCapitalize="none"
                   spellCheck={false}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition"
                   placeholder="+91 98765 43210"
                   required

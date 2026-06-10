@@ -620,119 +620,94 @@ function OrderDistributionChart({ orders }) {
 }
 
 function RevenueBarChart({ orders }) {
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const { t } = useTranslation()
+  const [hoveredIdx, setHoveredIdx] = useState(null)
 
-  const allHourIntervals = [
-    "12 AM", "2 AM", "4 AM", "6 AM", "8 AM", "10 AM",
-    "12 PM", "2 PM", "4 PM", "6 PM", "8 PM", "10 PM"
-  ];
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-  // Aggregate revenue by hour of day (across all days)
-  const revenueByHour = (() => {
-    const revenue = Array(12).fill(0);
+  // Aggregate revenue by weekday
+  const revenueByDayOfWeek = (() => {
+    const revenue = Array(7).fill(0)
     orders.forEach((o) => {
-      const date = new Date(o.createdAt);
-      const hour = date.getHours();
-      const hourIdx = Math.min(11, Math.floor(hour / 2));
-      revenue[hourIdx] += o.price || 0;
-    });
-    return revenue;
-  })();
+      const date = new Date(o.createdAt)
+      const day = date.getDay() // 0-6
+      revenue[day] += o.price || 0
+    })
+    return revenue
+  })()
 
-  // Adaptive chunking: if all 12 hours don't fit, show fewer
-  const chunkSize = revenueByHour.length > 8 ? 2 : 1;
-  const chunkedData = [];
-  for (let i = 0; i < revenueByHour.length; i += chunkSize) {
-    const chunk = revenueByHour.slice(i, i + chunkSize);
-    const chunkRevenue = chunk.reduce((a, b) => a + b, 0);
-    const labelStart = allHourIntervals[i];
-    const labelEnd = chunkSize > 1 ? allHourIntervals[Math.min(i + chunkSize, 11)] : labelStart;
-    const label = chunkSize > 1 ? `${labelStart} - ${labelEnd}` : labelStart;
-    
-    chunkedData.push({
-      label,
-      revenue: chunkRevenue,
-      originalIdx: i
-    });
-  }
+  const chartData = weekdays.map((dayName, idx) => ({
+    label: t(dayName),
+    revenue: revenueByDayOfWeek[idx],
+  }))
 
-  const maxRevenue = Math.max(...chunkedData.map(d => d.revenue), 100);
-  const totalRevenue = chunkedData.reduce((sum, d) => sum + d.revenue, 0);
+  const maxRevenue = Math.max(...chartData.map(d => d.revenue), 100)
+  const totalRevenue = chartData.reduce((sum, d) => sum + d.revenue, 0)
 
   return (
     <div className="w-full bg-white p-4 rounded-2xl">
       <div className="space-y-4">
-        {/* Horizontal Bar Chart with X-axis and Y-axis */}
-        <div className="flex gap-4">
-          {/* Y-axis labels */}
-          <div className="flex flex-col justify-between pt-6 pb-6 text-xs font-semibold text-slate-600 w-16">
-            {chunkedData.map((_, idx) => (
-              <div key={idx} className="h-6 flex items-center justify-end pr-2 text-right">
-                {chunkedData[idx]?.label}
-              </div>
-            ))}
+        {/* Y-Axis scale label */}
+        <div className="text-right text-[10px] font-bold text-slate-400">
+          {t('Max')}: ₹{maxRevenue.toFixed(0)}
+        </div>
+
+        {/* Vertical Bar Chart area */}
+        <div className="relative border-b border-slate-200 pb-2">
+          {/* Grid lines */}
+          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 pt-2">
+            <div className="border-t border-slate-100 w-full" />
+            <div className="border-t border-slate-100 w-full" />
+            <div className="border-t border-slate-100 w-full" />
           </div>
 
-          {/* Chart area */}
-          <div className="flex-1">
-            {/* X-axis header */}
-            <div className="flex items-end gap-2 mb-2 px-2 h-6 text-xs font-semibold text-slate-600">
-              <span className="ml-auto">₹0</span>
-              <span className="ml-auto">₹{(maxRevenue / 2).toFixed(0)}</span>
-              <span className="ml-auto">₹{maxRevenue.toFixed(0)}</span>
-            </div>
+          {/* Bars */}
+          <div className="relative flex items-end justify-between gap-2 h-48 pt-4 z-10">
+            {chartData.map((item, idx) => {
+              const percentage = (item.revenue / maxRevenue) * 100
+              const isHovered = hoveredIdx === idx
 
-            {/* Bars */}
-            <div className="space-y-2">
-              {chunkedData.map((item, idx) => {
-                const percentage = (item.revenue / maxRevenue) * 100;
-                const isHovered = hoveredIdx === idx;
-                
-                return (
-                  <div
-                    key={idx}
-                    onMouseEnter={() => setHoveredIdx(idx)}
-                    onMouseLeave={() => setHoveredIdx(null)}
-                    className="flex items-center gap-2 cursor-pointer group h-6"
-                  >
-                    <div className="flex-1 relative bg-slate-100 rounded-lg overflow-hidden h-6">
-                      <div
-                        className={`h-full rounded-lg transition-all duration-300 flex items-center justify-end pr-3 ${
-                          isHovered 
-                            ? 'bg-gradient-to-r from-violet-500 to-violet-600 shadow-lg' 
-                            : 'bg-gradient-to-r from-violet-400 to-violet-500'
-                        }`}
-                        style={{ width: `${Math.max(percentage, 3)}%` }}
-                      >
-                        {isHovered && percentage > 15 && (
-                          <span className="text-xs font-bold text-white whitespace-nowrap">
-                            ₹{item.revenue.toFixed(0)}
-                          </span>
-                        )}
-                      </div>
-                      {!isHovered && percentage <= 15 && (
-                        <div className="absolute inset-0 flex items-center justify-start pl-2">
-                          <span className="text-xs font-bold text-slate-900">
-                            ₹{item.revenue.toFixed(0)}
-                          </span>
+              return (
+                <div
+                  key={idx}
+                  onMouseEnter={() => setHoveredIdx(idx)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                  className="flex-1 flex flex-col items-center h-full justify-end cursor-pointer group relative"
+                >
+                  {/* Tooltip on hover directly above bar */}
+                  {isHovered && (
+                    <div className="absolute -top-10 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md pointer-events-none whitespace-nowrap z-25">
+                      ₹{item.revenue.toFixed(2)} ({((item.revenue / (totalRevenue || 1)) * 100).toFixed(1)}%)
+                    </div>
+                  )}
+
+                  <div className="w-full flex justify-center items-end h-[85%]">
+                    <div
+                      className={`w-8 sm:w-10 rounded-t-lg transition-all duration-300 relative ${
+                        isHovered
+                          ? 'bg-gradient-to-t from-violet-500 to-violet-600 shadow-md scale-x-105'
+                          : 'bg-gradient-to-t from-violet-400 to-violet-500'
+                      }`}
+                      style={{ height: `${Math.max(percentage, 4)}%` }}
+                    >
+                      {/* Short text value inside bar if space permits */}
+                      {!isHovered && percentage > 20 && (
+                        <div className="absolute top-2 left-0 right-0 text-[9px] font-bold text-white text-center">
+                          ₹{Math.round(item.revenue)}
                         </div>
                       )}
                     </div>
-                    
-                    {isHovered && (
-                      <div className="text-xs font-bold text-slate-700 w-12 text-right">
-                        {((item.revenue / totalRevenue) * 100).toFixed(1)}%
-                      </div>
-                    )}
                   </div>
-                );
-              })}
-            </div>
 
-            {/* X-axis line */}
-            <div className="border-t border-slate-300 mt-2 pt-2 text-xs text-slate-400 font-medium text-center">
-              Revenue (₹)
-            </div>
+                  {/* Label */}
+                  <span className={`text-[11px] font-extrabold mt-2 transition-colors duration-200 ${
+                    isHovered ? 'text-violet-600' : 'text-slate-500'
+                  }`}>
+                    {item.label}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -740,20 +715,20 @@ function RevenueBarChart({ orders }) {
         <div className="border-t border-slate-100 pt-3 mt-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg bg-slate-50 p-2">
-              <div className="text-xs text-slate-500 font-medium">Total Revenue</div>
+              <div className="text-xs text-slate-500 font-medium">{t('Total Revenue')}</div>
               <div className="mt-1 text-lg font-bold text-slate-900">₹{totalRevenue.toFixed(2)}</div>
             </div>
             <div className="rounded-lg bg-slate-50 p-2">
-              <div className="text-xs text-slate-500 font-medium">Peak Period</div>
+              <div className="text-xs text-slate-500 font-medium">{t('Peak Period')}</div>
               <div className="mt-1 text-sm font-bold text-violet-600">
-                {chunkedData[chunkedData.indexOf(chunkedData.reduce((max, d) => d.revenue > max.revenue ? d : max))]?.label}
+                {chartData[chartData.indexOf(chartData.reduce((max, d) => d.revenue > max.revenue ? d : max))]?.label}
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 function StatHeaderControls({ activeChannel, setActiveChannel }) {
@@ -833,6 +808,7 @@ export default function AllOrdersPage() {
   const [activeChannel, setActiveChannel] = useState("Total")
   const [activeTimeRange, setActiveTimeRange] = useState("Last 30 days")
   const [revenueFilter, setRevenueFilter] = useState("Month")
+  const [rewardStats, setRewardStats] = useState(null)
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -868,6 +844,29 @@ export default function AllOrdersPage() {
     };
 
     fetchOrders();
+  }, []);
+
+  useEffect(() => {
+    const fetchRewardStats = async () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+
+      try {
+        const response = await fetch("http://localhost:5000/api/rewards/shopkeeper/stats", {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setRewardStats(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch shopkeeper reward stats:", err);
+      }
+    };
+
+    fetchRewardStats();
   }, []);
 
   // Compute filtered orders list based on both channel filter and time range selection
@@ -1176,45 +1175,78 @@ export default function AllOrdersPage() {
 
             <div className="xl:col-span-2">
               <CardShell
-                title="Scratch Card History"
-                headerRight={
-                  <button
-                    type="button"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm"
-                    aria-label="Filter scratch cards"
-                  >
-                    <Filter size={18} />
-                  </button>
-                }
+                title="Scratch Card Engagement"
+                subtitle="Coupons & Astro/Fact Cards Activity"
               >
                 <div className="space-y-4">
-                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-                    {scratchCardHistory.map((item, idx) => (
-                      <div key={idx} className="flex flex-col gap-1.5 rounded-xl bg-slate-50 p-3 border border-slate-100/80">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-slate-800">{item.customer}</span>
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide border ${
-                            item.status === 'Claimed'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : item.status === 'Active'
-                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                          }`}>
-                            {t(item.status)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded border border-violet-100">{t(item.reward)} ({item.code})</span>
-                          <span className="text-slate-400 font-medium">{item.timestamp}</span>
-                        </div>
+                  {/* Grid layout for numerical statistics */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 shadow-sm">
+                      <div className="text-xs font-bold text-slate-500">{t('Generated Today')}</div>
+                      <div className="mt-1 text-2xl font-black text-slate-800">
+                        {rewardStats ? rewardStats.rewardsGeneratedToday : '0'}
                       </div>
-                    ))}
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 shadow-sm">
+                      <div className="text-xs font-bold text-slate-500">{t('Engagement Level')}</div>
+                      <div className="mt-1">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-wide border ${
+                          rewardStats?.customerEngagementLevel === 'High'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : rewardStats?.customerEngagementLevel === 'Medium'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                        }`}>
+                          {rewardStats ? t(rewardStats.customerEngagementLevel) : '...'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 shadow-sm">
+                      <div className="text-xs font-bold text-slate-500">{t('Free Prints Claimed')}</div>
+                      <div className="mt-1 text-2xl font-black text-emerald-600">
+                        {rewardStats ? rewardStats.freePrintRewardsUsed : '0'}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 shadow-sm">
+                      <div className="text-xs font-bold text-slate-500">{t('50% Off Claimed')}</div>
+                      <div className="mt-1 text-2xl font-black text-blue-600">
+                        {rewardStats ? rewardStats.discountRewardsUsed : '0'}
+                      </div>
+                    </div>
                   </div>
 
+                  {/* Scratched Ratio Progress Bar */}
+                  {rewardStats && (
+                    <div className="space-y-1.5 rounded-2xl border border-violet-100 bg-violet-50/20 p-4 shadow-sm">
+                      <div className="flex items-center justify-between text-xs font-black text-slate-700">
+                        <span>{t('Overall Scratch Rate')}</span>
+                        <span>
+                          {rewardStats.totalGenerated > 0 
+                            ? Math.round((rewardStats.totalScratched / rewardStats.totalGenerated) * 100)
+                            : 0}%
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-slate-200/60 overflow-hidden">
+                        <div 
+                          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 transition-all duration-500" 
+                          style={{ 
+                            width: `${rewardStats.totalGenerated > 0 
+                              ? Math.round((rewardStats.totalScratched / rewardStats.totalGenerated) * 100) 
+                              : 0}%` 
+                          }} 
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                        <span>{rewardStats.totalScratched} {t('Scratched')}</span>
+                        <span>{rewardStats.totalGenerated} {t('Total Cards')}</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-sm font-bold text-slate-900">{t('Rewards Summary')}</div>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      {t('Customers love discount incentives! Most coupons are claimed directly upon order completion.')}
+                    <div className="text-sm font-bold text-slate-900">{t('Coupons & Engagement')}</div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {t('Monetary rewards (Free print, 50% discount) apply instantly to orders on completion. Non-monetary rewards (Astro & Fun Facts) boost engagement and platform repeat usage.')}
                     </p>
                   </div>
                 </div>

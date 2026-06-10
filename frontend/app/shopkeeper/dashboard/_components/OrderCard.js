@@ -16,7 +16,7 @@ function TopBorder({ type }) {
       className={
         'absolute left-0 top-0 h-1.5 w-full rounded-t-2xl ' +
         (isColor
-          ? 'bg-gradient-to-r from-pink-500 via-purple-500 via-sky-500 to-emerald-500'
+          ? 'bg-gradient-to-r from-red-500 via-orange-500 via-yellow-400 via-green-500 via-blue-500 via-indigo-500 to-purple-500'
           : 'bg-gradient-to-r from-slate-800 via-slate-600 to-slate-400')
       }
     />
@@ -101,7 +101,7 @@ function ActionButton({ tone, icon: Icon, label, onClick }) {
   )
 }
 
-export default function OrderCard({ order, onStatusChange }) {
+export default function OrderCard({ order, onStatusChange, onPaymentVerify }) {
   const handlePreview = () => {
     if (order.fileUrl) {
       window.open(order.fileUrl, '_blank')
@@ -141,7 +141,7 @@ export default function OrderCard({ order, onStatusChange }) {
   }
 
   return (
-    <div className="relative rounded-2xl bg-white shadow-sm border border-slate-100 p-5 min-w-[290px] transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-slate-200">
+    <div className="relative rounded-2xl bg-white shadow-sm border border-slate-100 p-5 w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-slate-200">
       <TopBorder type={order.type} />
 
       <div className="flex items-start justify-between gap-3">
@@ -168,6 +168,51 @@ export default function OrderCard({ order, onStatusChange }) {
       </div>
 
       {order.variant === 'talk' ? <CustomerWantsToTalk /> : <DetailGrid order={order} />}
+
+      {order.paymentLog && (
+        <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-left space-y-2 text-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 font-semibold">Payment Status:</span>
+            {order.paymentLog.paymentStatus === 'PENDING' ? (
+              <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">
+                ⏳ Pending ({order.paymentLog.paymentGateway})
+              </span>
+            ) : order.paymentLog.paymentStatus === 'VERIFIED' ? (
+              <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">
+                ✅ Verified
+              </span>
+            ) : (
+              <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200/50 px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">
+                ❌ Rejected
+              </span>
+            )}
+          </div>
+          {order.paymentLog.paymentGateway === 'UPI' && (
+            <div className="flex justify-between items-center text-[10px] font-mono">
+              <span className="text-slate-400 font-semibold">Ref No:</span>
+              <span className="text-indigo-600 font-bold">{order.paymentLog.transactionRef}</span>
+            </div>
+          )}
+          {order.paymentLog.paymentStatus === 'PENDING' && (
+            <div className="flex gap-2 pt-1.5 border-t border-slate-150">
+              <button
+                type="button"
+                onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'VERIFIED')}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-extrabold py-1.5 rounded-lg transition"
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'FAILED')}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold py-1.5 rounded-lg transition"
+              >
+                Reject
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-4">
         <label className="text-xs font-semibold text-slate-600 mb-1 block">Customer Comment (Optional)</label>

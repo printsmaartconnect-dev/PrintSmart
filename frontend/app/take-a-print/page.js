@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { QrCode, AlertCircle, Loader } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -8,7 +8,7 @@ import BackButton from '../components/BackButton'
 import FeedbackButton from '../components/FeedbackButton'
 import FeedbackLink from '../components/FeedbackLink'
 
-export default function TakeAPrintPage() {
+function TakeAPrintPageContent() {
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -201,5 +201,17 @@ export default function TakeAPrintPage() {
       {/* Floating Feedback Button */}
       <FeedbackButton />
     </div>
+  )
+}
+
+export default function TakeAPrintPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <TakeAPrintPageContent />
+    </Suspense>
   )
 }

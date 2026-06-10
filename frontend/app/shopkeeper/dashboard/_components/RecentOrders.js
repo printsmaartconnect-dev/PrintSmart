@@ -36,7 +36,7 @@ function TableStatusPill({ status }) {
   )
 }
 
-export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange }) {
+export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify }) {
   const { t } = useTranslation()
   const [viewMode, setViewMode] = useState('table') // default to 'table' for a premium look
 
@@ -128,9 +128,9 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
         {orders.length === 0 ? (
           <EmptyState activeFilter={activeFilter} />
         ) : viewMode === 'card' ? (
-          <div className="flex gap-5 overflow-x-auto pb-4 pr-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {orders.map((o) => (
-              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} />
+              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} />
             ))}
           </div>
         ) : (
@@ -145,6 +145,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                     <th className="py-3 px-4">{t('Document')}</th>
                     <th className="py-3 px-4">{t('Config')}</th>
                     <th className="py-3 px-4">{t('Price')}</th>
+                    <th className="py-3 px-4">{t('Payment')}</th>
                     <th className="py-3 px-4">{t('Status')}</th>
                     <th className="py-3 px-4">{t('Time')}</th>
                     <th className="py-3 px-4 text-center">{t('Actions')}</th>
@@ -209,6 +210,52 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                         {/* Price */}
                         <td className="py-3.5 px-4 font-bold text-slate-900">
                           {order.price}
+                        </td>
+                        
+                        {/* Payment */}
+                        <td className="py-3.5 px-4">
+                          {order.paymentLog ? (
+                            <div className="flex flex-col gap-1 text-left">
+                              {order.paymentLog.paymentStatus === 'PENDING' ? (
+                                <>
+                                  <span className="inline-flex items-center rounded-lg bg-amber-50 text-amber-700 border border-amber-200/50 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider w-fit">
+                                    ⏳ {t('Pending')} ({order.paymentLog.paymentGateway})
+                                  </span>
+                                  {order.paymentLog.paymentGateway === 'UPI' && (
+                                    <span className="text-[10px] text-indigo-600 font-mono font-bold mt-0.5">
+                                      Ref: {order.paymentLog.transactionRef}
+                                    </span>
+                                  )}
+                                  <div className="flex gap-1.5 mt-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'VERIFIED')}
+                                      className="inline-flex items-center justify-center bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-md hover:bg-emerald-700 transition"
+                                    >
+                                      ✓ {t('Accept')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'FAILED')}
+                                      className="inline-flex items-center justify-center bg-rose-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-md hover:bg-rose-700 transition"
+                                    >
+                                      ✕ {t('Reject')}
+                                    </button>
+                                  </div>
+                                </>
+                              ) : order.paymentLog.paymentStatus === 'VERIFIED' ? (
+                                <span className="inline-flex items-center rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/50 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider w-fit">
+                                  ✅ {t('Paid')}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-lg bg-rose-50 text-rose-700 border border-rose-200/50 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider w-fit">
+                                  ❌ {t('Rejected')}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 font-medium italic text-[11px]">—</span>
+                          )}
                         </td>
                         
                         {/* Status */}
