@@ -26,7 +26,7 @@ function TakeAPrintPageContent() {
     const targetSlug = slug === '0000' ? 'smart-print-hub' : slug
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/shopkeeper/by-slug/${targetSlug}`
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}/api/shopkeeper/by-slug/${targetSlug}`
       )
       
       if (!response.ok) {

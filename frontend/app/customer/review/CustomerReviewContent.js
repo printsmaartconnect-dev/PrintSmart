@@ -77,7 +77,7 @@ export default function CustomerReviewContent() {
       }
 
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${resolvedShopId}`)
         if (!response.ok) {
           throw new Error(t('Could not find shop keeper details.'))
@@ -167,7 +167,7 @@ export default function CustomerReviewContent() {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const customerComment = localStorage.getItem('customerComment') || null
       
       const response = await fetch(`${apiUrl}/api/orders/create`, {

@@ -72,7 +72,7 @@ function ConfigurationPageContent() {
       if (!resolvedShopId) return
 
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${resolvedShopId}`)
         if (response.ok) {
           const data = await response.json()
@@ -208,7 +208,7 @@ function ConfigurationPageContent() {
         resolvedShopkeeperId = null
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/orders/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -295,7 +295,7 @@ function ConfigurationPageContent() {
         resolvedShopkeeperId = null
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/orders/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

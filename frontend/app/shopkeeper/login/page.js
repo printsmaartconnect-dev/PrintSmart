@@ -29,8 +29,11 @@ export default function ShopkeeperLoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    console.log('Login button clicked')
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
+    console.log('Active API URL:', apiUrl)
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -39,12 +42,16 @@ export default function ShopkeeperLoginPage() {
         }),
       })
 
+      console.log('API response received', response.status)
+
       if (response.ok) {
         const data = await response.json()
+        console.log('Login success')
         localStorage.setItem('authToken', data.token)
         localStorage.setItem('loggedInShopkeeper', JSON.stringify(data.shopkeeper))
         localStorage.setItem('shopkeeper', JSON.stringify(data.shopkeeper))
         const destination = '/shopkeeper/dashboard'
+        console.log('Redirect path:', destination)
         router.push(destination)
         return
       }
@@ -52,6 +59,13 @@ export default function ShopkeeperLoginPage() {
       const errorData = await response.json()
       alert(errorData.message || 'Invalid credentials!')
     } catch (err) {
+      console.error('Login request failed:', err)
+      const isProduction = process.env.NODE_ENV === 'production' || !apiUrl.includes('localhost')
+      if (isProduction) {
+        alert('Backend connection failed. Please try again later.')
+        return
+      }
+
       console.warn('Backend connection failed, trying fallback mockup authentication:', err)
       const shopkeeper = JSON.parse(localStorage.getItem('shopkeeper') || '{}')
       if (
@@ -59,7 +73,9 @@ export default function ShopkeeperLoginPage() {
         shopkeeper.password === formData.password
       ) {
         localStorage.setItem('loggedInShopkeeper', JSON.stringify(shopkeeper))
-        router.push('/shopkeeper/dashboard')
+        const destination = '/shopkeeper/dashboard'
+        console.log('Redirect path (Mock fallback):', destination)
+        router.push(destination)
       } else {
         alert('Invalid credentials! (Fallback mode)')
       }
@@ -75,8 +91,10 @@ export default function ShopkeeperLoginPage() {
       window.google.accounts.id.initialize({
         client_id: clientId,
         callback: async (response) => {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
+          console.log('Active API URL (Google Login):', apiUrl)
           try {
-            const tokenRes = await fetch('http://localhost:5000/api/auth/google', {
+            const tokenRes = await fetch(`${apiUrl}/api/auth/google`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ credential: response.credential }),

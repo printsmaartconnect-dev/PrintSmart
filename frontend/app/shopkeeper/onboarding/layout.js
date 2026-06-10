@@ -102,7 +102,7 @@ export default function OnboardingLayout({ children }) {
 
     const checkOnboardingStatus = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/auth/profile`, {
           headers: {
             Authorization: `Bearer ${token}`,

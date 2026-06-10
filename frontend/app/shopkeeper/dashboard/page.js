@@ -30,6 +30,9 @@ export default function ShopkeeperDashboard() {
   const [ordersList, setOrdersList] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
+  console.log('Active API URL (Dashboard):', apiUrl);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -42,7 +45,7 @@ export default function ShopkeeperDashboard() {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/orders/shopkeeper/all", {
+      const response = await fetch(`${apiUrl}/api/orders/shopkeeper/all`, {
         headers: {
           "Authorization": `Bearer ${token}`,
         },
@@ -94,7 +97,7 @@ export default function ShopkeeperDashboard() {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/${dbId}/status`, {
+      const response = await fetch(`${apiUrl}/api/orders/${dbId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -121,7 +124,7 @@ export default function ShopkeeperDashboard() {
     if (!token) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/payments/shopkeeper/verify/${orderDbId}`, {
+      const response = await fetch(`${apiUrl}/api/payments/shopkeeper/verify/${orderDbId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -151,7 +154,6 @@ export default function ShopkeeperDashboard() {
 
     const checkOnboardingStatus = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
         const response = await fetch(`${apiUrl}/api/auth/profile`, {
           headers: {
             "Authorization": `Bearer ${token}`

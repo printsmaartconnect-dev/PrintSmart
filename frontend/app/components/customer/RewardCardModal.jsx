@@ -108,7 +108,7 @@ export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
       setLoading(true)
       setError(null)
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/rewards/order/${orderId}`)
         if (!response.ok) {
           throw new Error('Failed to load scratch card details')
@@ -348,7 +348,7 @@ export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
 
         // Notify backend that reward is scratched
         if (dbReward && dbReward.id) {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
           fetch(`${apiUrl}/api/rewards/${dbReward.id}/scratch`, {
             method: 'POST',
           })

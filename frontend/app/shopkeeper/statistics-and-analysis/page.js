@@ -810,6 +810,9 @@ export default function AllOrdersPage() {
   const [revenueFilter, setRevenueFilter] = useState("Month")
   const [rewardStats, setRewardStats] = useState(null)
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
+  console.log('Active API URL (Statistics):', apiUrl);
+
   useEffect(() => {
     const fetchOrders = async () => {
       const token = localStorage.getItem("authToken");
@@ -820,7 +823,7 @@ export default function AllOrdersPage() {
       }
 
       try {
-        const response = await fetch("http://localhost:5000/api/orders/shopkeeper/all", {
+        const response = await fetch(`${apiUrl}/api/orders/shopkeeper/all`, {
           headers: {
             "Authorization": `Bearer ${token}`,
           },
@@ -852,7 +855,7 @@ export default function AllOrdersPage() {
       if (!token) return;
 
       try {
-        const response = await fetch("http://localhost:5000/api/rewards/shopkeeper/stats", {
+        const response = await fetch(`${apiUrl}/api/rewards/shopkeeper/stats`, {
           headers: {
             "Authorization": `Bearer ${token}`,
           },

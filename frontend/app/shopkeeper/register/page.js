@@ -27,8 +27,10 @@ export default function ShopkeeperRegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
+    console.log('Active API URL (Register):', apiUrl)
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch(`${apiUrl}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -50,6 +52,12 @@ export default function ShopkeeperRegisterPage() {
       const errorData = await response.json()
       alert(errorData.message || 'Registration failed')
     } catch (err) {
+      console.error('Registration request failed:', err)
+      const isProduction = process.env.NODE_ENV === 'production' || !apiUrl.includes('localhost')
+      if (isProduction) {
+        alert('Backend connection failed. Please try again later.')
+        return
+      }
       console.warn('Backend connection failed, trying fallback mockup registration:', err)
       localStorage.setItem('shopkeeper', JSON.stringify(formData))
       router.push('/shopkeeper/onboarding/profile-setup')
@@ -65,8 +73,10 @@ export default function ShopkeeperRegisterPage() {
       window.google.accounts.id.initialize({
         client_id: clientId,
         callback: async (response) => {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
+          console.log('Active API URL (Google Register):', apiUrl)
           try {
-            const tokenRes = await fetch('http://localhost:5000/api/auth/google', {
+            const tokenRes = await fetch(`${apiUrl}/api/auth/google`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ credential: response.credential }),

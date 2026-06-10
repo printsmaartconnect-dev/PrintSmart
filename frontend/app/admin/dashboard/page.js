@@ -57,6 +57,9 @@ export default function AdminDashboardPage() {
   const [usersShopsLoading, setUsersShopsLoading] = useState(false)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
+  console.log('Active API URL (Admin):', apiUrl);
+
   // UI Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [shopFilter, setShopFilter] = useState('ALL') // 'ALL' | 'APPROVED' | 'PENDING'
@@ -86,13 +89,13 @@ export default function AdminDashboardPage() {
     const fetchDashboard = async () => {
       setStatsLoading(true)
       try {
-        const statsRes = await fetch('http://localhost:5000/api/admin/stats')
+        const statsRes = await fetch(`${apiUrl}/api/admin/stats`)
         if (statsRes.ok) {
           const statsData = await statsRes.json()
           setStats(statsData)
         }
 
-        const ordersRes = await fetch('http://localhost:5000/api/admin/recent-orders')
+        const ordersRes = await fetch(`${apiUrl}/api/admin/recent-orders`)
         if (ordersRes.ok) {
           const ordersData = await ordersRes.json()
           setRecentOrders(ordersData)
@@ -107,7 +110,7 @@ export default function AdminDashboardPage() {
     const fetchUsersAndShops = async () => {
       setUsersShopsLoading(true)
       try {
-        const usersRes = await fetch('http://localhost:5000/api/admin/users')
+        const usersRes = await fetch(`${apiUrl}/api/admin/users`)
         if (usersRes.ok) {
           const usersData = await usersRes.json()
           setUsers(Array.isArray(usersData) ? usersData : [])
@@ -115,7 +118,7 @@ export default function AdminDashboardPage() {
           setUsers([])
         }
 
-        const shopsRes = await fetch('http://localhost:5000/api/admin/shops')
+        const shopsRes = await fetch(`${apiUrl}/api/admin/shops`)
         if (shopsRes.ok) {
           const shopsData = await shopsRes.json()
           setShops(Array.isArray(shopsData) ? shopsData : [])
@@ -134,7 +137,7 @@ export default function AdminDashboardPage() {
     const fetchAnalytics = async () => {
       setAnalyticsLoading(true)
       try {
-        const analyticsRes = await fetch('http://localhost:5000/api/admin/analytics')
+        const analyticsRes = await fetch(`${apiUrl}/api/admin/analytics`)
         if (analyticsRes.ok) {
           const data = await analyticsRes.json()
           setAnalyticsData(data)
@@ -159,7 +162,7 @@ export default function AdminDashboardPage() {
   // Onboard status change trigger
   const toggleOnboarding = async (shopId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/shops/${shopId}/onboard`, {
+      const res = await fetch(`${apiUrl}/api/admin/shops/${shopId}/onboard`, {
         method: 'PUT'
       })
       if (res.ok) {

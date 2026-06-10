@@ -75,7 +75,7 @@ export function OrdersPageContent() {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/orders/user/${resolvedUserId}`)
       if (!response.ok) {
         throw new Error('Failed to retrieve order history')
@@ -108,7 +108,7 @@ export function OrdersPageContent() {
     if (!orderToDelete) return
     setDeleting(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/orders/${orderToDelete.id}`, {
         method: 'DELETE',
       })
@@ -131,7 +131,7 @@ export function OrdersPageContent() {
 
   const handleVerifyPayment = async (orderId, ref, gateway = 'UPI') => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/payments/verify/${orderId}`, {
         method: 'POST',
         headers: {
@@ -163,7 +163,7 @@ export function OrdersPageContent() {
   }
 
   const handleDownloadInvoice = (orderId) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
     window.open(`${apiUrl}/api/orders/${orderId}/invoice`, '_blank')
   }
 

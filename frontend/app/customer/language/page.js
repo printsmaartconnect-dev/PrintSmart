@@ -381,7 +381,7 @@ function CustomerLanguagePageContent() {
       setValidatingShop(true)
       setShopError(null)
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/shopkeeper/by-slug/${shopId}`)
         if (!response.ok) {
           throw new Error('Shop not found')
@@ -442,7 +442,7 @@ function CustomerLanguagePageContent() {
 
       // Create user in database
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/users/create`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}/api/users/create`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -472,7 +472,7 @@ function CustomerLanguagePageContent() {
       // Start file uploads
       setUploading(true)
       const uploadedFilesData = []
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
 
       for (let i = 0; i < files.length; i++) {
         const item = files[i]

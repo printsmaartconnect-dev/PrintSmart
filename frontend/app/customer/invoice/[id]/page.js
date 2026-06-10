@@ -26,7 +26,7 @@ export default function InvoicePage() {
       setLoading(true)
       setError(null)
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/orders/${id}`)
         if (!response.ok) {
           throw new Error('Failed to retrieve order invoice details')
@@ -46,7 +46,7 @@ export default function InvoicePage() {
 
   const handleDownloadPdf = () => {
     if (!id) return
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
     window.open(`${apiUrl}/api/orders/${id}/invoice`, '_blank')
   }
 
