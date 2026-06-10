@@ -78,6 +78,12 @@ async function uploadFile(file, orderId) {
       };
     } catch (s3Error) {
       console.error(`[S3] Upload error: ${s3Error.message}`);
+      console.error("[S3] Error Details:", {
+        name: s3Error.name,
+        code: s3Error.code,
+        metadata: s3Error.$metadata,
+        stack: s3Error.stack
+      });
       console.log("[S3] Falling back to local storage");
       // Intentionally fall through to local fallback below
     }

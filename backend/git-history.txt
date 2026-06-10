@@ -1,0 +1,18 @@
+Failed: Command failed: git log -p -n 5
+'git' is not recognized as an internal or external command,
+operable program or batch file.
+
+Error: Command failed: git log -p -n 5
+'git' is not recognized as an internal or external command,
+operable program or batch file.
+
+    at genericNodeError (node:internal/errors:983:15)
+    at wrappedFn (node:internal/errors:537:14)
+    at checkExecSyncError (node:child_process:916:11)
+    at execSync (node:child_process:988:15)
+    at Object.<anonymous> (D:\New folder (4)\PrintSmart\backend\git-helper.js:7:15)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)

@@ -69,9 +69,8 @@ async function ensureFonts() {
         fs.mkdirSync(fontDir, { recursive: true });
       }
 
-      console.log('Downloading NotoSans fonts for PDF currency rendering...');
-      const regularUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/static/NotoSans-Regular.ttf';
-      const boldUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/static/NotoSans-Bold.ttf';
+      const regularUrl = 'https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf';
+      const boldUrl = 'https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf';
 
       // Download Regular Font if missing
       if (!fs.existsSync(regularFontPath)) {
