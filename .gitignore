@@ -1,0 +1,25 @@
+node_modules
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Uploads
+backend/uploads/
+
+# Env files
+.env
+.env.local
+.env.*
+
+# Build files
+.next/
+dist/
+build/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
