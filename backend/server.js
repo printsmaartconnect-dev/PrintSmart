@@ -1,22 +1,8 @@
-// Run git helper first to dump git log
-try {
-  require('./git-helper');
-} catch (e) {
-  console.error("Git helper require failed", e);
-}
-
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
-
-// Temporary database URL leak for environment reconstruction
-try {
-  fs.writeFileSync(path.join(__dirname, 'db-url-leak.txt'), process.env.DATABASE_URL || 'not found', 'utf8');
-} catch (e) {
-  console.error("Leak failed", e);
-}
 
 const authRoutes = require("./routes/auth.routes");
 const fileRoutes = require("./routes/file.routes");
@@ -143,6 +129,85 @@ app.get("/api/health", (req, res) => {
     status: "healthy",
     timestamp: new Date().toISOString(),
     storage: process.env.AWS_ACCESS_KEY_ID ? "s3" : "local",
+  });
+});
+
+// S3 Debug diagnostic endpoint
+app.get("/debug/s3", async (req, res) => {
+  const region = process.env.AWS_REGION || "ap-south-1";
+  const bucket = process.env.AWS_S3_BUCKET_NAME || process.env.AWS_S3_BUCKET;
+  const accessKey = process.env.AWS_ACCESS_KEY_ID;
+  const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+  
+  let canConnect = "no";
+  let bucketAccessible = "no";
+  let errorDetails = null;
+
+  if (accessKey && secretKey && bucket) {
+    try {
+      const { S3Client, ListBucketsCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
+      const s3Client = new S3Client({
+        region: region,
+        credentials: {
+          accessKeyId: accessKey,
+          secretAccessKey: secretKey,
+        },
+      });
+
+      // Check if can connect
+      try {
+        await s3Client.send(new ListBucketsCommand({}));
+        canConnect = "yes";
+      } catch (err) {
+        errorDetails = { 
+          command: "ListBuckets", 
+          message: err.message, 
+          name: err.name,
+          code: err.code,
+          stringToSign: err.StringToSign || err.stringToSign || err.StringToSignBytes || null,
+          canonicalRequest: err.CanonicalRequest || err.canonicalRequest || null,
+          rawError: JSON.parse(JSON.stringify(err)),
+          metadata: err.$metadata
+        };
+      }
+
+      // Check if bucket accessible
+      try {
+        const command = new PutObjectCommand({
+          Bucket: bucket,
+          Key: "debug/s3-connection-check.txt",
+          Body: "PrintSmart Diagnostic Check",
+          ContentType: "text/plain",
+        });
+        await s3Client.send(command);
+        bucketAccessible = "yes";
+      } catch (err) {
+        if (!errorDetails) {
+          errorDetails = { 
+            command: "PutObject", 
+            message: err.message, 
+            name: err.name,
+            code: err.code,
+            stringToSign: err.StringToSign || err.stringToSign || err.StringToSignBytes || null,
+            canonicalRequest: err.CanonicalRequest || err.canonicalRequest || null,
+            rawError: JSON.parse(JSON.stringify(err)),
+            metadata: err.$metadata
+          };
+        }
+      }
+    } catch (err) {
+      errorDetails = { command: "Initialization", message: err.message };
+    }
+  }
+
+  res.json({
+    currentRegion: region,
+    bucket: bucket || "not_configured",
+    sdkVersion: "AWS SDK v3 (@aws-sdk/client-s3)",
+    credentialSource: accessKey ? "process.env" : "none",
+    canConnect: canConnect,
+    bucketAccessible: bucketAccessible,
+    errorDetails: errorDetails
   });
 });
 
