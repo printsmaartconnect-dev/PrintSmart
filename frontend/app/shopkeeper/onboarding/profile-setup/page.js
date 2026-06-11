@@ -342,7 +342,7 @@ export default function ProfileSetupPage() {
     const shopId = shopkeeperIdCode || loggedIn?.shopSlug || loggedIn?.id
     if (!shopId) return
     const frontendUrl = window.location.origin
-    const shareUrl = `${frontendUrl}/customer/language?shopId=${shopId}`
+    const shareUrl = `${frontendUrl}/take-a-print?shopId=${shopId}`
     navigator.clipboard.writeText(shareUrl)
     alert("Shop link copied to clipboard!")
   }

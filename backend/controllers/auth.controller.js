@@ -410,7 +410,7 @@ exports.updateProfile = async (req, res) => {
       const localPath = path.join(__dirname, '..', updated.qrCodeUrl);
       fileExists = fs.existsSync(localPath);
     }
-    const qrNeedsUpdate = !updated.qrValue || !updated.qrCodeUrl || !updated.qrValue.startsWith(frontendUrl) || !fileExists;
+    const qrNeedsUpdate = !updated.qrValue || !updated.qrCodeUrl || !updated.qrValue.startsWith(frontendUrl) || !fileExists || !updated.qrValue.includes('/take-a-print');
     if (qrNeedsUpdate) {
       try {
         const qrResult = await qrService.generateShopQr(updated.id, updated.shopSlug, frontendUrl);
@@ -517,7 +517,7 @@ exports.getMeQr = async (req, res) => {
       const localPath = path.join(__dirname, '..', shopkeeper.qrCodeUrl);
       fileExists = fs.existsSync(localPath);
     }
-    const qrNeedsUpdate = !shopkeeper.qrCodeUrl || !shopkeeper.qrValue || !shopkeeper.qrValue.startsWith(frontendUrl) || !fileExists;
+    const qrNeedsUpdate = !shopkeeper.qrCodeUrl || !shopkeeper.qrValue || !shopkeeper.qrValue.startsWith(frontendUrl) || !fileExists || !shopkeeper.qrValue.includes('/take-a-print');
     if (qrNeedsUpdate) {
       try {
         const qrResult = await qrService.generateShopQr(shopkeeper.id, shopkeeper.shopSlug, frontendUrl);
