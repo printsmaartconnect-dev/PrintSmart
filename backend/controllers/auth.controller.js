@@ -4,6 +4,8 @@ const prisma = require("../config/db");
 const qrcodeService = require("../services/qrcode.service");
 const qrService = require("../services/qr.service");
 const sessionService = require("../services/session.service");
+const fs = require("fs");
+const path = require("path");
 
 const jwtSecret = process.env.JWT_SECRET || "supersecretjwtkeychangeinproduction";
 
@@ -401,9 +403,14 @@ exports.updateProfile = async (req, res) => {
       },
     });
 
-    // Generate QR if missing, or if the stored domain does not match the active request origin
+    // Generate QR if missing, or if the stored domain does not match the active request origin, or if local file is missing from disk
     const frontendUrl = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:3000';
-    const qrNeedsUpdate = !updated.qrValue || !updated.qrCodeUrl || !updated.qrValue.startsWith(frontendUrl);
+    let fileExists = false;
+    if (updated.qrCodeUrl && updated.qrCodeUrl.startsWith('/uploads/')) {
+      const localPath = path.join(__dirname, '..', updated.qrCodeUrl);
+      fileExists = fs.existsSync(localPath);
+    }
+    const qrNeedsUpdate = !updated.qrValue || !updated.qrCodeUrl || !updated.qrValue.startsWith(frontendUrl) || !fileExists;
     if (qrNeedsUpdate) {
       try {
         const qrResult = await qrService.generateShopQr(updated.id, updated.shopSlug, frontendUrl);
@@ -503,9 +510,14 @@ exports.getMeQr = async (req, res) => {
       return res.status(404).json({ message: "Shopkeeper not found" });
     }
 
-    // Auto-generate if missing, or update if the QR points to a different frontend origin
+    // Auto-generate if missing, or update if the QR points to a different frontend origin, or if local file is missing from disk
     const frontendUrl = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:3000';
-    const qrNeedsUpdate = !shopkeeper.qrCodeUrl || !shopkeeper.qrValue || !shopkeeper.qrValue.startsWith(frontendUrl);
+    let fileExists = false;
+    if (shopkeeper.qrCodeUrl && shopkeeper.qrCodeUrl.startsWith('/uploads/')) {
+      const localPath = path.join(__dirname, '..', shopkeeper.qrCodeUrl);
+      fileExists = fs.existsSync(localPath);
+    }
+    const qrNeedsUpdate = !shopkeeper.qrCodeUrl || !shopkeeper.qrValue || !shopkeeper.qrValue.startsWith(frontendUrl) || !fileExists;
     if (qrNeedsUpdate) {
       try {
         const qrResult = await qrService.generateShopQr(shopkeeper.id, shopkeeper.shopSlug, frontendUrl);
