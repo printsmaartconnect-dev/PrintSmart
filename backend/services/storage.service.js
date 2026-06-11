@@ -1,4 +1,5 @@
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const fs = require("fs");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
@@ -147,8 +148,51 @@ function getFileUrl(key) {
   }
 }
 
+/**
+ * Generates a presigned GET URL for an S3 object (valid for 1 hour).
+ * Falls back to the original URL if S3 is not configured or if the URL is local.
+ * @param {string} fileUrl - Raw file URL
+ * @returns {Promise<string>} Presigned URL or original local URL
+ */
+async function getPresignedUrl(fileUrl) {
+  if (!isS3Configured) {
+    return fileUrl;
+  }
+
+  try {
+    const bucketName = process.env.AWS_S3_BUCKET || process.env.AWS_S3_BUCKET_NAME;
+
+    // Parse key from the S3 URL
+    const url = new URL(fileUrl);
+    
+    // Check if the URL is indeed an S3 URL
+    const isS3Url = url.hostname.includes("s3.amazonaws.com") || (url.hostname.includes(".s3.") && url.hostname.includes("amazonaws.com"));
+    
+    if (!isS3Url) {
+      // Local or other storage provider URL, return as-is
+      return fileUrl;
+    }
+
+    // Extract the S3 key from the pathname (remove leading slash)
+    const key = decodeURIComponent(url.pathname.substring(1));
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    });
+
+    // Generate presigned URL valid for 3600 seconds (1 hour)
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    return signedUrl;
+  } catch (error) {
+    console.error("Error generating S3 presigned URL:", error.message);
+    return fileUrl; // fallback to original URL
+  }
+}
+
 module.exports = {
   uploadFile,
   deleteFile,
   getFileUrl,
+  getPresignedUrl,
 };

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const fileController = require("../controllers/file.controller");
+const authMiddleware = require("../middleware/auth.middleware");
 
 // Set up Multer memory storage with 50MB limit
 const upload = multer({
@@ -31,5 +32,7 @@ router.post(
   },
   fileController.upload
 );
+
+router.get("/presigned", authMiddleware, fileController.getPresignedUrl);
 
 module.exports = router;

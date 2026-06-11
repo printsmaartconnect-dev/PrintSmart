@@ -36,13 +36,37 @@ function TableStatusPill({ status }) {
   )
 }
 
+const getPrintableUrl = async (fileUrl) => {
+  if (!fileUrl) return '';
+  if (!fileUrl.includes('amazonaws.com')) {
+    return fileUrl;
+  }
+  try {
+    const token = localStorage.getItem("authToken");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const response = await fetch(`${apiUrl}/api/files/presigned?fileUrl=${encodeURIComponent(fileUrl)}`, {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return data.presignedUrl;
+    }
+  } catch (err) {
+    console.error("Failed to get presigned URL:", err);
+  }
+  return fileUrl;
+};
+
 export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify }) {
   const { t } = useTranslation()
   const [viewMode, setViewMode] = useState('table') // default to 'table' for a premium look
 
-  const handlePreview = (order) => {
+  const handlePreview = async (order) => {
     if (order.fileUrl) {
-      window.open(order.fileUrl, '_blank')
+      const url = await getPrintableUrl(order.fileUrl);
+      window.open(url, '_blank')
     } else {
       alert(t('No file URL associated with this order.'))
     }
@@ -50,7 +74,8 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
 
   const handlePrint = async (order) => {
     if (order.fileUrl) {
-      window.open(order.fileUrl, '_blank')
+      const url = await getPrintableUrl(order.fileUrl);
+      window.open(url, '_blank')
       if (onStatusChange && order.dbId) {
         await onStatusChange(order.dbId, 'Completed')
       }
@@ -61,7 +86,8 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
 
   const handleDownload = async (order) => {
     if (order.fileUrl) {
-      window.open(order.fileUrl, '_blank')
+      const url = await getPrintableUrl(order.fileUrl);
+      window.open(url, '_blank')
       if (onStatusChange && order.dbId) {
         await onStatusChange(order.dbId, 'Downloaded')
       }

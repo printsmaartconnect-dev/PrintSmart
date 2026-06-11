@@ -69,3 +69,18 @@ exports.upload = async (req, res) => {
     res.status(500).json({ message: "Error uploading file to storage" });
   }
 };
+
+exports.getPresignedUrl = async (req, res) => {
+  try {
+    const { fileUrl } = req.query;
+    if (!fileUrl) {
+      return res.status(400).json({ message: "Missing fileUrl parameter" });
+    }
+
+    const presignedUrl = await storageService.getPresignedUrl(fileUrl);
+    return res.status(200).json({ presignedUrl });
+  } catch (err) {
+    console.error("Error generating presigned URL controller:", err);
+    return res.status(500).json({ message: "Error generating preview URL" });
+  }
+};
