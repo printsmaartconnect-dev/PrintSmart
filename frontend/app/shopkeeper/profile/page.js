@@ -114,7 +114,7 @@ export default function ShopkeeperProfileViewPage() {
     qrCodeUrl: '',
     qrValue: ''
   })
-  const [regenerating, setRegenerating] = useState(false)
+
   const [editingUpi, setEditingUpi] = useState(false)
   const [upiValue, setUpiValue] = useState('')
   const [savingUpi, setSavingUpi] = useState(false)
@@ -253,7 +253,7 @@ export default function ShopkeeperProfileViewPage() {
             <h1>${profile.shopName || 'Shop'}</h1>
             <p>Scan to upload print files</p>
             <img src="${fullUrl}" onload="window.print(); window.close();" />
-            <p>Shop ID: ${qrDetails.shopId || qrDetails.slug || profile.shopSlug || 'N/A'}</p>
+            <p>Shop ID: ${qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || 'N/A'}</p>
           </body>
         </html>
       `)
@@ -278,37 +278,7 @@ export default function ShopkeeperProfileViewPage() {
     }
   }
 
-  const handleRegenerateQr = async () => {
-    const token = localStorage.getItem("authToken")
-    if (!token) return
-    setRegenerating(true)
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-      const response = await fetch(`${apiUrl}/api/shopkeeper/regenerate-qr`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setQrDetails({
-          shopId: data.shopId,
-          slug: data.slug,
-          qrCodeUrl: data.qrCodeUrl,
-          qrValue: data.qrValue
-        })
-        alert("QR Code regenerated successfully!")
-      } else {
-        alert("Failed to regenerate QR code.")
-      }
-    } catch (err) {
-      console.error("Regenerate QR failed:", err)
-      alert("Error regenerating QR code.")
-    } finally {
-      setRegenerating(false)
-    }
-  }
+
 
   const handleUpdateUpi = async () => {
     if (!upiValue.trim()) {
@@ -754,7 +724,7 @@ export default function ShopkeeperProfileViewPage() {
                       <div className="text-center mb-4">
                         <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{t('Shop ID')}</div>
                         <div className="text-sm font-bold text-slate-800 break-all select-all mt-0.5">
-                          {qrDetails.shopId || profile.shopkeeperIdCode || '—'}
+                          {qrDetails.slug || profile.shopkeeperIdCode || '—'}
                         </div>
                       </div>
 
@@ -791,14 +761,7 @@ export default function ShopkeeperProfileViewPage() {
                         </SecondaryButton>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={handleRegenerateQr}
-                        disabled={regenerating}
-                        className="mt-4 text-[11px] font-semibold text-violet-600 hover:text-violet-700 transition disabled:text-slate-400"
-                      >
-                        {regenerating ? t('Regenerating...') : t('Regenerate QR Code')}
-                      </button>
+
                     </div>
                   </Card>
 

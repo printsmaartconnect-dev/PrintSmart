@@ -7,6 +7,33 @@ const sessionService = require("../services/session.service");
 
 const jwtSecret = process.env.JWT_SECRET || "supersecretjwtkeychangeinproduction";
 
+async function generateUniqueShopkeeperId() {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  while (true) {
+    const x1 = Math.floor(Math.random() * 10);
+    const a = alphabet[Math.floor(Math.random() * alphabet.length)];
+    const x2 = Math.floor(Math.random() * 10);
+    const x3 = Math.floor(Math.random() * 10);
+    const x4 = Math.floor(Math.random() * 10);
+    const x5 = Math.floor(Math.random() * 10);
+    const code = `${x1}${a}-${x2}${x3}${x4}${x5}`;
+
+    const existing = await prisma.shopkeeper.findFirst({
+      where: {
+        OR: [
+          { shopSlug: code },
+          { shopkeeperIdCode: code }
+        ]
+      }
+    });
+
+    if (!existing) {
+      return code;
+    }
+  }
+}
+
+
 function createAuthResponse(shopkeeper, token) {
   return {
     token,
@@ -63,9 +90,8 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Generate unique shopSlug
-    const slugBase = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-    const shopSlug = `${slugBase}-${Math.floor(Math.random() * 10000)}`;
+    // Generate unique shopSlug in xA-xxxx format
+    const shopSlug = await generateUniqueShopkeeperId();
 
     // Create shopkeeper
     const shopkeeper = await prisma.shopkeeper.create({
@@ -87,7 +113,7 @@ exports.register = async (req, res) => {
       const qrResultLegacy = await qrcodeService.generateShopkeeperQRCode(shopkeeper.id, shopSlug);
       qrCode = qrResultLegacy.qrCode;
 
-      const qrResult = await qrService.generateShopQr(shopkeeper.id);
+      const qrResult = await qrService.generateShopQr(shopkeeper.id, shopSlug);
       qrCodeUrl = qrResult.qrCodeUrl;
       qrValue = qrResult.qrValue;
 
@@ -257,8 +283,7 @@ exports.googleAuth = async (req, res) => {
 
     let shopkeeper = await prisma.shopkeeper.findUnique({ where: { email } });
     if (!shopkeeper) {
-      const slugBase = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-      const shopSlug = `${slugBase}-${Math.floor(Math.random() * 10000)}`;
+      const shopSlug = await generateUniqueShopkeeperId();
 
       // Generate a secure, random dummy password to satisfy DB schema requirements
       const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
@@ -279,7 +304,7 @@ exports.googleAuth = async (req, res) => {
 
       // Generate QR Code for the new Google OAuth registered shopkeeper
       try {
-        const qrResult = await qrService.generateShopQr(shopkeeper.id);
+        const qrResult = await qrService.generateShopQr(shopkeeper.id, shopSlug);
         const updated = await prisma.shopkeeper.update({
           where: { id: shopkeeper.id },
           data: {
@@ -377,7 +402,7 @@ exports.updateProfile = async (req, res) => {
     // Generate QR if missing or on onboarding completion
     if (!updated.qrValue || !updated.qrCodeUrl) {
       try {
-        const qrResult = await qrService.generateShopQr(updated.id);
+        const qrResult = await qrService.generateShopQr(updated.id, updated.shopSlug);
         const nextUpdated = await prisma.shopkeeper.update({
           where: { id: updated.id },
           data: {
@@ -477,7 +502,7 @@ exports.getMeQr = async (req, res) => {
     // Auto-generate if missing
     if (!shopkeeper.qrCodeUrl || !shopkeeper.qrValue) {
       try {
-        const qrResult = await qrService.generateShopQr(shopkeeper.id);
+        const qrResult = await qrService.generateShopQr(shopkeeper.id, shopkeeper.shopSlug);
         const updated = await prisma.shopkeeper.update({
           where: { id: shopkeeper.id },
           data: {
@@ -510,45 +535,9 @@ exports.getMeQr = async (req, res) => {
   }
 };
 
-// Regenerate shopkeeper's QR details
+// Regenerate shopkeeper's QR details - DEPRECATED
 exports.regenerateQr = async (req, res) => {
-  try {
-    const shopkeeper = await prisma.shopkeeper.findUnique({
-      where: { id: req.shopkeeper.id }
-    });
-
-    if (!shopkeeper) {
-      return res.status(404).json({ message: "Shopkeeper not found" });
-    }
-
-    const qrResult = await qrService.generateShopQr(shopkeeper.id);
-
-    const updated = await prisma.shopkeeper.update({
-      where: { id: shopkeeper.id },
-      data: {
-        qrCodeUrl: qrResult.qrCodeUrl,
-        qrValue: qrResult.qrValue,
-        qrGeneratedAt: new Date(),
-      },
-      select: {
-        id: true,
-        shopSlug: true,
-        qrCodeUrl: true,
-        qrValue: true,
-      }
-    });
-
-    res.json({
-      message: "QR code regenerated successfully",
-      shopId: updated.id,
-      slug: updated.shopSlug,
-      qrCodeUrl: updated.qrCodeUrl,
-      qrValue: updated.qrValue,
-    });
-  } catch (err) {
-    console.error("Regenerate QR error:", err);
-    res.status(500).json({ message: "Server error regenerating QR details" });
-  }
+  return res.status(410).json({ message: "Regenerate QR feature has been disabled." });
 };
 
 

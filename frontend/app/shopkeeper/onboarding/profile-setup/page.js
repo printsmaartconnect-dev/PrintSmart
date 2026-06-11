@@ -51,7 +51,7 @@ export default function ProfileSetupPage() {
   const [saving, setSaving] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState('')
   const [shopkeeperIdCode, setShopkeeperIdCode] = useState('')
-  const [regenerating, setRegenerating] = useState(false)
+
 
   const [form, setForm] = useState(() => getProfile())
   const [contact, setContactState] = useState(() => getContact())
@@ -424,33 +424,7 @@ export default function ProfileSetupPage() {
     }
   }
 
-  const handleRegenerateQr = async () => {
-    const token = localStorage.getItem("authToken")
-    if (!token) return
-    setRegenerating(true)
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-      const response = await fetch(`${apiUrl}/api/shopkeeper/regenerate-qr`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setQrCodeUrl(data.qrCodeUrl || '')
-        setShopkeeperIdCode(data.shopkeeperIdCode || data.slug || '')
-        alert("QR Code regenerated successfully!")
-      } else {
-        alert("Failed to regenerate QR code.")
-      }
-    } catch (err) {
-      console.error("Regenerate QR failed:", err)
-      alert("Error regenerating QR code.")
-    } finally {
-      setRegenerating(false)
-    }
-  }
+
 
   return (
     <div>
@@ -749,14 +723,7 @@ export default function ProfileSetupPage() {
                   </SecondaryButton>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleRegenerateQr}
-                  disabled={regenerating}
-                  className="mt-4 text-[11px] font-semibold text-violet-600 hover:text-violet-700 transition disabled:text-slate-400"
-                >
-                  {regenerating ? 'Regenerating...' : 'Regenerate QR Code'}
-                </button>
+
               </div>
             </Card>
 
