@@ -8,9 +8,10 @@ const localUploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
  * Generate a unique QR code for a shopkeeper
  * @param {string} shopkeeperId - Shopkeeper ID
  * @param {string} shopSlug - Shop slug (unique identifier)
+ * @param {string} [customFrontendUrl] - Optional custom frontend URL
  * @returns {Promise<{ qrCode: string, qrCodeUrl: string }>}
  */
-async function generateShopkeeperQRCode(shopkeeperId, shopSlug) {
+async function generateShopkeeperQRCode(shopkeeperId, shopSlug, customFrontendUrl) {
   try {
     const qrCodeFilename = `qr-${shopSlug}-${Date.now()}.png`;
     const qrCodePath = path.join(localUploadDir, 'qrcodes', qrCodeFilename);
@@ -22,7 +23,7 @@ async function generateShopkeeperQRCode(shopkeeperId, shopSlug) {
     }
 
     // Generate QR code data
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = customFrontendUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
     const qrData = `${frontendUrl}/take-a-print?shopId=${shopSlug}`;
 
     // Generate QR code image

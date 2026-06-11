@@ -105,15 +105,16 @@ exports.register = async (req, res) => {
       },
     });
 
-    // Generate QR Code files
+    // Generate QR Code files with dynamic frontend URL detection
     let qrCode = null;
     let qrCodeUrl = null;
     let qrValue = null;
     try {
-      const qrResultLegacy = await qrcodeService.generateShopkeeperQRCode(shopkeeper.id, shopSlug);
+      const frontendUrl = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:3000';
+      const qrResultLegacy = await qrcodeService.generateShopkeeperQRCode(shopkeeper.id, shopSlug, frontendUrl);
       qrCode = qrResultLegacy.qrCode;
 
-      const qrResult = await qrService.generateShopQr(shopkeeper.id, shopSlug);
+      const qrResult = await qrService.generateShopQr(shopkeeper.id, shopSlug, frontendUrl);
       qrCodeUrl = qrResult.qrCodeUrl;
       qrValue = qrResult.qrValue;
 
@@ -304,7 +305,8 @@ exports.googleAuth = async (req, res) => {
 
       // Generate QR Code for the new Google OAuth registered shopkeeper
       try {
-        const qrResult = await qrService.generateShopQr(shopkeeper.id, shopSlug);
+        const frontendUrl = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:3000';
+        const qrResult = await qrService.generateShopQr(shopkeeper.id, shopSlug, frontendUrl);
         const updated = await prisma.shopkeeper.update({
           where: { id: shopkeeper.id },
           data: {
@@ -399,10 +401,12 @@ exports.updateProfile = async (req, res) => {
       },
     });
 
-    // Generate QR if missing or on onboarding completion
-    if (!updated.qrValue || !updated.qrCodeUrl) {
+    // Generate QR if missing, or if the stored domain does not match the active request origin
+    const frontendUrl = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:3000';
+    const qrNeedsUpdate = !updated.qrValue || !updated.qrCodeUrl || !updated.qrValue.startsWith(frontendUrl);
+    if (qrNeedsUpdate) {
       try {
-        const qrResult = await qrService.generateShopQr(updated.id, updated.shopSlug);
+        const qrResult = await qrService.generateShopQr(updated.id, updated.shopSlug, frontendUrl);
         const nextUpdated = await prisma.shopkeeper.update({
           where: { id: updated.id },
           data: {
@@ -414,7 +418,7 @@ exports.updateProfile = async (req, res) => {
         updated.qrCodeUrl = nextUpdated.qrCodeUrl;
         updated.qrValue = nextUpdated.qrValue;
       } catch (qrErr) {
-        console.error("Failed to auto-generate QR during profile update:", qrErr);
+        console.error("Failed to auto-generate/update QR during profile update:", qrErr);
       }
     }
 
@@ -499,10 +503,12 @@ exports.getMeQr = async (req, res) => {
       return res.status(404).json({ message: "Shopkeeper not found" });
     }
 
-    // Auto-generate if missing
-    if (!shopkeeper.qrCodeUrl || !shopkeeper.qrValue) {
+    // Auto-generate if missing, or update if the QR points to a different frontend origin
+    const frontendUrl = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:3000';
+    const qrNeedsUpdate = !shopkeeper.qrCodeUrl || !shopkeeper.qrValue || !shopkeeper.qrValue.startsWith(frontendUrl);
+    if (qrNeedsUpdate) {
       try {
-        const qrResult = await qrService.generateShopQr(shopkeeper.id, shopkeeper.shopSlug);
+        const qrResult = await qrService.generateShopQr(shopkeeper.id, shopkeeper.shopSlug, frontendUrl);
         const updated = await prisma.shopkeeper.update({
           where: { id: shopkeeper.id },
           data: {
@@ -519,7 +525,7 @@ exports.getMeQr = async (req, res) => {
         });
         shopkeeper = updated;
       } catch (qrErr) {
-        console.error("Failed to auto-generate missing QR in getMeQr:", qrErr);
+        console.error("Failed to auto-generate/update missing QR in getMeQr:", qrErr);
       }
     }
 
