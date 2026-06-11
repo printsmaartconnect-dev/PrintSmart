@@ -65,8 +65,15 @@ export default function ShopkeeperRegisterPage() {
   }
 
   useEffect(() => {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '1028741369527-mockclientid.apps.googleusercontent.com'
-    if (!clientId) return
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    if (!clientId) {
+      console.warn("Google Sign-In is disabled: NEXT_PUBLIC_GOOGLE_CLIENT_ID is not configured.")
+      return
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Google OAuth] Active Client ID: ${clientId.substring(0, 15)}...`)
+    }
 
     const initializeGoogle = () => {
       if (!window.google || !window.google.accounts || !window.google.accounts.id) return
