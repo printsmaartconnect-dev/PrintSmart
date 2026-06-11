@@ -108,7 +108,7 @@ const getPrintableUrl = async (fileUrl) => {
   }
   try {
     const token = localStorage.getItem("authToken");
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
     const response = await fetch(`${apiUrl}/api/files/presigned?fileUrl=${encodeURIComponent(fileUrl)}`, {
       headers: {
         "Authorization": `Bearer ${token}`

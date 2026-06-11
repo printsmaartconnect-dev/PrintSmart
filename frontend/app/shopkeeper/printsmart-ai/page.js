@@ -174,7 +174,7 @@ export default function PrintSmartAiPage() {
     setIsLoadingHistory(true)
     try {
       const token = localStorage.getItem('authToken')
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/ai/history`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -243,7 +243,7 @@ export default function PrintSmartAiPage() {
 
     try {
       const token = localStorage.getItem('authToken')
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/ai/chat-generate`, {
         method: 'POST',
         headers: {
@@ -400,7 +400,7 @@ export default function PrintSmartAiPage() {
 
     try {
       const token = localStorage.getItem('authToken')
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/ai/suggest-prompt`, {
         method: 'POST',
         headers: {
@@ -461,7 +461,7 @@ export default function PrintSmartAiPage() {
 
     try {
       const token = localStorage.getItem('authToken')
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/ai/generate`, {
         method: 'POST',
         headers: {
@@ -504,7 +504,7 @@ export default function PrintSmartAiPage() {
 
     try {
       const token = localStorage.getItem('authToken')
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/ai/regenerate`, {
         method: 'POST',
         headers: {
@@ -594,7 +594,7 @@ export default function PrintSmartAiPage() {
       const token = localStorage.getItem('authToken')
       const account = JSON.parse(localStorage.getItem('shopkeeper') || '{}')
       const shopkeeperId = account.id
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
 
       const orderData = {
         userId: null,

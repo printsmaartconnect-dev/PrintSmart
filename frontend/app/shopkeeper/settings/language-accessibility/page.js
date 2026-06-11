@@ -315,7 +315,7 @@ export default function LanguageAccessibilityPage() {
       const token = localStorage.getItem('authToken')
       if (!token) return
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const activeProfile = getProfile()
       const activeContact = getContact()
       const activeSocials = getSocials()

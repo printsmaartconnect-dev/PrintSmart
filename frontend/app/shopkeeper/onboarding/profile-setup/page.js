@@ -67,7 +67,7 @@ export default function ProfileSetupPage() {
 
     const checkOnboardingStatus = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/auth/profile`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -217,7 +217,7 @@ export default function ProfileSetupPage() {
         try {
           const formData = new FormData()
           formData.append('file', file)
-          const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+          const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
           const uploadResponse = await fetch(`${uploadUrl}/api/files/upload`, {
             method: 'POST',
             headers: {
@@ -249,7 +249,7 @@ export default function ProfileSetupPage() {
         try {
           const formData = new FormData()
           formData.append('file', file)
-          const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+          const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
           const uploadResponse = await fetch(`${uploadUrl}/api/files/upload`, {
             method: 'POST',
             headers: {
@@ -286,7 +286,7 @@ export default function ProfileSetupPage() {
       let success = true
       if (token) {
         try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
           const response = await fetch(`${apiUrl}/api/auth/profile`, {
             method: 'PUT',
             headers: {
@@ -339,10 +339,10 @@ export default function ProfileSetupPage() {
 
   const handleCopyLink = () => {
     const loggedIn = getLoggedInShopkeeper()
-    const shopId = loggedIn?.id
+    const shopId = shopkeeperIdCode || loggedIn?.shopSlug || loggedIn?.id
     if (!shopId) return
     const frontendUrl = window.location.origin
-    const shareUrl = `${frontendUrl}/take-a-print?shopId=${shopId}`
+    const shareUrl = `${frontendUrl}/customer/language?shopId=${shopId}`
     navigator.clipboard.writeText(shareUrl)
     alert("Shop link copied to clipboard!")
   }
@@ -353,7 +353,7 @@ export default function ProfileSetupPage() {
       return
     }
     try {
-      const fullUrl = qrCodeUrl.startsWith('http') ? qrCodeUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}`
+      const fullUrl = qrCodeUrl.startsWith('http') ? qrCodeUrl : `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${qrCodeUrl}`
       const response = await fetch(fullUrl)
       const blob = await response.blob()
       const blobUrl = window.URL.createObjectURL(blob)
@@ -366,7 +366,7 @@ export default function ProfileSetupPage() {
       window.URL.revokeObjectURL(blobUrl)
     } catch (err) {
       console.error('Failed to download QR code:', err)
-      const fullUrl = qrCodeUrl.startsWith('http') ? qrCodeUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}`
+      const fullUrl = qrCodeUrl.startsWith('http') ? qrCodeUrl : `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${qrCodeUrl}`
       window.open(fullUrl, '_blank')
     }
   }
@@ -375,7 +375,7 @@ export default function ProfileSetupPage() {
     if (!qrCodeUrl) return
     const fullUrl = qrCodeUrl.startsWith('http') 
       ? qrCodeUrl 
-      : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}`
+      : `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${qrCodeUrl}`
     
     const printWindow = window.open('', '_blank')
     printWindow.document.write(`
@@ -622,7 +622,7 @@ export default function ProfileSetupPage() {
                   {form.paymentQrUrl && (
                     <div className="mt-2 relative w-24 h-24 border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
                       <img
-                        src={form.paymentQrUrl.startsWith('http') || form.paymentQrUrl.startsWith('data:') ? form.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${form.paymentQrUrl}`}
+                        src={form.paymentQrUrl.startsWith('http') || form.paymentQrUrl.startsWith('data:') ? form.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${form.paymentQrUrl}`}
                         alt="Payment QR Preview"
                         className="max-h-full max-w-full object-contain"
                       />
@@ -667,7 +667,7 @@ export default function ProfileSetupPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm flex items-center justify-center min-w-[206px] min-h-[206px] mb-3">
                   {qrCodeUrl ? (
                     <img
-                      src={qrCodeUrl.startsWith('http') ? qrCodeUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}`}
+                      src={qrCodeUrl.startsWith('http') ? qrCodeUrl : `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${qrCodeUrl}`}
                       alt="Shop QR Code"
                       className="w-[180px] h-[180px] object-contain"
                     />

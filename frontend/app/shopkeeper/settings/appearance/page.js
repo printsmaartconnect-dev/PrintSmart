@@ -247,7 +247,7 @@ export default function AppearanceSettingsPage() {
       // Save to database
       const token = localStorage.getItem('authToken')
       if (token) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/auth/profile`, {
           method: 'PUT',
           headers: {

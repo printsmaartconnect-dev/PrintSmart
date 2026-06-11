@@ -25,7 +25,7 @@ async function generateShopQr(shopId, shopSlug, customFrontendUrl) {
 
     // Customer flow landing page URL containing the shopId parameter
     const frontendUrl = customFrontendUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
-    const qrValue = `${frontendUrl}/take-a-print?shopId=${codeToUse}`;
+    const qrValue = `${frontendUrl}/customer/language?shopId=${codeToUse}`;
 
     // Generate and save QR image file
     await QRCode.toFile(qrPath, qrValue, {

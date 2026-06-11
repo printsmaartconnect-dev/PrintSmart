@@ -130,7 +130,7 @@ export default function ShopkeeperProfileViewPage() {
       const token = localStorage.getItem("authToken")
       if (!token) return
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/auth/profile`, {
           headers: {
             "Authorization": `Bearer ${token}`
@@ -186,7 +186,7 @@ export default function ShopkeeperProfileViewPage() {
       const token = localStorage.getItem("authToken")
       if (!token) return
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/shopkeeper/me/qr`, {
           headers: {
             "Authorization": `Bearer ${token}`
@@ -204,7 +204,7 @@ export default function ShopkeeperProfileViewPage() {
   }, [router])
 
   const handleCopyLink = () => {
-    const linkToCopy = qrDetails.qrValue || (qrCodeUrl ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}` : '')
+    const linkToCopy = qrDetails.qrValue || (qrCodeUrl ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${qrCodeUrl}` : '')
     if (linkToCopy) {
       navigator.clipboard.writeText(linkToCopy)
       alert("Shop link copied to clipboard!")
@@ -215,7 +215,7 @@ export default function ShopkeeperProfileViewPage() {
     const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl
     if (targetUrl) {
       const fullUrl = targetUrl.startsWith('/') 
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${targetUrl}` 
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` 
         : targetUrl;
       
       const link = document.createElement('a')
@@ -231,7 +231,7 @@ export default function ShopkeeperProfileViewPage() {
     const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl
     if (targetUrl) {
       const fullUrl = targetUrl.startsWith('/') 
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${targetUrl}` 
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` 
         : targetUrl;
       
       const printWindow = window.open('', '_blank')
@@ -262,7 +262,7 @@ export default function ShopkeeperProfileViewPage() {
   }
 
   const handleShareQR = async () => {
-    const linkToShare = qrDetails.qrValue || (qrCodeUrl ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}` : '')
+    const linkToShare = qrDetails.qrValue || (qrCodeUrl ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${qrCodeUrl}` : '')
     if (navigator.share && linkToShare) {
       try {
         await navigator.share({
@@ -290,7 +290,7 @@ export default function ShopkeeperProfileViewPage() {
       const token = localStorage.getItem('authToken')
       if (!token) return
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/auth/profile`, {
         method: 'PUT',
         headers: {
@@ -345,7 +345,7 @@ export default function ShopkeeperProfileViewPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const uploadUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const uploadResponse = await fetch(`${uploadUrl}/api/files/upload`, {
         method: 'POST',
         headers: {
@@ -406,7 +406,7 @@ export default function ShopkeeperProfileViewPage() {
     if (!token) return
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/auth/profile`, {
         method: 'PUT',
         headers: {
@@ -663,7 +663,7 @@ export default function ShopkeeperProfileViewPage() {
                         {profile.paymentQrUrl ? (
                           <div className="relative w-24 h-24 border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
                             <img
-                              src={profile.paymentQrUrl.startsWith('http') ? profile.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${profile.paymentQrUrl}`}
+                              src={profile.paymentQrUrl.startsWith('http') ? profile.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${profile.paymentQrUrl}`}
                               alt="Payment QR"
                               className="max-h-full max-w-full object-contain"
                             />
@@ -706,13 +706,13 @@ export default function ShopkeeperProfileViewPage() {
                       <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm relative w-[180px] h-[180px] flex items-center justify-center mb-3">
                         {qrDetails.qrCodeUrl ? (
                           <img
-                            src={qrDetails.qrCodeUrl.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrDetails.qrCodeUrl}` : qrDetails.qrCodeUrl}
+                            src={qrDetails.qrCodeUrl.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${qrDetails.qrCodeUrl}` : qrDetails.qrCodeUrl}
                             alt="Shop QR Code"
                             className="w-full h-full object-contain"
                           />
                         ) : qrCodeUrl ? (
                           <img
-                            src={qrCodeUrl.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${qrCodeUrl}` : qrCodeUrl}
+                            src={qrCodeUrl.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${qrCodeUrl}` : qrCodeUrl}
                             alt="Shop QR Code"
                             className="w-full h-full object-contain"
                           />

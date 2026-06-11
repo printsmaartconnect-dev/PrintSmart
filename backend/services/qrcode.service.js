@@ -24,7 +24,7 @@ async function generateShopkeeperQRCode(shopkeeperId, shopSlug, customFrontendUr
 
     // Generate QR code data
     const frontendUrl = customFrontendUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
-    const qrData = `${frontendUrl}/take-a-print?shopId=${shopSlug}`;
+    const qrData = `${frontendUrl}/customer/language?shopId=${shopSlug}`;
 
     // Generate QR code image
     await QRCode.toFile(qrCodePath, qrData, {
@@ -58,7 +58,7 @@ async function generateShopkeeperQRCode(shopkeeperId, shopSlug, customFrontendUr
 async function generateQRCodeDataUrl(shopSlug) {
   try {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const qrData = `${frontendUrl}/take-a-print?shopId=${shopSlug}`;
+    const qrData = `${frontendUrl}/customer/language?shopId=${shopSlug}`;
     
     const dataUrl = await QRCode.toDataURL(qrData, {
       width: 300,
