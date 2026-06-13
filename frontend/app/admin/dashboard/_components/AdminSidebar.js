@@ -1,6 +1,7 @@
 import { 
   LayoutDashboard, 
   Store, 
+  Users,
   ShoppingCart, 
   Gift, 
   Sparkles, 
@@ -16,6 +17,7 @@ import {
 const navItems = [
   { name: 'Overview', id: 'dashboard', icon: LayoutDashboard },
   { name: 'Shops', id: 'shops', icon: Store },
+  { name: 'Users', id: 'users', icon: Users },
   { name: 'Orders', id: 'orders', icon: ShoppingCart },
   { name: 'Coupons & Rewards', id: 'coupons', icon: Gift },
   { name: 'AI Usage', id: 'ai', icon: Sparkles },

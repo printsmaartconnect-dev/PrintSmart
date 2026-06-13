@@ -208,7 +208,18 @@ exports.createOrder = async (req, res) => {
     }
 
     const orderTotal = totalAmt - discountAmt;
-    const taxRate = 0.18; // 18% GST
+    let taxRate = 0.18; // 18% default
+    try {
+      const taxSetting = await prisma.systemSettings.findUnique({
+        where: { key: 'platformTaxRate' }
+      });
+      if (taxSetting && taxSetting.value) {
+        taxRate = parseFloat(taxSetting.value) / 100;
+        if (isNaN(taxRate)) taxRate = 0.18;
+      }
+    } catch (e) {
+      console.error("Failed to load platformTaxRate setting:", e);
+    }
     const subtotalAmt = orderTotal / (1 + taxRate);
     const taxAmt = orderTotal - subtotalAmt;
 

@@ -18,6 +18,7 @@ import StatsRow from "./_components/StatsRow";
 import RecentOrders from "./_components/RecentOrders";
 import BottomDock from "./_components/BottomDock";
 import { bottomDockItems, dashboardStats, recentOrders } from "./_components/mockData";
+import PrintConfigModal from "./_components/PrintConfigModal";
 
 export default function ShopkeeperDashboard() {
   const router = useRouter();
@@ -29,6 +30,8 @@ export default function ShopkeeperDashboard() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [ordersList, setOrdersList] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [activePrintOrder, setActivePrintOrder] = useState(null);
+  const [shopAddress, setShopAddress] = useState("");
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
   console.log('Active API URL (Dashboard):', apiUrl);
@@ -170,6 +173,7 @@ export default function ShopkeeperDashboard() {
           // Onboarded - proceed
           setShopName(shopkeeper.shopName || "");
           setShopkeeperIdCode(shopkeeper.shopSlug || "");
+          setShopAddress(shopkeeper.address || "");
           if (shopkeeper.createdAt) {
             setMemberSince(shopkeeper.createdAt);
           }
@@ -196,6 +200,7 @@ export default function ShopkeeperDashboard() {
 
         setShopName(profile.shopName || "");
         setShopkeeperIdCode(profile.shopSlug || "");
+        setShopAddress(contact.shopAddress || "");
         if (account?.createdAt) {
           setMemberSince(account.createdAt);
         }
@@ -302,6 +307,7 @@ export default function ShopkeeperDashboard() {
             activeFilter={activeFilter} 
             onStatusChange={handleStatusChange} 
             onPaymentVerify={handlePaymentVerify}
+            onPrint={(order) => setActivePrintOrder(order)}
           />
         </div>
       </div>
@@ -311,6 +317,22 @@ export default function ShopkeeperDashboard() {
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
       />
+
+      {activePrintOrder && (
+        <PrintConfigModal
+          order={activePrintOrder}
+          shopName={shopName}
+          shopAddress={shopAddress}
+          onClose={() => setActivePrintOrder(null)}
+          onPrintComplete={async (copies, colorMode, paperSize, orientation) => {
+            const dbId = activePrintOrder.dbId;
+            setActivePrintOrder(null);
+            if (handleStatusChange && dbId) {
+              await handleStatusChange(dbId, 'Completed');
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

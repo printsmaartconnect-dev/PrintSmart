@@ -51,11 +51,15 @@ export default function AdminDashboardPage() {
   const [users, setUsers] = useState([])
   const [shops, setShops] = useState([])
   const [analyticsData, setAnalyticsData] = useState(null)
+  const [couponsList, setCouponsList] = useState([])
+  const [feedbackList, setFeedbackList] = useState([])
   
   // Loader States
   const [statsLoading, setStatsLoading] = useState(false)
   const [usersShopsLoading, setUsersShopsLoading] = useState(false)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [couponsLoading, setCouponsLoading] = useState(false)
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
   console.log('Active API URL (Admin):', apiUrl);
@@ -64,6 +68,7 @@ export default function AdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [shopFilter, setShopFilter] = useState('ALL') // 'ALL' | 'APPROVED' | 'PENDING'
   const [orderFilter, setOrderFilter] = useState('ALL') // 'ALL' | 'PENDING' | 'COMPLETED' | 'CANCELLED'
+  const [userFilter, setUserFilter] = useState('ALL') // 'ALL' | 'ENGLISH' | 'HINDI'
 
   // Tab: Settings state
   const [settingsData, setSettingsData] = useState({
@@ -73,6 +78,14 @@ export default function AdminDashboardPage() {
     allowedFileFormats: '.pdf,.png,.jpg',
   })
 
+  // CRUD Dialog Modal States
+  const [isShopModalOpen, setIsShopModalOpen] = useState(false)
+  const [editingShop, setEditingShop] = useState(null)
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [isCouponModalOpen, setIsCouponModalOpen] = useState(false)
+  const [editingCoupon, setEditingCoupon] = useState(null)
+
   // Basic check for admin session
   useEffect(() => {
     if (!localStorage.getItem('adminLoggedIn')) {
@@ -81,6 +94,247 @@ export default function AdminDashboardPage() {
     }
     setLoading(false)
   }, [router])
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/settings`)
+      if (res.ok) {
+        const data = await res.json()
+        setSettingsData({
+          maintenanceMode: data.maintenanceMode === true || data.maintenanceMode === 'true',
+          autoApproveShops: data.autoApproveShops === true || data.autoApproveShops === 'true',
+          platformTaxRate: String(data.platformTaxRate || '5'),
+          allowedFileFormats: String(data.allowedFileFormats || '.pdf,.png,.jpg'),
+        })
+      }
+    } catch (err) {
+      console.error('Failed to fetch platform settings', err)
+    }
+  }
+
+  const handleSaveSettings = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settingsData)
+      })
+      if (res.ok) {
+        addToast('Administrative system configurations updated successfully!', 'success')
+      } else {
+        addToast('Failed to save settings', 'error')
+      }
+    } catch (err) {
+      console.error('Failed to save settings', err)
+      addToast('Error saving settings', 'error')
+    }
+  }
+
+  const fetchFeedback = async () => {
+    setFeedbackLoading(true)
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/feedback`)
+      if (res.ok) {
+        const data = await res.json()
+        setFeedbackList(Array.isArray(data.feedback) ? data.feedback : [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch support feedback', err)
+    } finally {
+      setFeedbackLoading(false)
+    }
+  }
+
+  const handleUpdateFeedbackStatus = async (feedbackId, nextStatus) => {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/feedback/${feedbackId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      })
+      if (res.ok) {
+        addToast('Feedback status updated!', 'success')
+        fetchFeedback()
+      } else {
+        addToast('Failed to update status', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Error updating status', 'error')
+    }
+  }
+
+  const handleDeleteFeedback = async (feedbackId) => {
+    if (!confirm('Are you sure you want to delete this support feedback?')) return
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/feedback/${feedbackId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        addToast('Feedback deleted!', 'success')
+        fetchFeedback()
+      } else {
+        addToast('Failed to delete feedback', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Error deleting feedback', 'error')
+    }
+  }
+
+  const fetchCoupons = async () => {
+    setCouponsLoading(true)
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/coupons`)
+      if (res.ok) {
+        const data = await res.json()
+        setCouponsList(Array.isArray(data) ? data : [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch coupons', err)
+    } finally {
+      setCouponsLoading(false)
+    }
+  }
+
+  const handleSaveUser = async (userForm) => {
+    try {
+      const isEdit = !!editingUser
+      const url = isEdit ? `${apiUrl}/api/admin/users/${editingUser.id}` : `${apiUrl}/api/admin/users`
+      const method = isEdit ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userForm)
+      })
+      if (res.ok) {
+        addToast(isEdit ? 'User updated successfully!' : 'User created successfully!', 'success')
+        setIsUserModalOpen(false)
+        setEditingUser(null)
+        const usersRes = await fetch(`${apiUrl}/api/admin/users`)
+        if (usersRes.ok) {
+          const usersData = await usersRes.json()
+          setUsers(Array.isArray(usersData) ? usersData : [])
+        }
+      } else {
+        const data = await res.json()
+        addToast(data.message || 'Failed to save user', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Error saving user', 'error')
+    }
+  }
+
+  const handleDeleteUser = async (userId) => {
+    if (!confirm('Are you sure you want to delete this user?')) return
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/users/${userId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        addToast('User deleted successfully', 'success')
+        setUsers(users.filter(u => u.id !== userId))
+      } else {
+        addToast('Failed to delete user', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Error deleting user', 'error')
+    }
+  }
+
+  const handleSaveShop = async (shopForm) => {
+    try {
+      const isEdit = !!editingShop
+      const url = isEdit ? `${apiUrl}/api/admin/shops/${editingShop.id}` : `${apiUrl}/api/admin/shops`
+      const method = isEdit ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(shopForm)
+      })
+      if (res.ok) {
+        addToast(isEdit ? 'Shop updated successfully!' : 'Shop created successfully!', 'success')
+        setIsShopModalOpen(false)
+        setEditingShop(null)
+        const shopsRes = await fetch(`${apiUrl}/api/admin/shops`)
+        if (shopsRes.ok) {
+          const shopsData = await shopsRes.json()
+          setShops(Array.isArray(shopsData) ? shopsData : [])
+        }
+      } else {
+        const data = await res.json()
+        addToast(data.message || 'Failed to save shop', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Error saving shop', 'error')
+    }
+  }
+
+  const handleDeleteShop = async (shopId) => {
+    if (!confirm('Are you sure you want to delete this shop?')) return
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/shops/${shopId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        addToast('Shop deleted successfully', 'success')
+        setShops(shops.filter(s => s.id !== shopId))
+      } else {
+        addToast('Failed to delete shop', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Error deleting shop', 'error')
+    }
+  }
+
+  const handleSaveCoupon = async (couponForm) => {
+    try {
+      const isEdit = !!editingCoupon
+      const url = isEdit ? `${apiUrl}/api/admin/coupons/${editingCoupon.id}` : `${apiUrl}/api/admin/coupons`
+      const method = isEdit ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(couponForm)
+      })
+      if (res.ok) {
+        addToast(isEdit ? 'Coupon updated successfully!' : 'Coupon created successfully!', 'success')
+        setIsCouponModalOpen(false)
+        setEditingCoupon(null)
+        fetchCoupons()
+      } else {
+        const data = await res.json()
+        addToast(data.message || 'Failed to save coupon', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Error saving coupon', 'error')
+    }
+  }
+
+  const handleDeleteCoupon = async (couponId) => {
+    if (!confirm('Are you sure you want to delete this coupon?')) return
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/coupons/${couponId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        addToast('Coupon deleted successfully', 'success')
+        setCouponsList(couponsList.filter(c => c.id !== couponId))
+      } else {
+        addToast('Failed to delete coupon', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Error deleting coupon', 'error')
+    }
+  }
 
   // Fetch data depending on active tab
   useEffect(() => {
@@ -152,10 +406,16 @@ export default function AdminDashboardPage() {
     if (activeTab === 'dashboard' || activeTab === 'revenue') {
       fetchDashboard()
       fetchAnalytics()
-    } else if (activeTab === 'shops' || activeTab === 'orders') {
+    } else if (activeTab === 'shops' || activeTab === 'orders' || activeTab === 'users') {
       fetchUsersAndShops()
     } else if (activeTab === 'analytics' || activeTab === 'ai') {
       fetchAnalytics()
+    } else if (activeTab === 'settings') {
+      fetchSettings()
+    } else if (activeTab === 'coupons') {
+      fetchCoupons()
+    } else if (activeTab === 'support') {
+      fetchFeedback()
     }
   }, [activeTab])
 
@@ -399,8 +659,8 @@ export default function AdminDashboardPage() {
               {/* TOP 8 KPI METRIC CARDS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard 
-                  title="Total Shops"
-                  value={stats?.activeShops ? (stats.activeShops + 133).toString() : '156'}
+                  title="Total Shopkeepers"
+                  value={stats?.totalShopkeepers ? stats.totalShopkeepers.toString() : '0'}
                   icon={Store}
                   trend="12.4%"
                   trendText="vs last month"
@@ -410,33 +670,33 @@ export default function AdminDashboardPage() {
                   sparklinePath="M0,22 Q25,8 50,18 T100,5"
                 />
                 <StatCard 
-                  title="Active Shops Today"
-                  value="23"
-                  icon={Activity}
-                  trend="6.8%"
-                  trendText="vs yesterday"
-                  trendUp={true}
-                  colorClass="text-emerald-600"
-                  bgClass="bg-emerald-50"
-                  sparklinePath="M0,25 Q30,12 60,20 T100,8"
-                />
-                <StatCard 
-                  title="Total Orders"
-                  value={stats?.totalOrders?.toLocaleString() || '340'}
-                  icon={ShoppingCart}
-                  trend="18.6%"
+                  title="Registered Users"
+                  value={stats?.totalUsers ? stats.totalUsers.toString() : '0'}
+                  icon={Users}
+                  trend="8.3%"
                   trendText="vs last month"
                   trendUp={true}
                   colorClass="text-indigo-600"
                   bgClass="bg-indigo-50"
+                  sparklinePath="M0,25 Q30,12 60,20 T100,8"
+                />
+                <StatCard 
+                  title="Active Customers"
+                  value={stats?.totalCustomers ? stats.totalCustomers.toString() : '0'}
+                  icon={Activity}
+                  trend="6.8%"
+                  trendText="with order history"
+                  trendUp={true}
+                  colorClass="text-emerald-600"
+                  bgClass="bg-emerald-50"
                   sparklinePath="M0,25 Q20,10 40,24 T80,12 T100,18"
                 />
                 <StatCard 
-                  title="Completed Orders"
-                  value="278"
-                  icon={CheckCircle2}
-                  trend="16.3%"
-                  trendText="Completion Rate"
+                  title="Total Orders"
+                  value={stats?.totalOrders ? stats.totalOrders.toLocaleString() : '0'}
+                  icon={ShoppingCart}
+                  trend="18.6%"
+                  trendText="vs last month"
                   trendUp={true}
                   colorClass="text-amber-600"
                   bgClass="bg-amber-50"
@@ -444,7 +704,7 @@ export default function AdminDashboardPage() {
                 />
                 <StatCard 
                   title="Total Revenue"
-                  value={`₹${(stats?.revenue || 21064.80).toLocaleString()}`}
+                  value={`₹${(stats?.revenue || 0).toLocaleString()}`}
                   icon={DollarSign}
                   trend="15.2%"
                   trendText="vs last month"
@@ -454,50 +714,38 @@ export default function AdminDashboardPage() {
                   sparklinePath="M0,22 Q30,15 60,25 T100,10"
                 />
                 <StatCard 
-                  title="Reward Cost (Coupons)"
-                  value="₹1,256.00"
+                  title="Coupons Issued"
+                  value={stats?.couponsGenerated ? stats.couponsGenerated.toString() : '0'}
                   icon={Tag}
                   trend="9.4%"
-                  trendText="vs last month"
-                  trendUp={false}
+                  trendText="monetary rewards"
+                  trendUp={true}
                   colorClass="text-orange-600"
                   bgClass="bg-orange-50"
                   sparklinePath="M0,10 Q25,18 50,12 T100,24"
                 />
                 <StatCard 
-                  title="AI Usage"
-                  value="124 jobs"
-                  icon={Sparkles}
+                  title="Coupons Redeemed"
+                  value={stats?.couponsRedeemed ? stats.couponsRedeemed.toString() : '0'}
+                  icon={Ticket}
                   trend="24.7%"
-                  trendText="vs last month"
+                  trendText="scratched coupons"
                   trendUp={true}
                   colorClass="text-violet-600"
                   bgClass="bg-violet-50"
                   sparklinePath="M0,25 Q25,8 50,22 T100,12"
                 />
-                {/* Urgent Alerts KPI Card */}
-                <div 
-                  onClick={() => addToast('Displaying system alerts panel...', 'info')}
-                  className="cursor-pointer bg-rose-50/50 hover:bg-rose-50 rounded-3xl border border-rose-100 p-6 flex flex-col justify-between shadow-sm transition min-h-[160px]"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold text-rose-500 uppercase tracking-wider">Urgent Alerts</p>
-                      <h3 className="text-3xl font-black text-rose-700 tracking-tight">{urgentAlerts.length}</h3>
-                      <p className="text-[10px] text-rose-500 font-extrabold flex items-center gap-1 mt-1.5">
-                        <AlertTriangle size={12} />
-                        <span>Needs attention</span>
-                      </p>
-                    </div>
-                    <div className="w-11 h-11 bg-rose-100 rounded-xl flex items-center justify-center text-rose-600">
-                      <AlertTriangle size={20} />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] font-bold text-rose-600 mt-2 border-t border-rose-200/50 pt-2.5">
-                    <span>Inspect Issues</span>
-                    <ArrowRight size={12} />
-                  </div>
-                </div>
+                <StatCard 
+                  title="Scratch Cards Dist."
+                  value={stats?.scratchCardsGenerated ? stats.scratchCardsGenerated.toString() : '0'}
+                  icon={Sparkles}
+                  trend="14.2%"
+                  trendText="total promo cards"
+                  trendUp={true}
+                  colorClass="text-rose-600"
+                  bgClass="bg-rose-50"
+                  sparklinePath="M0,15 Q30,5 60,25 T100,18"
+                />
               </div>
 
               {/* GRID: TREND GRAPH + PERFORMANCE TABLES */}
@@ -834,7 +1082,6 @@ export default function AdminDashboardPage() {
 
             </div>
           )}
-
           {/* ---------------------------------------------------- */}
           {/* PANEL B: SHOPS LIST PAGE */}
           {/* ---------------------------------------------------- */}
@@ -861,8 +1108,16 @@ export default function AdminDashboardPage() {
                   ))}
                 </div>
 
-                <div className="text-xs font-bold text-slate-400">
-                  Showing {filteredShopsList.length} total stores
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => { setEditingShop(null); setIsShopModalOpen(true) }}
+                    className="px-4 py-2 bg-[#6366F1] text-white font-bold rounded-xl text-xs hover:brightness-105 transition"
+                  >
+                    + Add New Shop
+                  </button>
+                  <div className="text-xs font-bold text-slate-400">
+                    Showing {filteredShopsList.length} total stores
+                  </div>
                 </div>
               </div>
 
@@ -885,14 +1140,15 @@ export default function AdminDashboardPage() {
                           <div className="flex flex-col gap-1 text-[10px] text-slate-500 font-semibold pt-1">
                             <span className="flex items-center gap-1.5 truncate"><Mail size={12} className="text-slate-400" /> {shop.email}</span>
                             <span className="flex items-center gap-1.5"><Phone size={12} className="text-slate-400" /> {shop.phone}</span>
+                            {shop.upiId && <span className="flex items-center gap-1.5 font-mono text-[9px] text-[#6366F1]">UPI: {shop.upiId}</span>}
                           </div>
                         </div>
 
                         {/* Status Check badge */}
                         <div className={`px-2.5 py-1 text-[9px] font-bold rounded-lg border ${
                           shop.isOnboarded 
-                            ? 'bg-green-50 text-green-700 border-green-100' 
-                            : 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse'
+                             ? 'bg-green-50 text-green-700 border-green-100' 
+                             : 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse'
                         }`}>
                           {shop.isOnboarded ? 'Operational' : 'Pending Review'}
                         </div>
@@ -928,13 +1184,20 @@ export default function AdminDashboardPage() {
                           </label>
                         </div>
 
-                        <button 
-                          onClick={() => addToast(`Opening configuration panel for ${shop.shopName}`, 'info')}
-                          className="flex items-center gap-1 text-[10px] font-bold text-[#6366F1] hover:underline"
-                        >
-                          <span>Manage pricing setup</span>
-                          <ArrowRight size={12} />
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button 
+                            onClick={() => { setEditingShop(shop); setIsShopModalOpen(true) }}
+                            className="text-[10px] font-bold text-[#6366F1] hover:underline"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteShop(shop.id)}
+                            className="text-[10px] font-bold text-rose-600 hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )) : (
@@ -944,6 +1207,113 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
               )}
+
+            </div>
+          )}
+
+          {/* ---------------------------------------------------- */}
+          {/* PANEL NEW: USERS LIST PAGE */}
+          {/* ---------------------------------------------------- */}
+          {activeTab === 'users' && (
+            <div className="space-y-8 animate-fadeIn">
+              
+              {/* Filter Tabs & Search query summary */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 border border-slate-100 rounded-3xl shadow-sm">
+                <div className="flex bg-slate-50 border border-slate-200 rounded-xl p-1 gap-1 shadow-inner-sm w-fit">
+                  {[
+                    { id: 'ALL', label: 'All Users' },
+                    { id: 'ENGLISH', label: 'English UI' },
+                    { id: 'HINDI', label: 'Hindi UI' }
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setUserFilter(f.id)}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
+                        userFilter === f.id ? 'bg-[#6366F1] text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => { setEditingUser(null); setIsUserModalOpen(true) }}
+                    className="px-4 py-2 bg-[#6366F1] text-white font-bold rounded-xl text-xs hover:brightness-105 transition"
+                  >
+                    + Add New User
+                  </button>
+                  <div className="text-xs font-bold text-slate-400">
+                    Showing {users.filter(u => {
+                      const matchesSearch = (u.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (u.email || '').toLowerCase().includes(searchQuery.toLowerCase());
+                      if (userFilter === 'ALL') return matchesSearch;
+                      return matchesSearch && u.language === userFilter;
+                    }).length} users total
+                  </div>
+                </div>
+              </div>
+
+              {/* Users list table details */}
+              <div className="bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto no-scrollbar">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-widest text-[9px] font-black">
+                        <th className="pb-3.5">User ID</th>
+                        <th className="pb-3.5">Name</th>
+                        <th className="pb-3.5">Email</th>
+                        <th className="pb-3.5">Phone</th>
+                        <th className="pb-3.5">Language</th>
+                        <th className="pb-3.5">Date Joined</th>
+                        <th className="pb-3.5 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs font-semibold text-slate-700">
+                      {users.length > 0 ? users.filter(u => {
+                        const matchesSearch = (u.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (u.email || '').toLowerCase().includes(searchQuery.toLowerCase());
+                        if (userFilter === 'ALL') return matchesSearch;
+                        return matchesSearch && u.language === userFilter;
+                      }).map((u) => (
+                        <tr key={u.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
+                          <td className="py-4 font-mono text-slate-500 font-bold">{u.id.substring(0, 8)}...</td>
+                          <td className="py-4 font-bold text-slate-800">{u.name || 'Anonymous User'}</td>
+                          <td className="py-4 text-slate-600">{u.email}</td>
+                          <td className="py-4 text-slate-500">{u.phone || 'N/A'}</td>
+                          <td className="py-4 text-slate-500">
+                            <span className="px-2 py-0.5 bg-slate-100 border border-slate-200/50 rounded-md font-bold text-[10px]">
+                              {u.language}
+                            </span>
+                          </td>
+                          <td className="py-4 text-slate-400 font-bold">
+                            {new Date(u.createdAt || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="py-4">
+                            <div className="flex items-center justify-center gap-3">
+                              <button 
+                                onClick={() => { setEditingUser(u); setIsUserModalOpen(true) }}
+                                className="text-[11px] font-bold text-[#6366F1] hover:underline"
+                              >
+                                Edit
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteUser(u.id)}
+                                className="text-[11px] font-bold text-rose-600 hover:underline"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan="7" className="py-12 text-center text-slate-400 font-bold">No users found in database.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
             </div>
           )}
@@ -1059,16 +1429,16 @@ export default function AdminDashboardPage() {
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Scratch Cards Distributed</span>
                     <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl"><Tag size={16} /></div>
                   </div>
-                  <h3 className="text-2xl font-black text-slate-800">{couponStats.scratchCardsCount} cards</h3>
+                  <h3 className="text-2xl font-black text-slate-800">{stats?.scratchCardsGenerated || couponsList.length} cards</h3>
                   <div className="text-[10px] text-slate-400 font-bold">Active in customer scratch screens</div>
                 </div>
 
                 <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-3">
                   <div className="flex justify-between items-start">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Total Rewards Distributed</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Redeemed Coupons</span>
                     <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl"><DollarSign size={16} /></div>
                   </div>
-                  <h3 className="text-2xl font-black text-emerald-600">₹{couponStats.rewardsDistributed.toLocaleString()}</h3>
+                  <h3 className="text-2xl font-black text-emerald-600">{stats?.couponsRedeemed || 0} cards</h3>
                   <div className="text-[10px] text-slate-400 font-bold">Total promotional discounts applied</div>
                 </div>
 
@@ -1077,8 +1447,8 @@ export default function AdminDashboardPage() {
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Reward Cost (Average)</span>
                     <div className="p-2 bg-purple-50 text-purple-600 rounded-xl"><Ticket size={16} /></div>
                   </div>
-                  <h3 className="text-2xl font-black text-slate-800">₹14.95</h3>
-                  <div className="text-[10px] text-slate-400 font-bold">Average cost per scratch coupon code</div>
+                  <h3 className="text-2xl font-black text-slate-800">₹{(stats?.couponsRedeemed ? (stats?.couponsRedeemed * 10) : 125.00).toFixed(2)}</h3>
+                  <div className="text-[10px] text-slate-400 font-bold">Discounts calculated dynamically (₹10/scratch)</div>
                 </div>
               </div>
 
@@ -1132,6 +1502,92 @@ export default function AdminDashboardPage() {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Coupons table details */}
+              <div className="bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">Reward Cards & Coupons</h3>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">CRUD management for scratch card coupons</p>
+                  </div>
+                  <button
+                    onClick={() => { setEditingCoupon(null); setIsCouponModalOpen(true) }}
+                    className="px-4 py-2 bg-[#6366F1] text-white font-bold rounded-xl text-xs hover:brightness-105 transition"
+                  >
+                    + Create Coupon Code
+                  </button>
+                </div>
+
+                {couponsLoading ? (
+                  <div className="h-48 flex items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left border-collapse min-w-[700px]">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-widest text-[9px] font-black">
+                          <th className="pb-3.5">Coupon ID</th>
+                          <th className="pb-3.5">Order ID</th>
+                          <th className="pb-3.5">Shop ID</th>
+                          <th className="pb-3.5">Reward Type</th>
+                          <th className="pb-3.5">Category</th>
+                          <th className="pb-3.5 text-center">Scratched</th>
+                          <th className="pb-3.5 text-center">Applied</th>
+                          <th className="pb-3.5">Message</th>
+                          <th className="pb-3.5 text-center">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-xs font-semibold text-slate-700">
+                        {couponsList.length > 0 ? couponsList.map((cp) => (
+                          <tr key={cp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
+                            <td className="py-4 font-bold text-slate-800">{cp.id.substring(0, 8)}...</td>
+                            <td className="py-4 font-mono text-[11px] text-slate-500">{cp.orderId}</td>
+                            <td className="py-4 font-mono text-[11px] text-slate-500">{cp.shopId}</td>
+                            <td className="py-4 text-indigo-700 font-bold">{cp.rewardType}</td>
+                            <td className="py-4">
+                              <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-bold">
+                                {cp.rewardCategory}
+                              </span>
+                            </td>
+                            <td className="py-4 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${cp.scratched ? 'bg-green-50 text-green-700' : 'bg-slate-50 text-slate-400'}`}>
+                                {cp.scratched ? 'Yes' : 'No'}
+                              </span>
+                            </td>
+                            <td className="py-4 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${cp.applied ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-400'}`}>
+                                {cp.applied ? 'Yes' : 'No'}
+                              </span>
+                            </td>
+                            <td className="py-4 text-slate-500 italic max-w-[150px] truncate">{cp.rewardMessage || '—'}</td>
+                            <td className="py-4">
+                              <div className="flex items-center justify-center gap-3">
+                                <button 
+                                  onClick={() => { setEditingCoupon(cp); setIsCouponModalOpen(true) }}
+                                  className="text-[11px] font-bold text-[#6366F1] hover:underline"
+                                >
+                                  Edit
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteCoupon(cp.id)}
+                                  className="text-[11px] font-bold text-rose-600 hover:underline"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan="9" className="py-12 text-center text-slate-400 font-bold">No coupons found in database.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -1228,7 +1684,7 @@ export default function AdminDashboardPage() {
                     <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Customer feedback and hardware setup requests</p>
                   </div>
                   <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-[10px]">
-                    Open tickets: {supportStats.openTickets}
+                    Open tickets: {feedbackList.filter(f => f.status === 'OPEN').length}
                   </span>
                 </div>
 
@@ -1239,49 +1695,72 @@ export default function AdminDashboardPage() {
                         <th className="pb-3.5">Ticket ID</th>
                         <th className="pb-3.5">User Customer</th>
                         <th className="pb-3.5">Subject / Query</th>
-                        <th className="pb-3.5">Shop / Location</th>
-                        <th className="pb-3.5">Priority</th>
+                        <th className="pb-3.5">Message</th>
+                        <th className="pb-3.5">Rating</th>
                         <th className="pb-3.5">Status</th>
-                        <th className="pb-3.5">Action</th>
+                        <th className="pb-3.5 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="text-xs font-semibold text-slate-700">
-                      {supportStats.tickets.map((tkt) => (
+                      {feedbackLoading ? (
+                        <tr>
+                          <td colSpan="7" className="py-12 text-center text-slate-400 font-bold">Loading support feedback...</td>
+                        </tr>
+                      ) : feedbackList.length > 0 ? feedbackList.map((tkt) => (
                         <tr key={tkt.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
-                          <td className="py-4 font-bold text-slate-800">{tkt.id}</td>
+                          <td className="py-4 font-mono text-[11px] text-slate-500 font-bold">{tkt.id.substring(0, 8)}...</td>
                           <td className="py-4">
-                            <span className="block font-bold text-slate-800">{tkt.customer}</span>
+                            <span className="block font-bold text-slate-800">{tkt.user?.name || 'Customer'}</span>
+                            <span className="text-[10px] text-slate-400 font-bold block">{tkt.user?.email || 'N/A'}</span>
                           </td>
-                          <td className="py-4 text-slate-800 font-bold max-w-[200px] truncate">{tkt.subject}</td>
-                          <td className="py-4 text-slate-500 font-bold">{tkt.shop}</td>
-                          <td className="py-4">
-                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-extrabold ${
-                              tkt.priority === 'High' 
-                                ? 'bg-rose-50 text-rose-700 border border-rose-100' 
-                                : tkt.priority === 'Medium' 
-                                  ? 'bg-amber-50 text-amber-700 border border-amber-100' 
-                                  : 'bg-slate-50 text-slate-600 border border-slate-200'
-                            }`}>
-                              {tkt.priority}
-                            </span>
+                          <td className="py-4 text-slate-800 font-bold max-w-[150px] truncate" title={tkt.subject}>{tkt.subject}</td>
+                          <td className="py-4 text-slate-500 font-semibold max-w-[200px] truncate" title={tkt.message}>{tkt.message}</td>
+                          <td className="py-4 font-bold text-amber-500">
+                            {tkt.rating ? `${'★'.repeat(tkt.rating)}${'☆'.repeat(5 - tkt.rating)}` : '—'}
                           </td>
                           <td className="py-4">
                             <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold border ${
-                              tkt.status === 'Open' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                              tkt.status === 'OPEN' 
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200' 
+                                : tkt.status === 'IN_PROGRESS'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : 'bg-green-50 text-green-700 border-green-200'
                             }`}>
                               {tkt.status}
                             </span>
                           </td>
                           <td className="py-4">
-                            <button 
-                              onClick={() => addToast(`Opening support dialogue for ${tkt.id}`, 'info')}
-                              className="text-[10px] font-bold text-[#6366F1] hover:underline"
-                            >
-                              Reply
-                            </button>
+                            <div className="flex items-center justify-center gap-3">
+                              {tkt.status !== 'RESOLVED' && (
+                                <button 
+                                  onClick={() => handleUpdateFeedbackStatus(tkt.id, 'RESOLVED')}
+                                  className="text-[10px] font-bold text-green-600 hover:underline"
+                                >
+                                  Resolve
+                                </button>
+                              )}
+                              {tkt.status === 'OPEN' && (
+                                <button 
+                                  onClick={() => handleUpdateFeedbackStatus(tkt.id, 'IN_PROGRESS')}
+                                  className="text-[10px] font-bold text-amber-600 hover:underline"
+                                >
+                                  Progress
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleDeleteFeedback(tkt.id)}
+                                className="text-[10px] font-bold text-rose-600 hover:underline"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
-                      ))}
+                      )) : (
+                        <tr>
+                          <td colSpan="7" className="py-12 text-center text-slate-400 font-bold">No feedback submissions found.</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1290,8 +1769,6 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* ---------------------------------------------------- */}
-          {/* PANEL G: REVENUE ANALYTICS PAGE */}
           {/* ---------------------------------------------------- */}
           {activeTab === 'revenue' && (
             <div className="space-y-8 animate-fadeIn">
@@ -1441,7 +1918,7 @@ export default function AdminDashboardPage() {
 
                 {/* Save administrative Settings button */}
                 <button 
-                  onClick={() => addToast('Administrative system config updated successfully!', 'success')}
+                  onClick={handleSaveSettings}
                   className="w-full bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs shadow-lg hover:brightness-105 active:scale-99 transition-all duration-300"
                 >
                   <ShieldCheck size={16} />
@@ -1453,6 +1930,163 @@ export default function AdminDashboardPage() {
 
         </div>
       </main>
+
+      {/* SHOP CRUD MODAL */}
+      {isShopModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl max-w-md w-full border border-slate-100 overflow-hidden text-xs font-semibold text-slate-700">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="font-extrabold text-slate-800 text-sm">{editingShop ? 'Edit Shop' : 'Add New Shop'}</h3>
+              <button onClick={() => { setIsShopModalOpen(false); setEditingShop(null) }} className="text-slate-400 hover:text-slate-600 font-bold text-sm">✕</button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.target);
+              const data = Object.fromEntries(fd);
+              handleSaveShop(data);
+            }} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Shop Name</label>
+                <input required type="text" name="shopName" defaultValue={editingShop?.shopName || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Owner Name</label>
+                <input type="text" name="ownerName" defaultValue={editingShop?.ownerName || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Email</label>
+                <input required type="email" name="email" defaultValue={editingShop?.email || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
+              </div>
+              {!editingShop && (
+                <div className="space-y-1.5">
+                  <label className="text-slate-500 font-bold block">Password</label>
+                  <input required type="password" name="password" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Phone</label>
+                <input required type="text" name="phone" defaultValue={editingShop?.phone || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">UPI ID</label>
+                <input type="text" name="upiId" defaultValue={editingShop?.upiId || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Address</label>
+                <textarea name="address" defaultValue={editingShop?.address || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" rows={2} />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setIsShopModalOpen(false); setEditingShop(null) }} className="flex-1 py-3 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl font-bold">Cancel</button>
+                <button type="submit" className="flex-1 py-3 bg-[#6366F1] text-white rounded-xl font-bold shadow-md">Save Shop</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* USER CRUD MODAL */}
+      {isUserModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl max-w-md w-full border border-slate-100 overflow-hidden text-xs font-semibold text-slate-700">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="font-extrabold text-slate-800 text-sm">{editingUser ? 'Edit User' : 'Add New User'}</h3>
+              <button onClick={() => { setIsUserModalOpen(false); setEditingUser(null) }} className="text-slate-400 hover:text-slate-600 font-bold text-sm">✕</button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.target);
+              const data = Object.fromEntries(fd);
+              handleSaveUser(data);
+            }} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Full Name</label>
+                <input required type="text" name="name" defaultValue={editingUser?.name || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Email</label>
+                <input required type="email" name="email" defaultValue={editingUser?.email || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Phone</label>
+                <input type="text" name="phone" defaultValue={editingUser?.phone || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Language Preferred</label>
+                <select name="language" defaultValue={editingUser?.language || 'ENGLISH'} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl">
+                  <option value="ENGLISH">ENGLISH</option>
+                  <option value="HINDI">HINDI</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setIsUserModalOpen(false); setEditingUser(null) }} className="flex-1 py-3 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl font-bold">Cancel</button>
+                <button type="submit" className="flex-1 py-3 bg-[#6366F1] text-white rounded-xl font-bold shadow-md">Save User</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* COUPON CRUD MODAL */}
+      {isCouponModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl max-w-md w-full border border-slate-100 overflow-hidden text-xs font-semibold text-slate-700">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="font-extrabold text-slate-800 text-sm">{editingCoupon ? 'Edit Coupon' : 'Create Coupon Code'}</h3>
+              <button onClick={() => { setIsCouponModalOpen(false); setEditingCoupon(null) }} className="text-slate-400 hover:text-slate-600 font-bold text-sm">✕</button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.target);
+              const data = Object.fromEntries(fd);
+              data.scratched = data.scratched === 'true';
+              data.applied = data.applied === 'true';
+              handleSaveCoupon(data);
+            }} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Order ID (Linked)</label>
+                <input required type="text" name="orderId" defaultValue={editingCoupon?.orderId || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" placeholder="e.g. ord-123" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Shop ID (Linked)</label>
+                <input required type="text" name="shopId" defaultValue={editingCoupon?.shopId || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" placeholder="e.g. 5A-12345" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Reward Type (Discount description)</label>
+                <input required type="text" name="rewardType" defaultValue={editingCoupon?.rewardType || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" placeholder="e.g. ₹5 Discount" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Reward Category</label>
+                <select name="rewardCategory" defaultValue={editingCoupon?.rewardCategory || 'MONETARY'} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl">
+                  <option value="MONETARY">MONETARY</option>
+                  <option value="NON_MONETARY">NON_MONETARY</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Scratched Status</label>
+                <select name="scratched" defaultValue={String(editingCoupon?.scratched || false)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl">
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Applied Status</label>
+                <select name="applied" defaultValue={String(editingCoupon?.applied || false)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl">
+                  <option value="true">Yes (Redeemed)</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold block">Reward Message</label>
+                <input type="text" name="rewardMessage" defaultValue={editingCoupon?.rewardMessage || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" placeholder="Message to customer" />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setIsCouponModalOpen(false); setEditingCoupon(null) }} className="flex-1 py-3 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl font-bold">Cancel</button>
+                <button type="submit" className="flex-1 py-3 bg-[#6366F1] text-white rounded-xl font-bold shadow-md">Save Coupon</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* TOAST SYSTEM COMPONENT */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">

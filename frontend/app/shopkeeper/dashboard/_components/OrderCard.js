@@ -124,7 +124,7 @@ const getPrintableUrl = async (fileUrl) => {
   return fileUrl;
 };
 
-export default function OrderCard({ order, onStatusChange, onPaymentVerify }) {
+export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPrint }) {
   const handlePreview = async () => {
     if (order.fileUrl) {
       const url = await getPrintableUrl(order.fileUrl);
@@ -135,7 +135,9 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify }) {
   }
 
   const handlePrint = async () => {
-    if (order.fileUrl) {
+    if (onPrint) {
+      onPrint(order);
+    } else if (order.fileUrl) {
       const url = await getPrintableUrl(order.fileUrl);
       window.open(url, '_blank')
       if (onStatusChange && order.dbId) {

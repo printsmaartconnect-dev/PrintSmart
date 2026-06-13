@@ -211,6 +211,24 @@ app.get("/debug/s3", async (req, res) => {
   });
 });
 
+// Public configurations endpoint
+app.get("/api/settings", async (req, res) => {
+  try {
+    const prisma = require("./config/db");
+    const settings = await prisma.systemSettings.findMany();
+    const formatted = {};
+    settings.forEach(s => {
+      let val = s.value;
+      if (val === 'true') val = true;
+      if (val === 'false') val = false;
+      formatted[s.key] = val;
+    });
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch platform configurations" });
+  }
+});
+
 // Root fallback route
 app.use((req, res) => {
   res.status(404).json({ message: "API endpoint not found" });
@@ -224,6 +242,16 @@ app.use((err, req, res, next) => {
 
 // Start listening
 app.listen(PORT, async () => {
+  // Programmatic DB schema sync on server boot
+  try {
+    const { execSync } = require("child_process");
+    console.log("Running prisma db push programmatically on startup...");
+    execSync("npx prisma db push", { cwd: __dirname, stdio: "inherit" });
+    console.log("Prisma db push completed successfully.");
+  } catch (err) {
+    console.error("Prisma db push failed on startup:", err.message);
+  }
+
   console.log(`PrintSmart backend running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`);
 
   // DNS Diagnostics

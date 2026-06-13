@@ -1,29 +1,43 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/admin.controller");
+const feedbackController = require("../controllers/feedback.controller");
 
 // @route   GET api/admin/stats
-// @desc    Get platform wide dashboard statistics
 router.get("/stats", adminController.getDashboardStats);
 
 // @route   GET api/admin/recent-orders
-// @desc    Get recent orders across all shops
 router.get("/recent-orders", adminController.getRecentOrders);
 
-// @route   GET api/admin/users
-// @desc    Get all platform users
-router.get("/users", adminController.getUsers);
+// @route   GET /api/admin/settings
+router.get("/settings", adminController.getSettings);
+router.post("/settings", adminController.saveSettings);
 
-// @route   GET api/admin/shops
-// @desc    Get all shops (shopkeepers)
+// @route   CRUD for shops
 router.get("/shops", adminController.getShops);
-
-// @route   PUT api/admin/shops/:id/onboard
-// @desc    Toggle shopkeeper onboarding/approval status
+router.post("/shops", adminController.createShop);
+router.put("/shops/:id", adminController.updateShop);
+router.delete("/shops/:id", adminController.deleteShop);
 router.put("/shops/:id/onboard", adminController.toggleShopOnboard);
 
+// @route   CRUD for users (customers)
+router.get("/users", adminController.getUsers);
+router.post("/users", adminController.createUser);
+router.put("/users/:id", adminController.updateUser);
+router.delete("/users/:id", adminController.deleteUser);
+
+// @route   CRUD for coupons/rewards
+router.get("/coupons", adminController.getCoupons);
+router.post("/coupons", adminController.createCoupon);
+router.put("/coupons/:id", adminController.updateCoupon);
+router.delete("/coupons/:id", adminController.deleteCoupon);
+
+// @route   CRUD for feedback (support tickets)
+router.get("/feedback", feedbackController.getAllFeedback);
+router.put("/feedback/:feedbackId", feedbackController.updateFeedbackStatus);
+router.delete("/feedback/:feedbackId", feedbackController.deleteFeedback);
+
 // @route   GET api/admin/analytics
-// @desc    Get platform analytics data
 router.get("/analytics", adminController.getAnalytics);
 
 module.exports = router;

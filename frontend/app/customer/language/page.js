@@ -238,11 +238,48 @@ function CustomerLanguagePageContent() {
   })
 
   const [files, setFiles] = useState([])
+  const [allowedExts, setAllowedExts] = useState(null)
+  const [maintenance, setMaintenance] = useState(false)
+  const [notices, setNotices] = useState('')
+  const [offers, setOffers] = useState('')
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
+        const response = await fetch(`${apiUrl}/api/settings`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.maintenanceMode) setMaintenance(true)
+          if (data.allowedFileFormats) {
+            const exts = data.allowedFileFormats.split(',').map(e => e.trim().toLowerCase())
+            setAllowedExts(exts)
+          }
+          if (data.notices) setNotices(data.notices)
+          if (data.offers) setOffers(data.offers)
+        }
+      } catch (err) {
+        console.error('Failed to load settings:', err)
+      }
+    }
+    fetchSettings()
+  }, [])
   const [renames, setRenames] = useState({})
   const [uploading, setUploading] = useState(false)
 
   const onDrop = useCallback((acceptedFiles) => {
-    const newFiles = acceptedFiles.map(file => ({
+    let filteredFiles = acceptedFiles
+    if (allowedExts) {
+      filteredFiles = acceptedFiles.filter(file => {
+        const ext = getFileExtension(file.name)
+        return allowedExts.includes(ext)
+      })
+      if (filteredFiles.length < acceptedFiles.length) {
+        alert(t('Some files were rejected. Allowed formats: ') + allowedExts.join(', ').toUpperCase())
+      }
+    }
+
+    const newFiles = filteredFiles.map(file => ({
       file,
       previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       thumbnailUrl: null,
@@ -388,6 +425,11 @@ function CustomerLanguagePageContent() {
         }
         const data = await response.json()
         
+        if (data.shopkeeper && data.shopkeeper.isOnboarded === false) {
+          setShopError(t('This printing shop is temporarily deactivated by the platform administration.'))
+          return
+        }
+
         // Save using helper
         setCurrentShop(data.shopkeeper)
       } catch (err) {
@@ -545,7 +587,19 @@ function CustomerLanguagePageContent() {
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-xl animate-fade-in">
-          {validatingShop ? (
+          {maintenance ? (
+            <div className="bg-white rounded-3xl shadow-xl p-8 text-center border border-slate-100 space-y-6">
+              <div className="w-16 h-16 bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center rounded-2xl mx-auto shadow-sm">
+                <Shield size={32} className="animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{t('Platform Maintenance')}</h2>
+                <p className="text-sm text-slate-500 font-semibold leading-relaxed">
+                  {t('PrintSmart is currently undergoing scheduled system updates. We will be back online shortly. Thank you for your patience!')}
+                </p>
+              </div>
+            </div>
+          ) : validatingShop ? (
             <div className="bg-white rounded-xl shadow-lg p-8 text-center flex flex-col items-center justify-center gap-3">
               <Loader size={36} className="animate-spin text-indigo-600" />
               <p className="text-gray-600 font-semibold">{t('Detecting and validating shop...')}</p>
@@ -581,6 +635,26 @@ function CustomerLanguagePageContent() {
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-2 flex gap-3">
                     <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
                     <p className="text-red-700 text-sm">{error}</p>
+                  </div>
+                )}
+
+                {notices && (
+                  <div className="bg-violet-50 border border-violet-150 rounded-xl p-4 mb-2 flex gap-2.5 text-left items-start shadow-sm">
+                    <span className="text-base">📢</span>
+                    <div>
+                      <p className="text-xs font-bold text-violet-800 uppercase tracking-wide">{t('Notice Board')}</p>
+                      <p className="text-xs text-violet-700 font-semibold mt-0.5">{notices}</p>
+                    </div>
+                  </div>
+                )}
+
+                {offers && (
+                  <div className="bg-amber-50 border border-amber-150 rounded-xl p-4 mb-2 flex gap-2.5 text-left items-start shadow-sm">
+                    <span className="text-base">🎁</span>
+                    <div>
+                      <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">{t('Discounts & Offers')}</p>
+                      <p className="text-xs text-amber-700 font-semibold mt-0.5">{offers}</p>
+                    </div>
                   </div>
                 )}
 

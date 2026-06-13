@@ -25,6 +25,18 @@ exports.upload = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
+    // Fetch allowed extensions from settings
+    let allowedExtensions = ALLOWED_EXTENSIONS;
+    try {
+      const prisma = require("../config/db");
+      const settings = await prisma.systemSettings.findUnique({ where: { key: 'allowedFileFormats' } });
+      if (settings && settings.value) {
+        allowedExtensions = settings.value.split(',').map(ext => ext.trim().toLowerCase());
+      }
+    } catch (e) {
+      console.error("Failed to load allowed extensions, using default:", e);
+    }
+
     const fileExtension = path.extname(req.file.originalname).toLowerCase();
     const mimeType = req.file.mimetype;
 
@@ -36,9 +48,9 @@ exports.upload = async (req, res) => {
     }
 
     // 2. Allowed file types validation
-    if (!ALLOWED_EXTENSIONS.includes(fileExtension) || !ALLOWED_MIMETYPES.includes(mimeType)) {
+    if (!allowedExtensions.includes(fileExtension)) {
       return res.status(400).json({
-        message: `Invalid file type. Allowed formats: ${ALLOWED_EXTENSIONS.join(", ").toUpperCase()}`
+        message: `Invalid file type. Allowed formats: ${allowedExtensions.join(", ").toUpperCase()}`
       });
     }
 

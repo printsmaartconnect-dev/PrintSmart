@@ -67,11 +67,6 @@ function HomeContent() {
             <option>Hindi</option>
             <option>Marathi</option>
           </select>
-          <Link href="/admin">
-            <button className="p-2 hover:bg-white/50 rounded-lg transition">
-              <Settings size={24} className="text-gray-700" />
-            </button>
-          </Link>
         </div>
       </header>
 

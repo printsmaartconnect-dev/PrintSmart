@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import BackButton from '../components/BackButton'
 import FeedbackButton from '../components/FeedbackButton'
 import FeedbackLink from '../components/FeedbackLink'
+import QRScannerModal from '../components/customer/QRScannerModal'
 
 function TakeAPrintPageContent() {
   const { t } = useTranslation()
@@ -18,6 +19,7 @@ function TakeAPrintPageContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [manualShopId, setManualShopId] = useState('')
+  const [showScanner, setShowScanner] = useState(false)
 
   // Fetch shopkeeper details by slug
   const fetchShopDetails = async (slug) => {
@@ -150,7 +152,7 @@ function TakeAPrintPageContent() {
             <div className="space-y-4">
               <button
                 type="button"
-                onClick={() => fetchShopDetails('0000')}
+                onClick={() => setShowScanner(true)}
                 className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3.5 px-4 rounded-lg shadow-md transition flex items-center justify-center gap-2 mb-2"
               >
                 {t('📷 Click to Scan QR Code')}
@@ -200,6 +202,13 @@ function TakeAPrintPageContent() {
 
       {/* Floating Feedback Button */}
       <FeedbackButton />
+
+      {showScanner && (
+        <QRScannerModal
+          onClose={() => setShowScanner(false)}
+          onScanSuccess={(resolvedId) => fetchShopDetails(resolvedId)}
+        />
+      )}
     </div>
   )
 }

@@ -356,3 +356,10 @@ model PaymentLog {
 
   @@index([transactionRef])
 }
+
+model SystemSettings {
+  key       String   @id
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
