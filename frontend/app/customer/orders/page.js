@@ -35,11 +35,9 @@ export function OrdersPageContent() {
   const [selectedOrderId, setSelectedOrderId] = useState(null)
 
   // UPI Payment State
-  const [isMobile, setIsMobile] = useState(false)
-  const [showUpiModal, setShowUpiModal] = useState(false)
-  const [showAppChooser, setShowAppChooser] = useState(false)
-  const [paymentState, setPaymentState] = useState('IDLE') // 'IDLE' | 'OPENING' | 'WAITING'
-  const [selectedApp, setSelectedApp] = useState(null)
+  const [platform, setPlatform] = useState('desktop')
+  const [paymentInitiated, setPaymentInitiated] = useState(false)
+  const [desktopError, setDesktopError] = useState(false)
 
   const latestPendingOrder = orders.find(o => o.status === 'PENDING')
   const upiId = latestPendingOrder?.shopkeeper?.upiId
@@ -58,12 +56,17 @@ export function OrdersPageContent() {
   }
 
   useEffect(() => {
-    const checkMobile = () => {
-      const userAgent = typeof navigator !== 'undefined' ? (navigator.userAgent || navigator.vendor || window.opera) : ''
-      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
-      setIsMobile(mobileRegex.test(userAgent))
+    const detectPlatform = () => {
+      const ua = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : ''
+      if (/android/.test(ua)) {
+        setPlatform('android')
+      } else if (/iphone|ipad|ipod/.test(ua)) {
+        setPlatform('ios')
+      } else {
+        setPlatform('desktop')
+      }
     }
-    checkMobile()
+    detectPlatform()
   }, [])
 
   const fetchOrders = async () => {
@@ -314,15 +317,15 @@ export function OrdersPageContent() {
 
         {/* Payment Box Section */}
         {orders.length > 0 && orders.some(o => o.status === 'PENDING') && (
-          (() => {
-
+            (() => {
             const handleUpiPayClick = () => {
-              if (validationError) return
-              if (isMobile) {
-                setShowAppChooser(true)
-              } else {
-                setShowUpiModal(true)
+              if (platform === 'desktop') {
+                setDesktopError(true)
+                return
               }
+              // Redirect to generic upi://pay to invoke OS app chooser
+              window.location.href = 'upi://pay'
+              setPaymentInitiated(true)
             }
 
             return (
@@ -337,23 +340,22 @@ export function OrdersPageContent() {
                 <div className="flex flex-col md:flex-row gap-4 items-stretch">
                   {/* Pay Online column */}
                   <div className="flex-1 flex flex-col items-center gap-3 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm justify-between">
-                    <div className="w-full flex flex-col items-center gap-3">
+                    <div className="w-full flex flex-col items-center gap-3 text-center">
                       <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">{t('Option A: Pay Online')}</p>
                       
-                      {validationError ? (
-                        <div className="w-full bg-rose-50 border border-rose-100 rounded-xl p-3 text-left">
-                          <p className="text-[10px] font-bold text-rose-800 uppercase tracking-wide flex items-center gap-1.5">
-                            <AlertCircle size={12} className="text-rose-600" />
-                            {t('Payment Configuration Error')}
+                      {desktopError && (
+                        <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 text-left">
+                          <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
+                            <AlertCircle size={12} className="text-amber-600" />
+                            {t('Desktop Limitation')}
                           </p>
-                          <p className="text-xs text-rose-700 font-semibold mt-1">
-                            {t(validationError)}
-                          </p>
-                          <p className="text-[10px] text-rose-500 mt-1 font-medium">
-                            {t('Please notify the shopkeeper to set up their profile correctly.')}
+                          <p className="text-xs text-amber-700 font-semibold mt-1">
+                            {t('UPI app launching is only available on mobile devices.')}
                           </p>
                         </div>
-                      ) : (
+                      )}
+
+                      {!paymentInitiated ? (
                         <button
                           type="button"
                           onClick={handleUpiPayClick}
@@ -361,44 +363,38 @@ export function OrdersPageContent() {
                         >
                           ⚡ {t('Pay with UPI')}
                         </button>
-                      )}
-                    </div>
-
-                    {!validationError && (
-                      <div className="w-full border-t border-slate-100 pt-3 mt-3 text-left">
-                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">
-                          {t('Confirm UPI (12-Digit Ref No.)')}
-                        </label>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="text"
-                            value={transactionRef}
-                            onChange={(e) => setTransactionRef(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                            placeholder="e.g. 123456789012"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
-                          />
+                      ) : (
+                        <div className="w-full space-y-3">
+                          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-left">
+                            <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+                              ⏳ {t('Payment Pending Verification')}
+                            </p>
+                            <p className="text-[10px] text-amber-600 mt-1 font-semibold leading-normal">
+                              {t('UPI payment has been launched. Once you complete the payment in your UPI app, click the button below.')}
+                            </p>
+                          </div>
+                          
                           <button
                             type="button"
-                            disabled={transactionRef.length !== 12 || submittingRef}
+                            disabled={submittingRef}
                             onClick={async () => {
                               setSubmittingRef(true)
-                              await handleVerifyPayment(latestPendingOrder.id, transactionRef, 'UPI')
-                              setTransactionRef('')
+                              const generatedRef = `UPI-AUTO-${latestPendingOrder.id.substring(0, 8)}-${Date.now()}`
+                              await handleVerifyPayment(latestPendingOrder.id, generatedRef, 'UPI')
+                              setPaymentInitiated(false)
                               setSubmittingRef(false)
                             }}
-                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center justify-center"
+                            className="w-full inline-flex items-center justify-center gap-2 text-center py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 transition duration-200 shadow-sm"
                           >
-                            {submittingRef ? t('Wait...') : t('Submit')}
+                            {submittingRef ? t('Wait...') : `✅ ${t('I Have Paid')}`}
                           </button>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                   
                   {/* Pay Offline column */}
-                  <div className="flex-1 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm flex flex-col justify-between items-center text-center">
+                  <div className="flex-grow flex-shrink-0 md:w-1/2 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm flex flex-col justify-between items-center text-center">
                     <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">{t('Option B: Pay Cash')}</p>
                     <div className="text-[11px] text-gray-500 font-medium px-2 mb-4">
                       {t('Pay cash directly at the counter. Click below to notify the shopkeeper of cash payment.')}
@@ -412,84 +408,6 @@ export function OrdersPageContent() {
                     </button>
                   </div>
                 </div>
-
-                {/* Desktop Fallback QR Modal */}
-                {showUpiModal && !validationError && (
-                  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-5 border border-indigo-50 relative">
-                      <button
-                        type="button"
-                        onClick={() => setShowUpiModal(false)}
-                        className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition font-bold"
-                      >
-                        ✕
-                      </button>
-
-                      <div className="text-center space-y-1">
-                        <h3 className="text-base font-bold text-slate-800 flex items-center justify-center gap-1.5">
-                          📱 {t('Scan to Pay with UPI')}
-                        </h3>
-                        <p className="text-xs text-slate-500 font-bold">
-                          {shopName}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-2xl border border-slate-100 max-w-[210px] mx-auto shadow-inner">
-                        <div className="w-48 h-48 relative flex items-center justify-center bg-white border border-slate-150 rounded-xl overflow-hidden shadow-sm">
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUrl)}`}
-                            alt="Scan UPI QR Code"
-                            className="max-w-full max-h-full object-contain p-1"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="text-center bg-indigo-50/60 border border-indigo-100 rounded-xl py-2 px-4 max-w-[200px] mx-auto">
-                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider block">
-                          {t('Amount Prefilled')}
-                        </span>
-                        <span className="text-lg font-extrabold text-indigo-700">
-                          {formatCurrency(amount)}
-                        </span>
-                      </div>
-
-                      <p className="text-center text-[11px] text-slate-600 font-semibold leading-relaxed px-2">
-                        {t('Open Google Pay, PhonePe, Paytm, or any UPI app on your phone and scan this QR code to complete the payment.')}
-                      </p>
-
-                      <div className="border-t border-slate-100 pt-4 text-left">
-                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">
-                          {t('Step 2: Enter 12-Digit UPI Ref No. / UTR')}
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={transactionRef}
-                            onChange={(e) => setTransactionRef(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                            placeholder="e.g. 123456789012"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold shadow-sm"
-                          />
-                          <button
-                            type="button"
-                            disabled={transactionRef.length !== 12 || submittingRef}
-                            onClick={async () => {
-                              setSubmittingRef(true)
-                              await handleVerifyPayment(latestPendingOrder.id, transactionRef, 'UPI')
-                              setTransactionRef('')
-                              setShowUpiModal(false)
-                              setSubmittingRef(false)
-                            }}
-                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md active:scale-95 flex items-center justify-center flex-shrink-0"
-                          >
-                            {submittingRef ? t('Wait...') : t('Submit')}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             )
           })()
@@ -518,7 +436,7 @@ export function OrdersPageContent() {
                         <>
                           {order.paymentLog.paymentStatus === 'PENDING' && (
                             <span className="inline-flex items-center rounded bg-amber-50 text-amber-700 border border-amber-200/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider">
-                              ⏳ {t('Verifying')} {order.paymentLog.paymentGateway === 'UPI' ? `(Ref: ${order.paymentLog.transactionRef})` : `(Cash)`}
+                              ⏳ {order.paymentLog.paymentGateway === 'UPI' ? t('Payment Pending Verification') : t('Cash Pending Verification')}
                             </span>
                           )}
                           {order.paymentLog.paymentStatus === 'VERIFIED' && (
@@ -725,120 +643,6 @@ export function OrdersPageContent() {
             fetchOrders()
           }}
         />
-      )}
-
-      {/* MOBILE UPI APP CHOOSER BOTTOM SHEET */}
-      {showAppChooser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4 border border-indigo-50 relative animate-slide-up">
-            <button
-              type="button"
-              onClick={() => {
-                setShowAppChooser(false)
-                setPaymentState('IDLE')
-              }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition font-bold"
-            >
-              ✕
-            </button>
-
-            {paymentState === 'IDLE' && (
-              <>
-                <div className="text-center">
-                  <h3 className="text-base font-bold text-slate-800 flex items-center justify-center gap-1.5">
-                    📱 {t('Select UPI App')}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-semibold mt-1">
-                    {t('Choose an app to pay')} {formatCurrency(amount)}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  {[
-                    { name: 'Google Pay', icon: '⚡ GPay', scheme: 'tez://upi/pay' },
-                    { name: 'PhonePe', icon: '🟣 PhonePe', scheme: 'phonepe://pay' },
-                    { name: 'Paytm', icon: '🔵 Paytm', scheme: 'paytmmp://pay' },
-                    { name: 'BHIM', icon: '🇮🇳 BHIM', scheme: 'bhim://pay' },
-                    { name: 'Amazon Pay', icon: '🟠 Amazon', scheme: 'amazonpay://pay' },
-                    { name: 'Default App', icon: '📲 Generic', scheme: 'upi://pay' }
-                  ].map((app) => (
-                    <button
-                      key={app.name}
-                      onClick={() => {
-                        setSelectedApp(app)
-                        setPaymentState('OPENING')
-                        setTimeout(() => {
-                          window.location.href = upiUrl.replace('upi://pay', app.scheme)
-                          setPaymentState('WAITING')
-                        }, 1500)
-                      }}
-                      className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-150 hover:bg-indigo-50/50 hover:border-indigo-200 transition font-bold text-xs gap-1.5 shadow-sm active:scale-98"
-                    >
-                      <span className="text-lg">{app.icon.split(' ')[0]}</span>
-                      <span>{app.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {paymentState === 'OPENING' && (
-              <div className="py-8 flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-12 h-12 border-4 border-t-indigo-600 border-indigo-100 rounded-full animate-spin"></div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800">{t('Opening')} {selectedApp?.name}...</h4>
-                  <p className="text-xs text-slate-500 font-medium mt-1">{t('Redirecting you to the UPI payment gateway')}</p>
-                </div>
-              </div>
-            )}
-
-            {paymentState === 'WAITING' && (
-              <div className="space-y-4">
-                <div className="py-6 flex flex-col items-center justify-center text-center space-y-3 bg-indigo-50/30 rounded-2xl border border-indigo-50">
-                  <div className="w-10 h-10 border-4 border-t-indigo-600 border-indigo-200 rounded-full animate-spin"></div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t('Waiting for payment confirmation')}</h4>
-                    <p className="text-[11px] text-slate-500 font-semibold px-4 mt-1">
-                      {t('Once completed, please stay on this screen. It will auto-verify in 5 seconds.')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-100 pt-3 text-left">
-                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">
-                    {t('Confirm UPI (12-Digit Ref No.)')}
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={transactionRef}
-                      onChange={(e) => setTransactionRef(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                      placeholder="e.g. 123456789012"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold shadow-sm"
-                    />
-                    <button
-                      type="button"
-                      disabled={transactionRef.length !== 12 || submittingRef}
-                      onClick={async () => {
-                        setSubmittingRef(true)
-                        await handleVerifyPayment(latestPendingOrder.id, transactionRef, 'UPI')
-                        setTransactionRef('')
-                        setShowAppChooser(false)
-                        setPaymentState('IDLE')
-                        setSubmittingRef(false)
-                      }}
-                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md active:scale-95 flex items-center justify-center flex-shrink-0"
-                    >
-                      {submittingRef ? t('Wait...') : t('Submit')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       )}
     </div>
   )

@@ -228,14 +228,14 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
                 onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'VERIFIED')}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-extrabold py-1.5 rounded-lg transition"
               >
-                Accept
+                Mark As Paid
               </button>
               <button
                 type="button"
                 onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'FAILED')}
                 className="flex-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold py-1.5 rounded-lg transition"
               >
-                Reject
+                Reject Payment
               </button>
             </div>
           )}

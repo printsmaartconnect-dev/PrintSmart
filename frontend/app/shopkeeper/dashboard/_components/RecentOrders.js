@@ -260,14 +260,14 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                                       onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'VERIFIED')}
                                       className="inline-flex items-center justify-center bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-md hover:bg-emerald-700 transition"
                                     >
-                                      ✓ {t('Accept')}
+                                      ✓ {t('Mark As Paid')}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => onPaymentVerify && onPaymentVerify(order.dbId, 'FAILED')}
                                       className="inline-flex items-center justify-center bg-rose-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-md hover:bg-rose-700 transition"
                                     >
-                                      ✕ {t('Reject')}
+                                      ✕ {t('Reject Payment')}
                                     </button>
                                   </div>
                                 </>
