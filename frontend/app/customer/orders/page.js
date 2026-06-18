@@ -342,7 +342,7 @@ export function OrdersPageContent() {
                   <div className="flex-1 flex flex-col items-center gap-3 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm justify-between">
                     <div className="w-full flex flex-col items-center gap-3 text-center">
                       <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">{t('Option A: Pay Online')}</p>
-                      
+
                       {desktopError && (
                         <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 text-left">
                           <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">

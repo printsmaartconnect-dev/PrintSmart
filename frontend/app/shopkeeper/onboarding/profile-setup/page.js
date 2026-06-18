@@ -611,32 +611,7 @@ export default function ProfileSetupPage() {
                 />
               </Field>
 
-              <Field label="Payment QR Code (Optional)">
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => onPickPaymentQr(e.target.files?.[0])}
-                    className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 file:cursor-pointer hover:file:bg-violet-100"
-                  />
-                  {form.paymentQrUrl && (
-                    <div className="mt-2 relative w-24 h-24 border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
-                      <img
-                        src={form.paymentQrUrl.startsWith('http') || form.paymentQrUrl.startsWith('data:') ? form.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${form.paymentQrUrl}`}
-                        alt="Payment QR Preview"
-                        className="max-h-full max-w-full object-contain"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setForm(prev => ({ ...prev, paymentQrUrl: '' }))}
-                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-[10px] w-5 h-5 flex items-center justify-center hover:bg-red-700 transition"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </Field>
+
 
               <Field label="Website (Optional)">
                 <IconInput

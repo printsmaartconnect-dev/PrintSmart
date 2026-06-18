@@ -364,6 +364,15 @@ exports.createOrder = async (req, res) => {
         queue: true,
         invoice: true,
         paymentLog: true,
+        shopkeeper: {
+          select: {
+            shopName: true,
+            address: true,
+            phone: true,
+            upiId: true,
+            paymentQrUrl: true,
+          },
+        },
       },
     });
 
@@ -467,12 +476,8 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(400).json({ message: "Status is required" });
     }
 
-    // Map string status to Enum OrderStatus
     let statusEnum = status.toUpperCase();
-    if (statusEnum === "DOWNLOADED") {
-      statusEnum = "COMPLETED";
-    }
-    if (!["PENDING", "ACCEPTED", "PRINTING", "COMPLETED", "CANCELLED"].includes(statusEnum)) {
+    if (!["PENDING", "ACCEPTED", "PRINTING", "COMPLETED", "CANCELLED", "DOWNLOADED"].includes(statusEnum)) {
       return res.status(400).json({ message: "Invalid order status value" });
     }
 
@@ -502,7 +507,7 @@ exports.updateOrderStatus = async (req, res) => {
     if (order.queue) {
       let queueStatus = "WAITING";
       if (statusEnum === "PRINTING") queueStatus = "PRINTING";
-      if (statusEnum === "COMPLETED" || statusEnum === "CANCELLED") queueStatus = "DONE";
+      if (statusEnum === "COMPLETED" || statusEnum === "CANCELLED" || statusEnum === "DOWNLOADED") queueStatus = "DONE";
 
       await prisma.queue.update({
         where: { orderId: id },
@@ -510,8 +515,8 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
-    // Generate reward card automatically on order completion
-    if (statusEnum === "COMPLETED") {
+    // Generate reward card automatically on order completion or download
+    if (statusEnum === "COMPLETED" || statusEnum === "DOWNLOADED") {
       try {
         const rewardController = require("./reward.controller");
         await rewardController.generateReward(id, order.shopkeeperId);
