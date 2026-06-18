@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Printer, Loader2, AlertCircle, Info, FileText } from 'lucide-react'
+import { X, Printer, Loader2, AlertCircle, Info, FileText, Download } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 const getPrintableUrl = async (fileUrl) => {
@@ -27,77 +27,30 @@ const getPrintableUrl = async (fileUrl) => {
   return fileUrl;
 };
 
-export default function PrintConfigModal({ order, shopName, onClose, onPrintComplete }) {
+export default function PrintConfigModal({ order, onClose, onConfirm }) {
   const { t } = useTranslation()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  const handlePrintNow = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const url = await getPrintableUrl(order.fileUrl)
-      if (!url) {
-        throw new Error(t('No file URL found for this order.'))
-      }
-
-      // Fetch file as blob to allow same-origin printing bypass
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(t('Failed to fetch file for printing.'))
-      }
-      const blob = await response.blob()
-      const blobUrl = URL.createObjectURL(blob)
-
-      // Create hidden iframe
-      const iframe = document.createElement('iframe')
-      iframe.style.position = 'fixed'
-      iframe.style.right = '0'
-      iframe.style.bottom = '0'
-      iframe.style.width = '0'
-      iframe.style.height = '0'
-      iframe.style.border = '0'
-      iframe.src = blobUrl
-
-      document.body.appendChild(iframe)
-
-      iframe.onload = () => {
-        try {
-          iframe.contentWindow.focus()
-          iframe.contentWindow.print()
-          
-          // Clean up
-          setTimeout(() => {
-            document.body.removeChild(iframe)
-            URL.revokeObjectURL(blobUrl)
-          }, 15000)
-        } catch (printErr) {
-          console.error("Iframe print blocked or failed, falling back to new window:", printErr)
-          window.open(url, '_blank')
-        }
-      }
-    } catch (err) {
-      console.warn("Direct iframe print failed, falling back to new window:", err)
-      try {
-        const url = await getPrintableUrl(order.fileUrl)
-        if (url) {
-          window.open(url, '_blank')
-        } else {
-          setError(t('Could not resolve file URL.'))
-        }
-      } catch (fallbackErr) {
-        setError(t('Could not open file.'))
-      }
-    } finally {
-      setLoading(false)
-      if (onPrintComplete) {
-        onPrintComplete()
-      }
-    }
-  }
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Extract clean numerical price from price string
   const cleanPrice = typeof order.price === 'string' ? order.price : `₹${(order.price || 0).toFixed(2)}`
+
+  const fileName = order.fileName || ''
+  const extension = fileName.split('.').pop().toLowerCase()
+  const isDirectPrintable = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)
+
+  const handleConfirm = async () => {
+    if (isProcessing) return
+    setIsProcessing(true)
+    try {
+      if (onConfirm) {
+        await onConfirm(order)
+      }
+    } catch (err) {
+      console.error("Error during print confirmation:", err)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
@@ -106,17 +59,19 @@ export default function PrintConfigModal({ order, shopName, onClose, onPrintComp
         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
-              <Printer size={18} />
+              {isDirectPrintable ? <Printer size={18} /> : <Download size={18} />}
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-800 text-sm">{t('Verify Printer Settings')}</h3>
+              <h3 className="font-extrabold text-slate-800 text-sm">
+                {isDirectPrintable ? t('Verify Printer Settings') : t('Verify File Download')}
+              </h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Order #{order.id}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition"
-            disabled={loading}
+            disabled={isProcessing}
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition disabled:opacity-50"
           >
             <X size={18} />
           </button>
@@ -154,21 +109,25 @@ export default function PrintConfigModal({ order, shopName, onClose, onPrintComp
           </div>
 
           {/* Warning / Setup Notice */}
-          <div className="flex gap-2.5 p-3.5 rounded-2xl bg-amber-50/70 border border-amber-100 text-amber-950">
-            <Info size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <span className="font-black text-amber-900 block">{t('Action Required')}</span>
-              <p className="text-[10.5px] leading-relaxed text-amber-800">
-                {t('Please select the exact print settings listed above in the system print dialog when it opens.')}
-              </p>
+          {isDirectPrintable ? (
+            <div className="flex gap-2.5 p-3.5 rounded-2xl bg-amber-50/70 border border-amber-100 text-amber-950">
+              <Info size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-black text-amber-900 block">{t('Action Required')}</span>
+                <p className="text-[10.5px] leading-relaxed text-amber-800">
+                  {t('Please select the exact print settings listed above in the system print dialog when it opens.')}
+                </p>
+              </div>
             </div>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="flex gap-2 p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-[11px] leading-normal font-bold">
-              <AlertCircle size={14} className="text-rose-600 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
+          ) : (
+            <div className="flex gap-2.5 p-3.5 rounded-2xl bg-indigo-50 border border-indigo-150 text-indigo-950">
+              <Info size={16} className="text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-black text-indigo-900 block">{t('Office Document')}</span>
+                <p className="text-[10.5px] leading-relaxed text-indigo-800 font-semibold">
+                  {t('Office files cannot be printed directly from the browser. Click confirm to download the file, then open and print it locally.')}
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -177,25 +136,25 @@ export default function PrintConfigModal({ order, shopName, onClose, onPrintComp
         <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
           <button
             onClick={onClose}
-            className="flex-1 py-3 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-xl transition font-extrabold text-xs"
-            disabled={loading}
+            disabled={isProcessing}
+            className="flex-1 py-3 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-xl transition font-extrabold text-xs disabled:opacity-50"
           >
             {t('Cancel')}
           </button>
           <button
-            onClick={handlePrintNow}
-            className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl shadow-md shadow-violet-200 hover:brightness-105 active:scale-98 transition font-extrabold text-xs flex items-center justify-center gap-1.5"
-            disabled={loading}
+            onClick={handleConfirm}
+            disabled={isProcessing}
+            className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl shadow-md shadow-violet-200 hover:brightness-105 active:scale-98 transition font-extrabold text-xs flex items-center justify-center gap-1.5 disabled:opacity-75"
           >
-            {loading ? (
+            {isProcessing ? (
               <>
                 <Loader2 size={14} className="animate-spin" />
-                {t('Preparing...')}
+                {isDirectPrintable ? t('Preparing Print...') : t('Downloading...')}
               </>
             ) : (
               <>
-                <Printer size={14} />
-                {t('Open Print Dialog')}
+                {isDirectPrintable ? <Printer size={14} /> : <Download size={14} />}
+                {isDirectPrintable ? t('Confirm & Print') : t('Confirm & Download')}
               </>
             )}
           </button>

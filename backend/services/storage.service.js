@@ -154,7 +154,7 @@ function getFileUrl(key) {
  * @param {string} fileUrl - Raw file URL
  * @returns {Promise<string>} Presigned URL or original local URL
  */
-async function getPresignedUrl(fileUrl) {
+async function getPresignedUrl(fileUrl, downloadFilename) {
   if (!isS3Configured) {
     return fileUrl;
   }
@@ -176,10 +176,16 @@ async function getPresignedUrl(fileUrl) {
     // Extract the S3 key from the pathname (remove leading slash)
     const key = decodeURIComponent(url.pathname.substring(1));
 
-    const command = new GetObjectCommand({
+    const commandParams = {
       Bucket: bucketName,
       Key: key,
-    });
+    };
+
+    if (downloadFilename) {
+      commandParams.ResponseContentDisposition = `attachment; filename="${encodeURIComponent(downloadFilename)}"`;
+    }
+
+    const command = new GetObjectCommand(commandParams);
 
     // Generate presigned URL valid for 3600 seconds (1 hour)
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
