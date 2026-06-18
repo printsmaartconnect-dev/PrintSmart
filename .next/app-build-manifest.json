@@ -1,0 +1,65 @@
+{
+  "pages": {
+    "/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/page.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/layout.css",
+      "static/chunks/app/layout.js"
+    ],
+    "/shopkeeper/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/login/page.js"
+    ],
+    "/shopkeeper/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/dashboard/page.js"
+    ],
+    "/shopkeeper/all-orders/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/all-orders/page.js"
+    ],
+    "/shopkeeper/subscription/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/subscription/page.js"
+    ],
+    "/shopkeeper/settings/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/settings/page.js"
+    ],
+    "/shopkeeper/settings/printers-support/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/settings/printers-support/page.js"
+    ],
+    "/shopkeeper/settings/language-accessibility/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/settings/language-accessibility/page.js"
+    ],
+    "/shopkeeper/settings/support-feedback/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/settings/support-feedback/page.js"
+    ],
+    "/shopkeeper/profile/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/profile/page.js"
+    ],
+    "/shopkeeper/register/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/shopkeeper/register/page.js"
+    ]
+  }
+}
