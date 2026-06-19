@@ -59,7 +59,7 @@ const getPrintableUrl = async (fileUrl) => {
   return fileUrl;
 };
 
-export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint }) {
+export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint, onDownload }) {
   const { t } = useTranslation()
   const [viewMode, setViewMode] = useState('table') // default to 'table' for a premium look
 
@@ -87,7 +87,9 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
   }
 
   const handleDownload = async (order) => {
-    if (order.fileUrl) {
+    if (onDownload) {
+      onDownload(order)
+    } else if (order.fileUrl) {
       const url = await getPrintableUrl(order.fileUrl);
       window.open(url, '_blank')
       if (onStatusChange && order.dbId) {
@@ -158,7 +160,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
         ) : viewMode === 'card' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {orders.map((o) => (
-              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} onPrint={onPrint} />
+              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} onPrint={onPrint} onDownload={onDownload} />
             ))}
           </div>
         ) : (

@@ -658,34 +658,7 @@ export default function ShopkeeperProfileViewPage() {
                       )}
                     </Field>
 
-                    <Field label={t('Payment QR Code (Optional)')}>
-                      <div className="flex flex-col gap-2">
-                        {profile.paymentQrUrl ? (
-                          <div className="relative w-24 h-24 border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
-                            <img
-                              src={profile.paymentQrUrl.startsWith('http') ? profile.paymentQrUrl : `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${profile.paymentQrUrl}`}
-                              alt="Payment QR"
-                              className="max-h-full max-w-full object-contain"
-                            />
-                            <button
-                              type="button"
-                              onClick={handleRemovePaymentQr}
-                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-[10px] w-5 h-5 flex items-center justify-center hover:bg-red-700 transition"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-500 italic">{t('No payment QR uploaded.')}</span>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => onPickPaymentQr(e.target.files?.[0])}
-                          className="block w-full text-xs text-slate-550 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 file:cursor-pointer hover:file:bg-violet-100"
-                        />
-                      </div>
-                    </Field>
+
 
                     <Field label={t('Website (Optional)')}>
                       <ReadOnlyIconBox icon={Globe} value={contact.website} placeholder="—" />

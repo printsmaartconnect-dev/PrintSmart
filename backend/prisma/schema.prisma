@@ -13,6 +13,7 @@ enum OrderStatus {
   PRINTING
   COMPLETED
   CANCELLED
+  DOWNLOADED
 }
 
 enum QueueStatus {
