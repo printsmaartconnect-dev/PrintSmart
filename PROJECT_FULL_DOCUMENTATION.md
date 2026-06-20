@@ -228,10 +228,12 @@
   │   │   └── db.js                     # Prisma client initializer instance
   │   ├── controllers/                  # Route controller functions
   │   │   ├── admin.controller.js       # Platform administrator dashboard analytics [NEW]
+  │   │   ├── ai.controller.js          # AI Design generation and suggestions [NEW]
   │   │   ├── auth.controller.js        # Authentication & Profile management
   │   │   ├── feedback.controller.js    # Customer support submissions & updates
   │   │   ├── file.controller.js        # Multer-to-S3 file uploading bridge
   │   │   ├── order.controller.js       # Placement, queues, and invoices
+  │   │   ├── payment.controller.js     # Customer transaction reference submission & verification [NEW]
   │   │   ├── queue.controller.js       # Queue lists & positions editor
   │   │   ├── reward.controller.js      # Random rewards & scratch persistence logic [NEW]
   │   │   ├── statistics.controller.js  # Shop analytics compiling engine
@@ -243,16 +245,19 @@
   │   │   └── schema.prisma             # Entity models & cascades schema
   │   ├── routes/                       # REST endpoint routing mappings
   │   │   ├── admin.routes.js           # Admin stats & dashboard routes [NEW]
+  │   │   ├── ai.routes.js              # AI Poster Studio generation endpoints [NEW]
   │   │   ├── auth.routes.js            # Auth routing definitions
   │   │   ├── feedback.routes.js        # Customer issues routes
   │   │   ├── file.routes.js            # Multer upload route
   │   │   ├── order.routes.js           # Client & Shopkeeper order management
+  │   │   ├── payment.routes.js         # Transaction registration & verification endpoints [NEW]
   │   │   ├── queue.routes.js           # Position checking endpoints
   │   │   ├── reward.routes.js          # Customer reward & shopkeeper stats routes [NEW]
   │   │   ├── shopkeeper.routes.js      # Public shop specs & QR tools
   │   │   ├── statistics.routes.js      # Earnings & counts logs endpoints
   │   │   └── user.routes.js            # Core customer profiles creation
   │   ├── services/                     # Business logic workers
+  │   │   ├── csv.service.js            # In-memory CSV cache for rewards content [NEW]
   │   │   ├── invoice.service.js        # PDFKit-based professional billing PDF generator (supports premium itemized multi-column table)
   │   │   ├── order.service.js          # Custom MMDDYY print-type ID & Estimated wait calculations
   │   │   ├── qr.service.js             # Basic UUID QR codes generator
@@ -2950,6 +2955,14 @@
   - Mock data only
   - localStorage limited to browser
 
+  ## [3.2.2] - 2026-06-20
+
+  ### Added
+  - Complete documentation for missing backend files: controllers (`payment.controller.js`, `ai.controller.js`), routes (`payment.routes.js`, `ai.routes.js`), and services (`csv.service.js`).
+  - Prisma database schema definitions for new models (`PaymentLog`, `AIAsset`, `AIUsage`, `RewardLog`, `UserSession`, `SystemSettings`).
+  - Core system workflows explaining payment verification, AI Marketing Studio (Gemini 3.5 Flash / custom keys), scratch card rewards, and 2-PC concurrent session limits.
+  - Complete API reference tables for the Payment Log & Verification API, conversational AI design generation (`/api/ai/chat-generate`), and platform settings/diagnostics endpoints.
+
   ## [3.2.1] - 2026-06-07
 
   ### Fixed
@@ -3412,7 +3425,9 @@
   │   ├── qrcode.service.js     # Shopkeeper slug QR code and base64 Data URL generators
   │   ├── order.service.js      # Custom Order ID sequencer, wait-time estimator, and statistics updater
   │   ├── invoice.service.js    # PDFKit-based PDF invoice layout generator
-  │   └── seed.service.js       # Default shopkeeper database seeding service
+  │   ├── seed.service.js       # Default shopkeeper database seeding service
+  │   ├── session.service.js    # Database-backed concurrent session tracker and 2-PC limit controller
+  │   └── csv.service.js        # In-memory CSV cache parser for scratch cards content fallback [NEW]
   ├── controllers/
   │   ├── auth.controller.js    # Shopkeeper registration, login, profile adjustments, and QR endpoints
   │   ├── file.controller.js    # Multer-to-Storage upload broker
@@ -3420,7 +3435,10 @@
   │   ├── order.controller.js   # Order placements, fetching, status modifications, and invoice downloads
   │   ├── queue.controller.js   # Active queue tracking and status updates
   │   ├── statistics.controller.js # Daily, weekly, monthly, and overall shopkeeper statistics analytics
-  │   └── feedback.controller.js   # Feedback submissions, query listing, and status updates
+  │   ├── feedback.controller.js   # Feedback submissions, query listing, and status updates
+  │   ├── ai.controller.js         # AI Poster Studio generation and prompt suggestion [NEW]
+  │   ├── payment.controller.js    # UPI/Cash payment transaction reference checks [NEW]
+  │   └── reward.controller.js     # Instant customer scratch cards controller [NEW]
   └── routes/
       ├── auth.routes.js        # Auth-related routing endpoints
       ├── file.routes.js        # File uploading route broker
@@ -3429,7 +3447,10 @@
       ├── feedback.routes.js    # Customer issues and feedback endpoints
       ├── statistics.routes.js  # Analytics endpoints for shop statistics
       ├── user.routes.js        # Customer creation/update routing
-      └── shopkeeper.routes.js  # Public slug routing and protected shopkeeper utilities
+      ├── shopkeeper.routes.js  # Public slug routing and protected shopkeeper utilities
+      ├── ai.routes.js          # AI Poster Studio endpoints [NEW]
+      ├── payment.routes.js     # UPI/Cash payment verification endpoints [NEW]
+      └── reward.routes.js      # Customer scratch cards logs and stats [NEW]
   ```
 
   ---
@@ -3595,6 +3616,66 @@
   - `lastUpdated` / `updatedAt` (DateTime)
   - *Indexes*: `@@index([shopkeeperId])`
 
+  #### 11. AIAsset
+  Holds details of generated designs for shopkeepers in the AI Poster Studio.
+  - `id` (String - UUID, Primary Key)
+  - `shopkeeperId` (String - UUID, Foreign Key) - Links to `Shopkeeper.id` (on delete `Cascade`)
+  - `title` (String) - Promotional title of the design
+  - `prompt` (String) - Optimized prompt used to generate the image
+  - `type` (String) - Design asset type (e.g. Poster, Banner)
+  - `generatedImageUrl` (String) - CDN or storage URL of the generated image
+  - `thumbnailUrl` (String, Optional) - Thumbnail image URL
+  - `createdAt` / `updatedAt` (DateTime)
+  - *Indexes*: `@@index([shopkeeperId])`
+
+  #### 12. AIUsage
+  Tracks usage statistics for AI features generated by shopkeepers.
+  - `id` (String - UUID, Primary Key)
+  - `shopkeeperId` (String - UUID, Foreign Key)
+  - `featureType` (String) - AI feature type (e.g. `SUGGEST_PROMPT`, `GENERATE`, `REGENERATE`)
+  - `generationCount` (Int, Default: `1`) - Number of generations executed
+  - `createdAt` (DateTime)
+  - *Indexes*: `@@index([shopkeeperId])`
+
+  #### 13. RewardLog
+  Tracks customer scratch loyalty card states and details linked to orders.
+  - `id` (String - UUID, Primary Key)
+  - `orderId` (String - UUID, Unique Foreign Key) - Links to `Order.id` (on delete `Cascade`)
+  - `shopId` (String - UUID, Foreign Key)
+  - `rewardType` (String) - Code for the award (e.g. `FREE_PRINT`, `HALF_PRICE_COLOR`, `ASTROLOGY`, `DID_YOU_KNOW`)
+  - `rewardCategory` (String) - Category of reward (e.g. `MONETARY`, `NON_MONETARY`)
+  - `scratched` (Boolean, Default: `false`) - Whether card has been scratched by user
+  - `applied` (Boolean, Default: `false`) - Whether monetary reward is applied to the order total
+  - `rewardMessage` (String, Optional) - Message content printed on the card
+  - `customerSession` (String, Optional) - Session token of customer who scratched it
+  - `createdAt` / `updatedAt` (DateTime)
+  - *Indexes*: `@@index([shopId])`, `@@index([rewardType])`
+
+  #### 14. UserSession
+  Enforces the 2-PC concurrent device session limit for shopkeepers.
+  - `id` (String - UUID, Primary Key)
+  - `shopkeeperId` (String - UUID, Foreign Key)
+  - `token` (String, Unique) - Hashed session token
+  - `createdAt` / `expiresAt` (DateTime)
+  - *Indexes*: `@@index([shopkeeperId])`
+
+  #### 15. PaymentLog
+  Stores verification logs for customer digital/UPI payment reference codes.
+  - `id` (String - UUID, Primary Key)
+  - `orderId` (String - UUID, Unique Foreign Key) - Links to `Order.id` (on delete `Cascade`)
+  - `transactionRef` (String, Unique) - Alphanumeric payment reference ID input by customer
+  - `paymentStatus` (String, Default: `"PENDING"`) - Status of check (`PENDING`, `VERIFIED`, `FAILED`)
+  - `amount` (Float) - Total payment amount verified
+  - `paymentGateway` (String, Default: `"UPI"`) - Gateway name used (e.g., `UPI`, `CASH`)
+  - `createdAt` / `updatedAt` (DateTime)
+  - *Indexes*: `@@index([transactionRef])`
+
+  #### 16. SystemSettings
+  Key-value registry for system-wide configurations and toggles.
+  - `key` (String, Primary Key) - Settings name/key
+  - `value` (String) - Settings serialized value string
+  - `createdAt` / `updatedAt` (DateTime)
+
   ---
 
   ## Core System Workflows
@@ -3657,6 +3738,58 @@
     - Daily distributions, paper sizes, and status breakdowns.
     - Weekly chart metrics over the past 7 days, calculating growth rate percentages compared to the prior week's volume.
     - Monthly aggregates detailing average order value, top paper sizes, and color-to-B&W ratios.
+
+  ### 6. Payment Verification Flow (UPI & Cash)
+  To process digital payments directly to the shopkeeper without high transaction gateway fees:
+  1. **Option Selection**: In `/customer/orders`, the customer sees the shopkeeper's verified UPI details and custom Payment QR Code (if uploaded).
+  2. **Payment Submission**: The customer pays using their own preferred UPI/wallet app, and inputs the alphanumeric payment reference number (transaction ID) in the input box.
+  3. **Verification Request**:
+     - Submitting sends a `POST /api/payments/verify/:orderId` request containing the reference.
+     - The backend records this code in the `PaymentLog` model with status `PENDING`, updates the order status to `ACCEPTED` so it appears on the shopkeeper's processing dashboard, and queues the job as `WAITING`.
+     - Duplicate submissions of the same reference number for other orders are explicitly blocked to prevent fraud.
+  4. **Shopkeeper Validation**:
+     - The shopkeeper sees the incoming transaction reference in their pending validations widget (`GET /api/payments/shopkeeper/pending`).
+     - Once verified in their bank records, they click "Verify" (`PUT /api/payments/shopkeeper/verify/:id` with status `VERIFIED`) or "Reject" (`FAILED`).
+     - A status update changes the payment status in `PaymentLog` accordingly.
+
+  ### 7. AI Marketing Studio & Conversational Design Flow
+  An automated creative suite for shopkeepers powered by Google Gemini and Pollinations AI:
+  1. **Prompt Optimization Form**:
+     - The shopkeeper inputs a brief title describing a sale, festival, or service.
+     - Clicking "Suggest Prompt" triggers `POST /api/ai/suggest-prompt`, calling Google Gemini (`gemini-3.5-flash`) to generate structured form suggestions (descriptions, audience targets, color schemes, themes, and CTAs) to speed up creation.
+  2. **Image Generation**:
+     - On submitting, `POST /api/ai/generate` sends inputs to the backend. The server calls Gemini to construct an optimized, detailed text-to-image prompt descriptive of a premium graphic layout.
+     - The backend contacts Pollinations AI with the prompt using a randomized seed to create design variations.
+     - The generated image buffer is downloaded by the server, saved to the storage service (AWS S3 or local fallback directory), and recorded under the `AIAsset` database model.
+  3. **Conversational Chat-to-Poster Tool**:
+     - In the AI Studio chat drawer, the shopkeeper can type a natural statement (e.g. "make a flyer for fast color printing").
+     - The backend (`POST /api/ai/chat-generate`) uses Gemini to parse this request, return structured layouts (headline, subheadline, CTA, theme), optimize an image prompt, generate/save the background image, and return the formatted card preview.
+  4. **Gemini API Key Overrides**:
+     - To bypass rate limits, shopkeepers can supply their own Gemini API keys in the settings dashboard.
+     - The client context saves this key and sends it in request headers as `X-Gemini-API-Key`. The backend reads this override header, executing AI queries on the user's quota before falling back to system keys.
+  5. **Direct Printing Integration**: Clicking "Print Now" converts design details, pushes a new order into the shopkeeper's queue, and logs the asset in the statistics charts.
+
+  ### 8. Scratch Card Loyalty Rewards Flow
+  Encourages customer retention via instant post-order scratch-off coupons:
+  1. **Pre-creation**: Upon order placement (while still `PENDING`), a corresponding scratch card is pre-created in the database `RewardLog` model.
+  2. **Eligibility & Odds**:
+     - If the order matches monetary eligibility criteria, it enters a randomized roll.
+     - Black & White prints have a 1.0% chance of a `FREE_PRINT` reward. Color prints have a 0.5% chance of a `HALF_PRICE_COLOR` reward.
+     - Winning rolls automatically adjust and apply the discount to the order subtotal instantly at checkout.
+  3. **Non-Monetary Rewards**:
+     - Losing rolls or non-eligible orders default to a non-monetary card containing fun facts (`DID_YOU_KNOW`) or celestial insights (`ASTROLOGY`).
+     - Content is parsed and cached in memory from local sheets (`csv.service.js`) on startup.
+  4. **Scratching and Verification**:
+     - The customer can access and scratch cards instantly from `/customer/orders` using an interactive HTML5 canvas.
+     - Revealing 30% of the silver layer calls `POST /api/rewards/:id/scratch`, marking the card as scratched and logging details. Clicking citations redirects to references.
+
+  ### 9. 2-PC Concurrent Session Limit
+  Protects shopkeeper portal subscriptions and details from unauthorized sharing:
+  1. **Token Tracking**: On login, a record is added to the `UserSession` model for the shopkeeper.
+  2. **Session Eviction**:
+     - If a shopkeeper attempts to log in on a 3rd active device, the database checks active sessions.
+     - The server performs a rolling logout: it evicts/invalidates the oldest session token in `UserSession`.
+  3. **Verification**: Subsequent requests using the evicted token fail with a `401 Unauthorized` response indicating the session limit has been exceeded.
 
   ---
 
@@ -3750,6 +3883,7 @@
   | `/api/ai/suggest-prompt` | `POST` | JWT token | `{ title: string }` | `{ businessDescription, audience, theme, cta, posterType, colorPalette, language }` |
   | `/api/ai/generate` | `POST` | JWT token | `{ title, businessName, description, language, audience, posterType, posterSize, themeStyle, colorPreference, cta }` | `{ id, generatedImageUrl, optimizedPrompt }` |
   | `/api/ai/regenerate` | `POST` | JWT token | `{ title, businessName, description, language, audience, posterType, posterSize, themeStyle, colorPreference, cta }` | `{ id, generatedImageUrl, optimizedPrompt }` |
+  | `/api/ai/chat-generate` | `POST` | JWT token | `{ prompt: string }` | `{ id, generatedImageUrl, config: { headline, subheadline, offerText, description, cta, theme } }` |
   | `/api/ai/history` | `GET` | JWT token | None | `AIAsset[]` |
 
   ### 10. Scratch Card Reward System
@@ -3761,6 +3895,24 @@
   | `/api/rewards/:id/scratch` | `POST` | None | None | `{ id, orderId, shopId, rewardType, rewardCategory, scratched: true, applied: true/false, ... }` (Marks card as scratched & applies coupon) |
   | `/api/rewards/shopkeeper/stats` | `GET` | JWT token | None | `{ rewardsGeneratedToday, freePrintRewardsUsed, discountRewardsUsed, customerEngagementLevel, totalScratched, totalGenerated }` |
   | `/api/rewards/admin/stats` | `GET` | None | None | `{ totalScratches, monetaryRewardsUsed, nonMonetaryRewardsViewed, scratchRate, totalCardsGenerated }` |
+
+  ### 11. Payment Log & Verification API
+  Enables customers to register verification logs for transaction references and shopkeepers to validate them.
+
+  | Route | Method | Headers/Auth | Request Body | Success Response |
+  |---|---|---|---|---|
+  | `/api/payments/verify/:orderId` | `POST` | None | `{ transactionRef, paymentGateway, amount }` | `{ message: "Payment transaction reference submitted successfully", paymentLog }` |
+  | `/api/payments/shopkeeper/verify/:id` | `PUT` | JWT token | `{ status }` (status must be `VERIFIED` or `FAILED`) | `{ message: "Payment status updated to VERIFIED/FAILED", paymentLog }` |
+  | `/api/payments/shopkeeper/pending` | `GET` | JWT token | None | `PaymentLog[]` (List of pending verification requests including orderId, customerName, totalAmount) |
+
+  ### 12. Platform Settings & Health Check Diagnostics
+  Utility endpoints used to track system health and fetch configurations.
+
+  | Route | Method | Headers/Auth | Request Body | Success Response |
+  |---|---|---|---|---|
+  | `/api/settings` | `GET` | None | None | `{ [key]: value }` (A map of platform configuration variables) |
+  | `/api/health` | `GET` | None | None | `{ status: "healthy", timestamp, storage: "s3/local" }` |
+  | `/debug/s3` | `GET` | None | None | `{ currentRegion, bucket, sdkVersion, credentialSource, canConnect, bucketAccessible, errorDetails }` |
 
   ---
 
@@ -3823,10 +3975,10 @@
   
   ## Document Version
   
-  - **Version:** 3.2.1
-  - **Last Updated:** June 07, 2026
+  - **Version:** 3.2.2
+  - **Last Updated:** June 20, 2026
   - **Author:** Antigravity AI
-  - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, Gemini 3.5 custom API key overrides, and fixes for order placement server errors and success redirection).
+  - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, Gemini 3.5 custom API key overrides, and fixes for order placement server errors and success redirection. Updated with full documentation for payment logs, AI Studio chat generation, scratch card loyalty worksheets, and platform settings).
   
   ---
   
