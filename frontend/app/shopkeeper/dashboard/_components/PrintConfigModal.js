@@ -34,9 +34,11 @@ export default function PrintConfigModal({ order, onClose, onConfirm }) {
   // Extract clean numerical price from price string
   const cleanPrice = typeof order.price === 'string' ? order.price : `₹${(order.price || 0).toFixed(2)}`
 
-  const fileName = order.fileName || ''
-  const extension = fileName.split('.').pop().toLowerCase()
-  const isDirectPrintable = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)
+  const filesList = order.files && order.files.length > 0 ? order.files : [{ fileName: order.fileName || "" }]
+  const isDirectPrintable = filesList.every(file => {
+    const ext = (file.fileName || '').split('.').pop().toLowerCase()
+    return ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)
+  })
 
   const handleConfirm = async () => {
     if (isProcessing) return
@@ -81,24 +83,33 @@ export default function PrintConfigModal({ order, onClose, onConfirm }) {
         <div className="p-6 space-y-4">
           
           {/* File Name Info Block */}
-          <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-600">
-            <FileText size={16} className="text-slate-400 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">{t('Document to Print')}</span>
-              <p className="font-bold text-slate-700 truncate text-xs">{order.fileName}</p>
-            </div>
+          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+            {(order.files && order.files.length > 0 ? order.files : [{ fileName: order.fileName || "Untitled Document" }]).map((file, fileIdx) => (
+              <div key={file.id || fileIdx} className="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-650">
+                <FileText size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="font-bold text-slate-700 truncate text-[11px]">{file.fileName}</p>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Configuration List */}
           <div className="bg-slate-50/50 border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
-            {[
-              { label: t('Pages'), value: order.pages || 1 },
-              { label: t('Copies'), value: order.copies || 1 },
-              { label: t('Type'), value: order.type || 'B&W' },
-              { label: t('Size'), value: order.size || 'A4' },
-              { label: t('Side'), value: order.side || 'Single' },
-              { label: t('Price'), value: cleanPrice, isHighlight: true }
-            ].map((item) => (
+            {(order.files && order.files.length > 1
+              ? [
+                  { label: t('Total Files'), value: order.files.length },
+                  { label: t('Price'), value: cleanPrice, isHighlight: true }
+                ]
+              : [
+                  { label: t('Pages'), value: order.pages || 1 },
+                  { label: t('Copies'), value: (order.files && order.files[0]?.copies) || order.copies || 1 },
+                  { label: t('Type'), value: (order.files && order.files[0]?.type) || order.type || 'B&W' },
+                  { label: t('Size'), value: (order.files && order.files[0]?.size) || order.size || 'A4' },
+                  { label: t('Side'), value: (order.files && order.files[0]?.side) || order.side || 'Single' },
+                  { label: t('Price'), value: cleanPrice, isHighlight: true }
+                ]
+            ).map((item) => (
               <div key={item.label} className="flex justify-between items-center px-4 py-3">
                 <span className="text-slate-400 font-bold">{item.label}</span>
                 <span className={`font-black ${item.isHighlight ? 'text-indigo-600 text-sm' : 'text-slate-800'}`}>

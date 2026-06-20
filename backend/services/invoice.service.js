@@ -277,9 +277,6 @@ async function generateInvoicePDF(orderData) {
     doc.moveDown(1);
 
     // Financial Summary
-    const cgst = (tax || 0) / 2;
-    const sgst = (tax || 0) / 2;
-
     doc.moveTo(50, doc.y).lineTo(540, doc.y).stroke();
     doc.moveDown(0.5);
     
@@ -289,22 +286,13 @@ async function generateInvoicePDF(orderData) {
     const valueX = 470;
     const valueWidth = 70;
     
+    // Subtotal (pre-discount amount to avoid displaying tax detail)
+    const invoiceSubtotal = orderData.price !== undefined ? orderData.price : (totalAmount + (discount || 0));
+
     // Subtotal Row
     let curY = doc.y;
     doc.text('Subtotal:', summaryX, curY);
-    doc.text(formatCurrency(subtotal || 0, useUnicode), valueX, curY, { align: 'right', width: valueWidth });
-    doc.moveDown(0.5);
-
-    // CGST Row
-    curY = doc.y;
-    doc.text('CGST (9%):', summaryX, curY);
-    doc.text(formatCurrency(cgst, useUnicode), valueX, curY, { align: 'right', width: valueWidth });
-    doc.moveDown(0.5);
-
-    // SGST Row
-    curY = doc.y;
-    doc.text('SGST (9%):', summaryX, curY);
-    doc.text(formatCurrency(sgst, useUnicode), valueX, curY, { align: 'right', width: valueWidth });
+    doc.text(formatCurrency(invoiceSubtotal, useUnicode), valueX, curY, { align: 'right', width: valueWidth });
     doc.moveDown(0.5);
     
     // Discount Row

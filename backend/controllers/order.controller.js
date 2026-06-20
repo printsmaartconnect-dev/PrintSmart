@@ -319,6 +319,7 @@ exports.createOrder = async (req, res) => {
         shopPhone: shopkeeper.phone,
         files: orderFiles,
         printConfig,
+        price: totalAmt,
         subtotal: subtotalAmt,
         tax: taxAmt,
         discount: discountAmt,

@@ -378,6 +378,9 @@ export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
     }
 
     const handleTouchStart = (e) => {
+      if (e.cancelable) {
+        e.preventDefault()
+      }
       activeDrawing = true
       setIsScratching(true)
       if (e.touches.length > 0) {
@@ -391,6 +394,9 @@ export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
     }
 
     const handleTouchMove = (e) => {
+      if (e.cancelable) {
+        e.preventDefault()
+      }
       if (!activeDrawing || e.touches.length === 0) return
       scratch(e.touches[0].clientX, e.touches[0].clientY)
     }
@@ -399,17 +405,17 @@ export default function RewardCardModal({ orderId, onClose, onRewardApplied }) {
     window.addEventListener('mouseup', handleMouseUp)
     canvas.addEventListener('mousemove', handleMouseMove)
 
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: true })
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false })
     window.addEventListener('touchend', handleTouchEnd)
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: true })
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
 
     return () => {
       canvas.removeEventListener('mousedown', handleMouseDown)
       window.removeEventListener('mouseup', handleMouseUp)
       canvas.removeEventListener('mousemove', handleMouseMove)
-      canvas.removeEventListener('touchstart', handleTouchStart)
+      canvas.removeEventListener('touchstart', handleTouchStart, { passive: false })
       window.removeEventListener('touchend', handleTouchEnd)
-      canvas.removeEventListener('touchmove', handleTouchMove)
+      canvas.removeEventListener('touchmove', handleTouchMove, { passive: false })
     }
   }, [reward, scratchRevealed, dbReward])
 
