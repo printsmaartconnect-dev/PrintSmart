@@ -269,6 +269,8 @@
   │   │   ├── invoices/                 # Generated PDF invoices
   │   │   ├── qrcodes/                  # Shopkeeper entry QR codes
   │   │   └── orders/                   # Customer uploaded document storage
+  │   ├── utils/                        # Backend utility helpers [NEW]
+  │   │   └── currency.js               # Formats monetary amounts (supports Rupee symbol/INR code) [NEW]
   │   ├── package.json                  # Server package configuration
   │   └── server.js                     # Node.js runtime initialization & DB schemas synchronization
   │
@@ -357,7 +359,10 @@
       │       └── page.js               # Manual shop ID slug gateway (test fallback code "0000")
       │
       ├── lib/                          # Helper library utilities
-      │   └── shop-context.js           # Caches full activeShop object in localStorage
+      │   ├── currency.js               # Format currency helper function (Rupee formatting) [NEW]
+      │   ├── i18n.js                   # Multi-language i18n client configuration [NEW]
+      │   ├── shop-context.js           # Caches full activeShop object in localStorage
+      │   └── upi.js                    # UPI link generator and validation helpers [NEW]
       ├── public/                       # Static public assets (images, designs)
       ├── package.json                  # Client package configuration
       └── tailwind.config.js            # Tailwind layout and gradient extensions
@@ -560,6 +565,35 @@
   .mac-dots { display: flex; gap: 8px; }
   .mac-dot { width: 12px; height: 12px; border-radius: 50%; }
   ```
+
+  #### `app/I18nProvider.js`
+  **Purpose:** Multi-language i18n translation context provider for Next.js App Router client components.
+
+  **Full Contents:**
+  ```javascript
+  'use client'
+
+  import '../lib/i18n'
+  import { useEffect } from 'react'
+  import { I18nextProvider } from 'react-i18next'
+  import i18n from '../lib/i18n'
+
+  export default function I18nProvider({ children }) {
+    useEffect(() => {
+      // Sync language from localStorage on client side mount
+      const saved = localStorage.getItem('customerLanguage')
+      if (saved && i18n.language !== saved) {
+        i18n.changeLanguage(saved)
+      }
+    }, [])
+
+    return <I18nextProvider i18n={i18n}>{children}</I18nextProvider>
+  }
+  ```
+
+  **Key Features:**
+  - Wraps Next.js App Router subtrees with standard client-side locale initialization.
+  - Automatically queries `customerLanguage` from `localStorage` on component mount and changes active translation resources dynamically.
 
   ---
 
@@ -1136,6 +1170,48 @@
   - Ascending/descending date sorting filters and status badges.
 
   ---
+
+  #### Customer Flow Components
+
+  ##### `components/customer/DocumentPreview.jsx`
+  **Purpose:** Live thumbnail & grayscale CSS preview renderer.
+  - Implements standard file previewing logic for PDF, Word documents (DOC/DOCX), images (PNG/JPG/JPEG/WEBP/GIF), and generic documents.
+  - Uses CSS filters `grayscale contrast-125` if B&W print configuration is selected.
+  - Provides professional custom fallback emblems and layouts for Microsoft Word and Adobe PDF documents if thumbnail generation fails or is pending.
+
+  ##### `components/customer/FilePreviewSection.jsx`
+  **Purpose:** Document title & config options wrapper showing live preview.
+  - Renders a premium, styled A4 aspect ratio (`aspect-[1/1.414]`) preview box on the customer configuration page.
+  - Handles preview loading states, displaying a spinner, and delegating actual rendering to `DocumentPreview`.
+
+  ---
+
+  #### Frontend Library Helpers
+
+  ##### `lib/currency.js`
+  **Purpose:** Client-side currency formatting.
+  - Formats numbers or string representations of prices into Indian Rupees format: `₹ X.XX` (e.g. `formatCurrency(11.18)` returns `₹ 11.18`).
+
+  ##### `lib/i18n.js`
+  **Purpose:** Client-side internationalization setup.
+  - Initializes `i18next` with react bindings, setting localized dictionary resources for English (`en`), Hindi (`hi`), Marathi (`mr`), and Gujarati (`gu`).
+  - Automatically recovers last active language from `localStorage.customerLanguage`.
+
+  ##### `lib/upi.js`
+  **Purpose:** Validates merchant UPI IDs and constructs deep-linking UPI Intent URLs.
+  - `validateUpiParams(upiId, shopName, amount)`: Validates that merchant details and numeric positive payment figures exist.
+  - `generateUpiUrl(upiId, shopName, amount)`: Encodes merchant parameters and compiles the intent URI scheme `upi://pay?pa={upiId}&pn={shopName}&am={amount}&cu=INR` for direct mobile payment routing.
+
+  ---
+
+  #### Frontend API Routes
+
+  ##### `api/ai/generate-config/route.js`
+  **Purpose:** Groq AI structured poster config endpoint.
+  - Receives user prompt instructions via `POST /api/ai/generate-config` requests.
+  - Directs model queries to **Groq SDK** utilizing the **`llama-3.3-70b-versatile`** model with temperature 0.5.
+  - Parses and validates responses to ensure they strictly conform to a structured JSON schema: `headline`, `subheadline`, `offerText`, `description`, `cta`, `theme`.
+  - Enforces server-side static bailout avoidance with `export const dynamic = 'force-dynamic'`.
 
   ---
 
@@ -3439,6 +3515,8 @@
   │   ├── ai.controller.js         # AI Poster Studio generation and prompt suggestion [NEW]
   │   ├── payment.controller.js    # UPI/Cash payment transaction reference checks [NEW]
   │   └── reward.controller.js     # Instant customer scratch cards controller [NEW]
+  ├── utils/
+  │   └── currency.js              # Formats monetary amounts (supports Rupee symbol/INR code) [NEW]
   └── routes/
       ├── auth.routes.js        # Auth-related routing endpoints
       ├── file.routes.js        # File uploading route broker
@@ -3452,6 +3530,20 @@
       ├── payment.routes.js     # UPI/Cash payment verification endpoints [NEW]
       └── reward.routes.js      # Customer scratch cards logs and stats [NEW]
   ```
+
+  ---
+
+  ### Backend Utilities & Middleware
+
+  #### `middleware/auth.middleware.js`
+  **Purpose:** JWT verification middleware protecting shopkeeper operations.
+  - Intercepts requests to routes that require authorization, checking for a valid JSON Web Token in the `Authorization` header.
+  - Decodes and extracts shopkeeper information.
+  - Integrates with the concurrent session manager (`session.service.js`) to verify that the token matches the active session. If a rolling logout occurred (session limit of 2 exceeded), returns a `401 Unauthorized` response with a clear error payload: `"Session limit exceeded. You have been logged out because you logged in on another device."`
+
+  #### `utils/currency.js`
+  **Purpose:** Backend currency formatting helper.
+  - Formats monetary values to a standardized Indian Rupee format, either with the Unicode symbol `₹ X.XX` (by default) or the ASCII equivalent `INR X.XX` (used for standard PDFKit fonts in invoice generation to avoid character encoding exceptions).
 
   ---
 
@@ -3975,10 +4067,10 @@
   
   ## Document Version
   
-  - **Version:** 3.2.2
-  - **Last Updated:** June 20, 2026
+  - **Version:** 3.2.3
+  - **Last Updated:** June 24, 2026
   - **Author:** Antigravity AI
-  - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, Gemini 3.5 custom API key overrides, and fixes for order placement server errors and success redirection. Updated with full documentation for payment logs, AI Studio chat generation, scratch card loyalty worksheets, and platform settings).
+  - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, Gemini 3.5 custom API key overrides, and fixes for order placement server errors and success redirection. Updated with full documentation for payment logs, AI Studio chat generation, scratch card loyalty worksheets, and platform settings. Further expanded in v3.2.3 with detailed folder representations and breakdowns for backend currency utils, authentication middleware, client-side translation provider context, custom document previews, and frontend API configuration endpoints using Groq SDK).
   
   ---
   
