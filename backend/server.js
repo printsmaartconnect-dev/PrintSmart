@@ -43,6 +43,13 @@ try {
     console.log("socket.io-client not found. Installing socket.io-client in frontend...");
     execSync("npm install socket.io-client", { cwd: frontendDir, stdio: "inherit" });
   }
+
+  // Remove conflicting pnpm-lock.yaml to prevent Vercel build errors
+  const pnpmLock = path.join(frontendDir, "pnpm-lock.yaml");
+  if (fs.existsSync(pnpmLock)) {
+    console.log("Conflicting pnpm-lock.yaml found in frontend. Deleting...");
+    fs.rmSync(pnpmLock, { force: true });
+  }
 } catch (err) {
   console.error("Prisma DB sync, TypeScript compilation or Socket.IO setup failed on startup:", err.message);
 }
