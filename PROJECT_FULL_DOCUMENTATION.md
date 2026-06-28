@@ -264,6 +264,7 @@
   │   │   ├── qrcode.service.js         # Base64 Data URL & Slug QR code builder
   │   │   ├── seed.service.js           # Automatic default shopkeeper registers
   │   │   ├── session.service.js        # Database-backed concurrent session tracker and 2-PC limit controller [NEW]
+  │   │   ├── socket.service.js         # Centralized Socket.IO rooms manager & events emitter [NEW]
   │   │   └── storage.service.js        # AWS S3 file upload with local folder fallback
   │   ├── uploads/                      # Local file fallback directory (git-ignored)
   │   │   ├── invoices/                 # Generated PDF invoices
@@ -358,12 +359,18 @@
       │   └── take-a-print/
       │       └── page.js               # Manual shop ID slug gateway (test fallback code "0000")
       │
+      ├── contexts/                     # React context providers [NEW]
+      │   └── SocketProvider.tsx        # App-wide Socket.IO client context [NEW]
+      ├── hooks/                        # Custom react hooks [NEW]
+      │   └── useSocket.ts              # Event listener auto-cleanup hook [NEW]
       ├── lib/                          # Helper library utilities
       │   ├── currency.js               # Format currency helper function (Rupee formatting) [NEW]
       │   ├── i18n.js                   # Multi-language i18n client configuration [NEW]
       │   ├── shop-context.js           # Caches full activeShop object in localStorage
       │   └── upi.js                    # UPI link generator and validation helpers [NEW]
       ├── public/                       # Static public assets (images, designs)
+      ├── services/                     # Network services [NEW]
+      │   └── socket.ts                 # Socket.IO connection client singleton [NEW]
       ├── package.json                  # Client package configuration
       └── tailwind.config.js            # Tailwind layout and gradient extensions
   ```
@@ -4098,14 +4105,21 @@
           - strategic advisory triggers with single-click apply buttons (`RecommendationCard.tsx`).
           - Floating copilot panel with quick questions (`AIChat.tsx`).
 
+   10. **Real-Time Updates via Socket.IO & Fluid SWR Dashboard Traversal**:
+       - **System Objective**: Pushes live database changes instantly to relevant clients, removing manual page refreshes.
+       - **Backend Rooms & Events**: centralizes Socket.IO room subscriptions (`shop:{shopId}`, `customer:{userId}`, `admin`) inside `socket.service.js`. Emits `new-order`, `order-updated`, `payment-success`, and `notification-created` events after successful database writes.
+       - **Consumables & Hardware updates**: On order completion/download, dynamically decrements paper packs (`Paper A4 Pack`) and updates ink levels (`HP LaserJet Pro 400`/`Epson L3250 EcoTank`), broadcasting `inventory-updated` and `printer-status` events. Pushes warning notifications for low stock/ink.
+       - **Frontend Context Provider & useSocket Hook**: Wraps the App Router layout with a global `<SocketProvider>` context and utilizes a reusable `useSocket` subscription hook with automatic listener cleanup on unmount.
+       - **Fluid Traversal Pattern (SWR)**: Shopkeeper dashboard restores shop settings, custom codes, and order stats instantly from `localStorage` cached values on mount, rendering the dashboard in 0ms before background fetching silently updates and caches the latest queues. Dynamic Welcome Bar badge hides default mock "Premium Plan" crown pill unless a plan is resolved.
+
   ---
 
   ## Document Version
   
-  - **Version:** 3.3.0
-  - **Last Updated:** June 27, 2026
+  - **Version:** 4.0.0
+  - **Last Updated:** June 28, 2026
   - **Author:** Antigravity AI
-  - **Status:** Complete (Fully updated with backend TypeScript compilation startup hooks, Supabase database schema push, rule-based JSON knowledge rules, modular context aggregations, and Next.js TSX Copilot dashboard components).
+  - **Status:** Complete (Fully updated with backend TypeScript compilation startup hooks, Supabase database schema push, rule-based JSON knowledge rules, modular context aggregations, Next.js TSX Copilot dashboard components, Socket.IO real-time notification/order streams, and fluid SWR latency-free cache restoration page traversals).
   
   ---
   
