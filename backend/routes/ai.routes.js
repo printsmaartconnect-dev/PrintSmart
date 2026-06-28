@@ -10,4 +10,10 @@ router.post("/regenerate", authMiddleware, aiController.regeneratePoster);
 router.post("/chat-generate", authMiddleware, aiController.chatGenerate);
 router.get("/history", authMiddleware, aiController.getHistory);
 
+// AI Copilot Business Dashboard & Chat Endpoints
+const aiCopilotController = require("../dist/ai/ai.controller").AICopilotController;
+router.get("/copilot-dashboard", authMiddleware, aiCopilotController.getDashboardData);
+router.post("/copilot-chat", authMiddleware, aiCopilotController.chat);
+router.post("/recommendations/apply", authMiddleware, aiCopilotController.applyRecommendation);
+
 module.exports = router;

@@ -119,6 +119,12 @@ model Shopkeeper {
   orders          Order[]
   statistics      ShopkeeperStatistics?
   aiAssets        AIAsset[]
+  inventoryItems   InventoryItem[]
+  printerStats     PrinterStatistics[]
+  businessMetrics  BusinessMetrics[]
+  aiLogs           AILog[]
+  aiRecommendations AIRecommendation[]
+  recommendationHistory RecommendationHistory[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -363,4 +369,90 @@ model SystemSettings {
   value     String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model InventoryItem {
+  id           String     @id @default(uuid())
+  shopkeeperId String
+  shopkeeper   Shopkeeper @relation(fields: [shopkeeperId], references: [id], onDelete: Cascade)
+  itemName     String
+  quantity     Int        @default(0)
+  unit         String     @default("pcs") // e.g., pages, boxes, cartridges
+  minThreshold Int        @default(10)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([shopkeeperId])
+}
+
+model PrinterStatistics {
+  id           String     @id @default(uuid())
+  shopkeeperId String
+  shopkeeper   Shopkeeper @relation(fields: [shopkeeperId], references: [id], onDelete: Cascade)
+  printerName  String
+  pagesPrinted Int        @default(0)
+  inkLevel     Float      @default(100.0) // percentage
+  status       String     @default("ONLINE") // ONLINE, OFFLINE, MAINTENANCE, ERROR
+  updatedAt    DateTime   @updatedAt
+
+  @@index([shopkeeperId])
+}
+
+model BusinessMetrics {
+  id           String     @id @default(uuid())
+  shopkeeperId String
+  shopkeeper   Shopkeeper @relation(fields: [shopkeeperId], references: [id], onDelete: Cascade)
+  date         DateTime   @default(now())
+  revenue      Float      @default(0.0)
+  ordersCount  Int        @default(0)
+  avgOrderValue Float     @default(0.0)
+  createdAt    DateTime   @default(now())
+
+  @@index([shopkeeperId])
+  @@index([date])
+}
+
+model AILog {
+  id           String     @id @default(uuid())
+  shopkeeperId String
+  shopkeeper   Shopkeeper @relation(fields: [shopkeeperId], references: [id], onDelete: Cascade)
+  prompt       String     @db.Text
+  response     String     @db.Text
+  tokensUsed   Int?
+  createdAt    DateTime   @default(now())
+
+  @@index([shopkeeperId])
+}
+
+model AIRecommendation {
+  id           String     @id @default(uuid())
+  shopkeeperId String
+  shopkeeper   Shopkeeper @relation(fields: [shopkeeperId], references: [id], onDelete: Cascade)
+  type         String     // e.g., PRICING, INVENTORY, CUSTOMER, PRINTER, MARKETING, REVENUE
+  priority     String     // HIGH, MEDIUM, LOW
+  title        String
+  description  String     @db.Text
+  action       String     // Recommended action
+  status       String     @default("PENDING") // PENDING, APPLIED, DISMISSED
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  history      RecommendationHistory[]
+
+  @@index([shopkeeperId])
+  @@index([status])
+}
+
+model RecommendationHistory {
+  id               String           @id @default(uuid())
+  shopkeeperId     String
+  shopkeeper       Shopkeeper       @relation(fields: [shopkeeperId], references: [id], onDelete: Cascade)
+  recommendationId String
+  recommendation   AIRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  actionTaken      String           // e.g., APPLIED, DISMISSED
+  feedback         String?          @db.Text
+  createdAt        DateTime         @default(now())
+
+  @@index([shopkeeperId])
+  @@index([recommendationId])
 }

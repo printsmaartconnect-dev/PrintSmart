@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const socketService = require("../services/socket.service");
 
 /**
  * Register/Submit a payment transaction reference for an order.
@@ -82,6 +83,34 @@ exports.createPaymentLog = async (req, res) => {
       data: { status: "WAITING" }
     });
 
+    // Fetch full order for socket dispatch
+    const updatedOrder = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: {
+        printConfiguration: true,
+        orderFiles: true,
+        queue: true,
+        invoice: true,
+        paymentLog: true
+      }
+    });
+
+    socketService.emitToRoom(`shop:${order.shopkeeperId}`, "order-updated", updatedOrder);
+    if (order.userId) {
+      socketService.emitToRoom(`customer:${order.userId}`, "order-updated", updatedOrder);
+    }
+    socketService.emitToRoom("admin", "order-updated", updatedOrder);
+
+    // Emit payment notification
+    socketService.emitToRoom(`shop:${order.shopkeeperId}`, "notification-created", {
+      id: `notif-pay-${Date.now()}`,
+      type: "PAYMENT_RECEIVED",
+      title: "Payment Verification Required",
+      message: `UPI Payment reference submitted for Order #${order.orderId}. Verification pending.`,
+      orderId: order.id,
+      createdAt: new Date().toISOString()
+    });
+
     res.status(200).json({
       message: "Payment transaction reference submitted successfully",
       paymentLog
@@ -123,6 +152,26 @@ exports.updatePaymentStatus = async (req, res) => {
       where: { id: paymentLog.id },
       data: { paymentStatus: status.toUpperCase() }
     });
+
+    // Fetch full order for socket dispatch
+    const order = await prisma.order.findUnique({
+      where: { id: updatedLog.orderId },
+      include: {
+        printConfiguration: true,
+        orderFiles: true,
+        queue: true,
+        invoice: true,
+        paymentLog: true
+      }
+    });
+
+    if (order) {
+      socketService.emitToRoom(`shop:${order.shopkeeperId}`, "order-updated", order);
+      if (order.userId) {
+        socketService.emitToRoom(`customer:${order.userId}`, "order-updated", order);
+      }
+      socketService.emitToRoom("admin", "order-updated", order);
+    }
 
     res.status(200).json({
       message: `Payment status updated to ${status}`,

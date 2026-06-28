@@ -3,7 +3,7 @@
 import { Crown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-export default function WelcomeBar({ shopName, shopkeeperIdCode, memberSince }) {
+export default function WelcomeBar({ shopName, shopkeeperIdCode, memberSince, subscriptionPlan }) {
   const { t } = useTranslation()
 
   const formatDate = (dateString) => {
@@ -32,10 +32,12 @@ export default function WelcomeBar({ shopName, shopkeeperIdCode, memberSince }) 
               <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">
                 {shopName || 'Shop Name'}
               </h1>
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 border border-violet-100">
-                <Crown size={14} />
-                {t('Premium Plan')}
-              </span>
+              {subscriptionPlan && (
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 border border-violet-100">
+                  <Crown size={14} />
+                  {t(subscriptionPlan)}
+                </span>
+              )}
               {shopkeeperIdCode && (
                 <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 border border-slate-200">
                   {t('Shop ID:')} {shopkeeperIdCode}

@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "id": "PR-01",
+      "name": "Minimum Profit Margin",
+      "metric": "markup",
+      "operator": "lt",
+      "value": 0.3,
+      "recommendation": "Current markup is below 30%. Consider raising single-sided print pricing by 10-15% to maintain healthy margins."
+    },
+    {
+      "id": "PR-02",
+      "name": "Color Print Premium Ratio",
+      "metric": "color_to_bw_ratio",
+      "operator": "lt",
+      "value": 3.0,
+      "recommendation": "Color print pricing is less than 3x black & white pricing. Adjust color prices upward to offset expensive color toner consumption."
+    },
+    {
+      "id": "PR-03",
+      "name": "Bulk Printing Discount Threshold",
+      "metric": "copies_for_bulk",
+      "operator": "gte",
+      "value": 100,
+      "recommendation": "Offer a 10% volume discount for orders exceeding 100 copies to attract corporate and school projects."
+    }
+  ]
+}

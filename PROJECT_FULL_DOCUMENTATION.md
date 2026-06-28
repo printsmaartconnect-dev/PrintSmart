@@ -1171,6 +1171,19 @@
 
   ---
 
+  #### `take-a-print/page.js`
+  **Purpose:** Manual shop ID slug gateway; falls back to test code "0000".
+  - Collects shop ID slug manually via inputs or QR scans.
+  - Queries backend shopkeeper route and updates the client context (`localStorage.activeShop`).
+
+  #### `qz-test/page.jsx`
+  **Purpose:** Diagnostics and testing page for QZ Tray integration.
+  - Exposes controls to initialize a WebSocket connection to the local QZ Tray client service.
+  - Lists detected local printing devices.
+  - Fires plain-text test sheets ("Hello from PrintSmaart") directly to the default printer.
+
+  ---
+
   #### Customer Flow Components
 
   ##### `components/customer/DocumentPreview.jsx`
@@ -4062,15 +4075,37 @@
       - **Non-Monetary Content Sourcing**: Non-eligible or losing rolls trigger a non-monetary card (`DID_YOU_KNOW` or `ASTROLOGY` on a 50/50 split). Card details are dynamically cached from local Excel/CSV worksheets (`Do You Know,Astrology.xlsx` converted to assets on startup).
       - **Immediate Customer Scratch Access**: Customers can view and scratch cards immediately from the orders queue page (`/customer/orders`) even while the order is pending or accepted. The scratch card modal dynamically parses JSON entries case-insensitively (supporting columns like `scratch_text`, `category`, `sub_category`, and `reference_link`) and renders clickable source references for facts.
       - **Real-Time Reward Metrics**: The Shopkeeper Statistics panel displays dynamic grids summarizing active scratch rate progress bars, total card distributions, and customer engagement tiers.
+  9. **PrintSmaart AI Copilot (Business Intelligence & Analytics Platform)**:
+      - **System Objective**: Combines Business Analytics, Business Intelligence, Workload Prediction, Pricing Optimizations, Inventory Replenishment, and Shopkeeper Virtual Support into a single unified AI system.
+      - **Database Additions**:
+          - `InventoryItem`: Tracks consumables like A4 Paper packs and cartridges.
+          - `PrinterStatistics`: Stores active printer status, page counter, and ink gauges.
+          - `BusinessMetrics`: Aggregates historical metrics for rapid computation.
+          - `AILog`: Stores prompt-response pairs.
+          - `AIRecommendation`: Retains generated actionable insights.
+          - `RecommendationHistory`: Tracks feedback when the user clicks "Apply".
+      - **Rule-Based Knowledge Base**: Fully externalized business logic stored in JSON configuration files (`pricing_rules.json`, `inventory_rules.json`, `business_rules.json`, `seasonal_trends.json`, `printer_rules.json`) that are dynamically parsed during metric computations and LLM context loading.
+      - **Prisma & TS Compiler Boot Hook**: The backend auto-compiles the TS subsystem (`npx tsc`) and pushes database schemas (`npx prisma db push`) synchronously on server boot before Express starts, ensuring the generated client is fully up to date.
+      - **Modular Backend Services (`src/ai`)**:
+          - `analytics.service.ts`: Pure database calculation engine (no LLM dependencies) computing today's earnings, averages, top services, peak hours, and stock ratios.
+          - `contextBuilder.service.ts`: Loads rules, computes a 100-point Health Score, gathers analytics, and returns a unified Business Context JSON. Never exposes raw database tables directly to the LLM.
+          - `pricing.service.ts` & `inventory.service.ts` & `prediction.service.ts` & `recommendation.service.ts`: Evaluate context metrics against loaded rule thresholds to output structured, prioritized recommendations.
+          - `ai.service.ts`: Standard Google Gemini chat connector with automatic offline failover support.
+      - **Frontend AI Copilot Dashboard (`/shopkeeper/ai`)**:
+          - A high-end dark themed workspace featuring real-time overview metrics and a 100-point Health score gauge (`AIDashboard.tsx`).
+          - Graphical ink level indicators, average order values, and critical stock warnings (`AIInsightCards.tsx`).
+          - Expected workload order counts, page counts, and weekly forecasts (`PredictionCard.tsx`).
+          - strategic advisory triggers with single-click apply buttons (`RecommendationCard.tsx`).
+          - Floating copilot panel with quick questions (`AIChat.tsx`).
 
   ---
-  
+
   ## Document Version
   
-  - **Version:** 3.2.3
-  - **Last Updated:** June 24, 2026
+  - **Version:** 3.3.0
+  - **Last Updated:** June 27, 2026
   - **Author:** Antigravity AI
-  - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, Gemini 3.5 custom API key overrides, and fixes for order placement server errors and success redirection. Updated with full documentation for payment logs, AI Studio chat generation, scratch card loyalty worksheets, and platform settings. Further expanded in v3.2.3 with detailed folder representations and breakdowns for backend currency utils, authentication middleware, client-side translation provider context, custom document previews, and frontend API configuration endpoints using Groq SDK).
+  - **Status:** Complete (Fully updated with backend TypeScript compilation startup hooks, Supabase database schema push, rule-based JSON knowledge rules, modular context aggregations, and Next.js TSX Copilot dashboard components).
   
   ---
   

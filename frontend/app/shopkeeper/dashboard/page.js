@@ -19,19 +19,178 @@ import RecentOrders from "./_components/RecentOrders";
 import BottomDock from "./_components/BottomDock";
 import { bottomDockItems, dashboardStats, recentOrders } from "./_components/mockData";
 import PrintConfigModal from "./_components/PrintConfigModal";
+import { useSocket } from "../../../hooks/useSocket";
+import { useSocketContext } from "../../../contexts/SocketProvider";
 
 export default function ShopkeeperDashboard() {
   const router = useRouter();
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
-  const [shopName, setShopName] = useState("");
-  const [shopkeeperIdCode, setShopkeeperIdCode] = useState("");
-  const [memberSince, setMemberSince] = useState("");
+  const [shopName, setShopName] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.shopName || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const [shopkeeperIdCode, setShopkeeperIdCode] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.shopSlug || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const [memberSince, setMemberSince] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.createdAt || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const [subscriptionPlan, setSubscriptionPlan] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.subscriptionPlan || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
   const [activeFilter, setActiveFilter] = useState("All");
-  const [ordersList, setOrdersList] = useState([]);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  
+  const [ordersList, setOrdersList] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("cachedOrdersList");
+        return cached ? JSON.parse(cached) : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const [dataLoaded, setDataLoaded] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !!localStorage.getItem("cachedOrdersList");
+    }
+    return false;
+  });
+
   const [activePrintOrder, setActivePrintOrder] = useState(null);
-  const [shopAddress, setShopAddress] = useState("");
+  const [shopAddress, setShopAddress] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.address || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const { joinRoom, leaveRoom } = useSocketContext();
+
+  const mapRawOrderToFrontend = (o) => ({
+    id: o.orderId,
+    dbId: o.id,
+    status: o.status ? (o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()) : "Pending",
+    customerName: o.customerName || "Anonymous Customer",
+    phone: o.phone || "",
+    customerComment: o.customerComment || "",
+    fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
+    fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
+    pages: 1,
+    copies: o.printConfiguration?.copies || 1,
+    type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
+    size: o.printConfiguration?.paperSize || "A4",
+    side: o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single",
+    price: `₹${(o.price || 0.0).toFixed(2)}`,
+    timestamp:
+      new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
+      ", " +
+      new Date(o.createdAt).toLocaleDateString([], { month: "short", day: "numeric" }),
+    variant: o.variant || (o.orderFiles && o.orderFiles.length > 0 && (o.orderFiles[0].customFileName === "Customer wants to talk" || o.orderFiles[0].originalFileName === "Customer wants to talk" || o.price === 0) ? "talk" : "standard"),
+    paymentLog: o.paymentLog,
+    files: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles.map(f => {
+      const fConfig = f.config || {};
+      return {
+        id: f.id,
+        fileName: f.customFileName || f.originalFileName || "Untitled Document",
+        fileUrl: f.fileUrl,
+        copies: fConfig.copies || o.printConfiguration?.copies || 1,
+        type: fConfig.printType === "COLOR" ? "Color" : (fConfig.printType === "BW" ? "B&W" : (o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W")),
+        size: fConfig.paperSize || o.printConfiguration?.paperSize || "A4",
+        side: fConfig.sides === "DOUBLE" ? "Double" : (fConfig.sides === "SINGLE" ? "Single" : (o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single")),
+        price: f.price !== undefined ? `₹${parseFloat(f.price).toFixed(2)}` : `₹${(o.price || 0.0).toFixed(2)}`,
+        orderId: f.orderId || o.orderId,
+      };
+    }) : [{
+      id: o.orderId,
+      fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
+      fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
+      copies: o.printConfiguration?.copies || 1,
+      type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
+      size: o.printConfiguration?.paperSize || "A4",
+      side: o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single",
+      price: `₹${(o.price || 0.0).toFixed(2)}`,
+      orderId: o.orderId,
+    }],
+  });
+
+  // Join shop room on mount/auth load
+  useEffect(() => {
+    const loggedIn = localStorage.getItem("loggedInShopkeeper");
+    if (loggedIn) {
+      try {
+        const shop = JSON.parse(loggedIn);
+        if (shop && shop.id) {
+          joinRoom(`shop:${shop.id}`);
+          return () => {
+            leaveRoom(`shop:${shop.id}`);
+          };
+        }
+      } catch (e) {
+        console.error("Failed to parse shopkeeper for socket join:", e);
+      }
+    }
+  }, [joinRoom, leaveRoom, shopName]);
+
+  // Handle incoming new orders in real-time
+  useSocket("new-order", (newOrder) => {
+    console.log("[Socket] Dashboard received new order:", newOrder);
+    setOrdersList((prev) => {
+      if (prev.some((o) => o.dbId === newOrder.id || o.id === newOrder.orderId)) return prev;
+      return [mapRawOrderToFrontend(newOrder), ...prev];
+    });
+  });
+
+  // Handle order updates in real-time
+  useSocket("order-updated", (updatedOrder) => {
+    console.log("[Socket] Dashboard received order update:", updatedOrder);
+    setOrdersList((prev) =>
+      prev.map((o) => (o.dbId === updatedOrder.id || o.id === updatedOrder.orderId ? mapRawOrderToFrontend(updatedOrder) : o))
+    );
+  });
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
   console.log('Active API URL (Dashboard):', apiUrl);
@@ -102,6 +261,7 @@ export default function ShopkeeperDashboard() {
           }],
         }));
         setOrdersList(mappedOrders);
+        localStorage.setItem("cachedOrdersList", JSON.stringify(mappedOrders));
         setDataLoaded(true);
       } else {
         setOrdersList(recentOrders);
@@ -198,6 +358,7 @@ export default function ShopkeeperDashboard() {
           setShopName(shopkeeper.shopName || "");
           setShopkeeperIdCode(shopkeeper.shopSlug || "");
           setShopAddress(shopkeeper.address || "");
+          setSubscriptionPlan(shopkeeper.subscriptionPlan || "");
           if (shopkeeper.createdAt) {
             setMemberSince(shopkeeper.createdAt);
           }
@@ -225,6 +386,7 @@ export default function ShopkeeperDashboard() {
         setShopName(profile.shopName || "");
         setShopkeeperIdCode(profile.shopSlug || "");
         setShopAddress(contact.shopAddress || "");
+        setSubscriptionPlan(account?.subscriptionPlan || "");
         if (account?.createdAt) {
           setMemberSince(account.createdAt);
         }
@@ -269,7 +431,7 @@ export default function ShopkeeperDashboard() {
       { key: 'cancelled', label: t('Cancelled'), badge: String(cancelledCount) },
       { key: 'addOrder', label: t('Add order'), badge: null, href: `/customer/language?shopkeeperAddOrder=true&shopId=${shopkeeperIdCode}` },
       { key: 'coupon', label: t('Business network'), badge: null, href: '/shopkeeper/business-network' },
-      { key: 'printsmartAi', label: t('PrintSmart AI'), badge: null, href: '/shopkeeper/printsmart-ai' },
+      { key: 'printsmartAi', label: t('🤖 AI Copilot'), badge: null, href: '/shopkeeper/ai' },
     ];
   })();
 
@@ -518,7 +680,7 @@ export default function ShopkeeperDashboard() {
 
       <div className="px-4 sm:px-6 lg:px-8 pb-28">
         <div className="mx-auto max-w-7xl space-y-6">
-          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} memberSince={memberSince} />
+          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} memberSince={memberSince} subscriptionPlan={subscriptionPlan} />
           <StatsRow stats={dynamicStats} />
           <RecentOrders 
             orders={displayedOrders} 

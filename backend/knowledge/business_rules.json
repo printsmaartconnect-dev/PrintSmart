@@ -1,0 +1,30 @@
+{
+  "rules": [
+    {
+      "id": "BR-01",
+      "name": "Health Score Pending Backlog Penalty",
+      "metric": "pending_orders_count",
+      "operator": "gt",
+      "value": 15,
+      "penalty": 10,
+      "recommendation": "High pending backlog (> 15 orders). Consider starting another printer or notifying customers of slight wait times."
+    },
+    {
+      "id": "BR-02",
+      "name": "Order Cancellation Alert",
+      "metric": "cancelled_rate",
+      "operator": "gt",
+      "value": 0.08,
+      "penalty": 15,
+      "recommendation": "Order cancellation rate is above 8%. Inspect printer queues or contact customers to resolve issues causing walk-aways."
+    },
+    {
+      "id": "BR-03",
+      "name": "Average Order Value Goal",
+      "metric": "avg_order_value",
+      "operator": "lt",
+      "value": 50.0,
+      "recommendation": "Average order value is under ₹50. Propose bundle options (e.g. binding + print) to increase revenue per checkout."
+    }
+  ]
+}

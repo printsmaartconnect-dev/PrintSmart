@@ -1,6 +1,7 @@
 const prisma = require("../config/db");
 const orderService = require("../services/order.service");
 const invoiceService = require("../services/invoice.service");
+const socketService = require("../services/socket.service");
 
 // Format orders to clean serialized configs and present them as a dynamic 'config' field
 const formatOrderResponse = (order) => {
@@ -377,9 +378,27 @@ exports.createOrder = async (req, res) => {
       },
     });
 
+    // Emit socket events for new order creation
+    const formattedOrder = formatOrderResponse(completedOrder);
+    socketService.emitToRoom(`shop:${targetShopkeeperId}`, "new-order", formattedOrder);
+    if (userId) {
+      socketService.emitToRoom(`customer:${userId}`, "new-order", formattedOrder);
+    }
+    socketService.emitToRoom("admin", "new-order", formattedOrder);
+
+    // Emit notification event to shopkeeper
+    socketService.emitToRoom(`shop:${targetShopkeeperId}`, "notification-created", {
+      id: `notif-${Date.now()}`,
+      type: "NEW_ORDER",
+      title: "New Order Placed",
+      message: `Order #${customOrderId} has been submitted by ${customerName || "Anonymous"}.`,
+      orderId: order.id,
+      createdAt: new Date().toISOString()
+    });
+
     res.status(201).json({
       message: "Order created successfully",
-      orders: [formatOrderResponse(completedOrder)],
+      orders: [formattedOrder],
     });
   } catch (err) {
     console.error("Create order controller error:", err);
@@ -514,6 +533,13 @@ exports.updateOrderStatus = async (req, res) => {
         where: { orderId: id },
         data: { status: queueStatus },
       });
+
+      // Emit queue-updated event!
+      socketService.emitToRoom(`shop:${order.shopkeeperId}`, "queue-updated", {
+        orderId: id,
+        position: order.queue.position,
+        status: queueStatus
+      });
     }
 
     // Generate reward card automatically on order completion or download
@@ -526,9 +552,98 @@ exports.updateOrderStatus = async (req, res) => {
       }
     }
 
+    // Decrement inventory and update printer statistics on order completion
+    if (statusEnum === "COMPLETED" || statusEnum === "DOWNLOADED") {
+      try {
+        const pages = 1; // default fallback
+        const copies = updatedOrder.printConfiguration?.copies || 1;
+        const totalPages = pages * copies;
+
+        // Decrement Paper A4 Pack (packs) - say 1 page = 1/500th of a pack
+        const paperItem = await prisma.inventoryItem.findFirst({
+          where: { shopkeeperId: order.shopkeeperId, itemName: "Paper A4 Pack" }
+        });
+        if (paperItem) {
+          const packUsage = totalPages / 500;
+          const nextQty = Math.max(0, paperItem.quantity - packUsage);
+          const updatedItem = await prisma.inventoryItem.update({
+            where: { id: paperItem.id },
+            data: { quantity: nextQty }
+          });
+          // Emit inventory-updated event!
+          socketService.emitToRoom(`shop:${order.shopkeeperId}`, "inventory-updated", updatedItem);
+
+          // Emit alert if quantity drops below threshold
+          if (nextQty <= paperItem.minThreshold) {
+            socketService.emitToRoom(`shop:${order.shopkeeperId}`, "notification-created", {
+              id: `notif-inv-${Date.now()}`,
+              type: "LOW_INVENTORY",
+              title: "Low Inventory Warning",
+              message: `Inventory item "${paperItem.itemName}" is running low (${nextQty.toFixed(2)} packs remaining).`,
+              createdAt: new Date().toISOString()
+            });
+          }
+        }
+
+        // Update Printer ink level and page count
+        const isColor = updatedOrder.printConfiguration?.printType === "COLOR";
+        const printerName = isColor ? "Epson L3250 EcoTank" : "HP LaserJet Pro 400";
+        const printer = await prisma.printerStatistics.findFirst({
+          where: { shopkeeperId: order.shopkeeperId, printerName }
+        });
+        if (printer) {
+          // Say ink level drops by 0.05% per page
+          const inkUsage = totalPages * 0.05;
+          const nextInk = Math.max(0, printer.inkLevel - inkUsage);
+          const updatedPrinter = await prisma.printerStatistics.update({
+            where: { id: printer.id },
+            data: {
+              pagesPrinted: printer.pagesPrinted + totalPages,
+              inkLevel: nextInk
+            }
+          });
+          // Emit printer-status event!
+          socketService.emitToRoom(`shop:${order.shopkeeperId}`, "printer-status", updatedPrinter);
+
+          // Emit low ink notification if it falls below 15%
+          if (nextInk <= 15.0) {
+            socketService.emitToRoom(`shop:${order.shopkeeperId}`, "notification-created", {
+              id: `notif-ink-${Date.now()}`,
+              type: "LOW_INVENTORY",
+              title: "Low Ink Warning",
+              message: `Printer "${printer.printerName}" is low on ink/toner (${nextInk.toFixed(1)}% remaining).`,
+              createdAt: new Date().toISOString()
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to update inventory/printer stats on order completion:", err);
+      }
+    }
+
+    // Emit socket events for order status modification
+    const formattedOrder = formatOrderResponse(updatedOrder);
+    socketService.emitToRoom(`shop:${order.shopkeeperId}`, "order-updated", formattedOrder);
+    if (order.userId) {
+      socketService.emitToRoom(`customer:${order.userId}`, "order-updated", formattedOrder);
+    }
+    socketService.emitToRoom("admin", "order-updated", formattedOrder);
+
+    // Emit order status changes notifications to relevant parties
+    if (statusEnum === "CANCELLED") {
+      socketService.emitToRoom(`shop:${order.shopkeeperId}`, "notification-created", {
+        id: `notif-${Date.now()}`,
+        type: "ORDER_CANCELLED",
+        title: "Order Cancelled",
+        message: `Order #${updatedOrder.orderId} was cancelled by client/system.`,
+        orderId: order.id,
+        createdAt: new Date().toISOString()
+      });
+    }
+
     res.json({
       message: "Order status updated successfully",
-      order: formatOrderResponse(updatedOrder),
+      order: formattedOrder,
     });
   } catch (err) {
     console.error("Update order status error:", err);

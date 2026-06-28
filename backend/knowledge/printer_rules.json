@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "id": "PTR-01",
+      "name": "Ink Replacement Alert",
+      "metric": "ink_level",
+      "operator": "lt",
+      "value": 15.0,
+      "recommendation": "Printer ink/toner level is below 15%. Prepare replacement cartridge immediately to prevent incomplete print runs."
+    },
+    {
+      "id": "PTR-02",
+      "name": "Printer Maintenance Interval",
+      "metric": "pages_since_last_maintenance",
+      "operator": "gte",
+      "value": 10000,
+      "recommendation": "Printer has printed over 10,000 pages since last check. Run printhead cleaning cycles to maintain professional quality."
+    },
+    {
+      "id": "PTR-03",
+      "name": "High Workload Strain",
+      "metric": "daily_queue_load",
+      "operator": "gt",
+      "value": 50,
+      "recommendation": "Daily queue has exceeded 50 prints. Spread jobs across multiple printers to prevent overheating issues."
+    }
+  ]
+}
