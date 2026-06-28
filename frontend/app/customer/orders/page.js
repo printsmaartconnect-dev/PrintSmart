@@ -14,7 +14,7 @@ import { formatCurrency } from '../../../lib/currency'
 import { useSocket } from '../../../hooks/useSocket'
 import { useSocketContext } from '../../../contexts/SocketProvider'
 
-export function OrdersPageContent() {
+function OrdersPageContent() {
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
