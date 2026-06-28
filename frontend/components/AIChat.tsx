@@ -102,14 +102,14 @@ export const AIChat: React.FC = () => {
       } else {
         const err = await response.json();
         setMessages(prev => [
-          ...prev, 
+          ...prev,
           { role: 'assistant', content: `⚠️ Error parsing request: ${err.message || 'Server error'}` }
         ]);
       }
     } catch (err) {
       console.error('Chat API Error:', err);
       setMessages(prev => [
-        ...prev, 
+        ...prev,
         { role: 'assistant', content: "⚠️ Connection failure. Verify the backend service is running locally." }
       ]);
     } finally {
@@ -123,7 +123,7 @@ export const AIChat: React.FC = () => {
 
   return (
     <div className="bg-[#131314] text-slate-200 rounded-3xl flex flex-col h-[650px] relative overflow-hidden border border-slate-800/40">
-      
+
       {/* Header (Gemini Minimalist style) */}
       <div className="px-6 py-4 bg-[#131314] border-b border-slate-850 flex items-center justify-between z-10">
         <div className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export const AIChat: React.FC = () => {
         </div>
 
         {messages.length > 0 && (
-          <button 
+          <button
             onClick={handleResetChat}
             className="p-2 hover:bg-slate-900 rounded-full transition-all text-slate-400 hover:text-white"
             title="New Chat"
@@ -148,7 +148,7 @@ export const AIChat: React.FC = () => {
 
       {/* Main Conversation viewport */}
       <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6 custom-scrollbar bg-[#131314]">
-        
+
         {messages.length === 0 ? (
           /* Gemini Empty State Welcome Screen */
           <div className="max-w-3xl mx-auto h-full flex flex-col justify-center py-6 space-y-8">
@@ -164,7 +164,7 @@ export const AIChat: React.FC = () => {
             {/* suggestion cards (Gemini Grid Layout) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
               {SUGGESTION_CARDS.map((card, idx) => (
-                <div 
+                <div
                   key={idx}
                   onClick={() => handleSend(card.prompt)}
                   className="bg-[#1e1f20] hover:bg-[#282a2c] border border-slate-850 hover:border-slate-800/80 rounded-2xl p-5 cursor-pointer transition-all duration-200 flex flex-col justify-between h-36 group shadow-sm hover:shadow-md"
@@ -188,7 +188,7 @@ export const AIChat: React.FC = () => {
           /* Conversation stream rendering */
           <div className="max-w-3xl mx-auto space-y-8">
             {messages.map((m, index) => (
-              <div 
+              <div
                 key={index}
                 className={`flex gap-4 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
@@ -199,11 +199,10 @@ export const AIChat: React.FC = () => {
                   </div>
                 )}
 
-                <div className={`leading-relaxed text-[15px] ${
-                  m.role === 'user' 
-                    ? 'bg-[#2e2f30] text-slate-100 rounded-3xl px-5 py-3.5 max-w-[75%]' 
+                <div className={`leading-relaxed text-[15px] ${m.role === 'user'
+                    ? 'bg-[#2e2f30] text-slate-100 rounded-3xl px-5 py-3.5 max-w-[75%]'
                     : 'text-slate-200 flex-1 pt-1 font-normal'
-                }`}>
+                  }`}>
                   <div className="whitespace-pre-line space-y-2">
                     {m.content.split('\n').map((line, lIdx) => {
                       let parsedLine: React.ReactNode = line;
@@ -240,7 +239,7 @@ export const AIChat: React.FC = () => {
 
       {/* Floating Centered Input Container (Gemini Spec) */}
       <div className="p-6 bg-[#131314] z-10 border-t border-slate-850/40">
-        <form 
+        <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSend(inputValue);
