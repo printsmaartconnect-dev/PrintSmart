@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
-import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText, AlertCircle } from 'lucide-react'
+import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText, AlertCircle, Loader } from 'lucide-react'
 import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
@@ -607,9 +607,16 @@ function ConfigurationPageContent() {
                     <button
                       onClick={handleContinue}
                       disabled={loading}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl transition shadow-md text-base"
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl transition shadow-md text-base flex items-center justify-center gap-2"
                     >
-                      {loading ? t('Placing Order...') : t('Confirm Order & Print →')}
+                      {loading ? (
+                        <>
+                          <Loader size={18} className="animate-spin" />
+                          {t('Placing Order...')}
+                        </>
+                      ) : (
+                        t('Confirm Order & Print →')
+                      )}
                     </button>
                     <button
                       type="button"

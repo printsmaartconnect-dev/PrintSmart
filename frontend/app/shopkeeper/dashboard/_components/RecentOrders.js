@@ -61,7 +61,7 @@ const getPrintableUrl = async (fileUrl) => {
 
 export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint, onDownload }) {
   const { t } = useTranslation()
-  const [viewMode, setViewMode] = useState('table') // default to 'table' for a premium look
+  const [viewMode, setViewMode] = useState('card') // default to card grid view
 
   const handlePreview = async (order) => {
     const filesList = order.files && order.files.length > 0 ? order.files : [order];

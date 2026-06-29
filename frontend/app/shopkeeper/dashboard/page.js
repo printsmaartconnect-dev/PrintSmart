@@ -20,6 +20,7 @@ import BottomDock from "./_components/BottomDock";
 import { bottomDockItems, dashboardStats, recentOrders } from "./_components/mockData";
 import { useSocket } from "../../../hooks/useSocket";
 import { useSocketContext } from "../../../contexts/SocketProvider";
+import { MessageCircle } from "lucide-react";
 
 export default function ShopkeeperDashboard() {
   const router = useRouter();
@@ -705,6 +706,17 @@ export default function ShopkeeperDashboard() {
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
       />
+      {/* Floating Feedback & Support Button */}
+      <a
+        href="https://forms.gle/VBK48SwGSWm7prgUA"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-40 bg-gradient-to-tr from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-full px-5 py-3 shadow-[0_4px_20px_rgba(99,102,241,0.35)] border border-indigo-400/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 group font-bold text-sm"
+        aria-label={t('Feedback & Support')}
+      >
+        <MessageCircle size={18} className="text-white group-hover:rotate-12 transition-transform duration-200" />
+        <span>{t('Feedback & Support')}</span>
+      </a>
     </div>
   );
 }
