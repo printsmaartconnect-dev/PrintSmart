@@ -567,7 +567,7 @@ function OrdersPageContent() {
                     </span>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {/* Scratch Card / Claim Reward (Available for any order with a reward log) */}
                     {order.rewardLog && (
                       <button

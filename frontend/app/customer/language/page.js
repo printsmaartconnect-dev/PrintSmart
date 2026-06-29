@@ -322,6 +322,7 @@ function CustomerLanguagePageContent() {
   }, [])
   const [renames, setRenames] = useState({})
   const [uploading, setUploading] = useState(false)
+  const [uploadSlowWarning, setUploadSlowWarning] = useState(false)
 
   const onDrop = useCallback(async (acceptedFiles) => {
     let filteredFiles = acceptedFiles
@@ -555,6 +556,8 @@ function CustomerLanguagePageContent() {
 
     setLoading(true)
     setError(null)
+    setUploadSlowWarning(false)
+    let uploadTimer = null
 
     try {
       const finalLanguage = selectedOther || selectedLanguage || 'en'
@@ -590,6 +593,12 @@ function CustomerLanguagePageContent() {
 
       // Start file uploads in parallel
       setUploading(true)
+      
+      // Show warning popup after 9 seconds if not completed
+      uploadTimer = setTimeout(() => {
+        setUploadSlowWarning(true)
+      }, 9000)
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
 
       const uploadPromises = files.map(async (item, i) => {
@@ -629,6 +638,11 @@ function CustomerLanguagePageContent() {
       })
 
       const uploadedFilesData = await Promise.all(uploadPromises)
+      
+      if (uploadTimer) {
+        clearTimeout(uploadTimer)
+      }
+      setUploadSlowWarning(false)
 
       // Store complete file metadata in localStorage
       localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
@@ -647,9 +661,16 @@ function CustomerLanguagePageContent() {
 
       router.push(nextUrl)
     } catch (err) {
+      if (uploadTimer) {
+        clearTimeout(uploadTimer)
+      }
+      setUploadSlowWarning(false)
       setError(err.message || t('Failed to proceed'))
       setUploading(false)
     } finally {
+      if (uploadTimer) {
+        clearTimeout(uploadTimer)
+      }
       setLoading(false)
     }
   }
@@ -775,33 +796,7 @@ function CustomerLanguagePageContent() {
                     />
                   </div>
 
-                  {/* Phone (Optional) */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      {t('Phone Number')} <span className="text-gray-400 font-normal">({t('optional')})</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder={t('10-digit mobile number')}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
-                    />
-                  </div>
 
-                  {/* Email (Optional) */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      {t('Email')} <span className="text-gray-400 font-normal">({t('optional')})</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder={t('your@email.com')}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
-                    />
-                  </div>
 
                   {/* 3. Document Upload Section */}
                   <div className="pt-4 border-t border-gray-100 space-y-4">
@@ -906,6 +901,19 @@ function CustomerLanguagePageContent() {
                       {t('Your files are encrypted and automatically deleted.')}
                     </p>
                   </div>
+
+                  {/* Network slow warning popup */}
+                  {uploadSlowWarning && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 mt-4">
+                      <AlertCircle className="text-amber-500 w-5 h-5 flex-shrink-0 mt-0.5 animate-pulse" />
+                      <div>
+                        <h4 className="text-xs font-bold text-amber-800">{t('Uploading taking longer than expected')}</h4>
+                        <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
+                          {t('This might be due to a slow network connection or large file size. Please do not close or refresh this page.')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Submit Button */}
                   <button
