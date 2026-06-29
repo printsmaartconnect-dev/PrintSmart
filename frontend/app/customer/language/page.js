@@ -131,6 +131,62 @@ const buildPlaceholderThumbnail = (file) => {
   return `data:image/svg+xml;base64,${btoa(svg)}`
 }
 
+const compressImage = (file, maxWidth = 1920, maxHeight = 1920, quality = 0.8) => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      resolve(file)
+      return
+    }
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target.result
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width)
+            width = maxWidth
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height)
+            height = maxHeight
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file)
+              return
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: file.type,
+              lastModified: Date.now(),
+            })
+            resolve(compressedFile)
+          },
+          file.type,
+          quality
+        )
+      }
+      img.onerror = () => resolve(file)
+    }
+    reader.onerror = () => resolve(file)
+  })
+}
+
 const isVisualFile = (file) => file.type.startsWith('image/') || file.type === 'application/pdf' || getFileExtension(file.name) === '.pdf'
 
 const generateThumbnail = async (file) => {
@@ -267,7 +323,7 @@ function CustomerLanguagePageContent() {
   const [renames, setRenames] = useState({})
   const [uploading, setUploading] = useState(false)
 
-  const onDrop = useCallback((acceptedFiles) => {
+  const onDrop = useCallback(async (acceptedFiles) => {
     let filteredFiles = acceptedFiles
     if (allowedExts) {
       filteredFiles = acceptedFiles.filter(file => {
@@ -279,7 +335,22 @@ function CustomerLanguagePageContent() {
       }
     }
 
-    const newFiles = filteredFiles.map(file => ({
+    // Process and compress image files concurrently
+    const processedFiles = await Promise.all(
+      filteredFiles.map(async (file) => {
+        if (file.type.startsWith('image/')) {
+          try {
+            return await compressImage(file)
+          } catch (e) {
+            console.error('Image compression failed, using original:', e)
+            return file
+          }
+        }
+        return file
+      })
+    )
+
+    const newFiles = processedFiles.map(file => ({
       file,
       previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       thumbnailUrl: null,
@@ -311,7 +382,7 @@ function CustomerLanguagePageContent() {
 
       return updated
     })
-  }, [])
+  }, [allowedExts, t])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -511,13 +582,11 @@ function CustomerLanguagePageContent() {
         language: finalLanguage
       }))
 
-      // Start file uploads
+      // Start file uploads in parallel
       setUploading(true)
-      const uploadedFilesData = []
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
 
-      for (let i = 0; i < files.length; i++) {
-        const item = files[i]
+      const uploadPromises = files.map(async (item, i) => {
         const originalName = item.file.name
         const fileExt = getFileExtension(originalName)
 
@@ -542,7 +611,7 @@ function CustomerLanguagePageContent() {
 
         const result = await uploadRes.json()
 
-        uploadedFilesData.push({
+        return {
           originalFileName: originalName,
           customFileName: customName,
           fileExtension: fileExt,
@@ -550,8 +619,10 @@ function CustomerLanguagePageContent() {
           fileSize: item.file.size,
           thumbnailUrl: item.thumbnailUrl || item.previewUrl || result.fileUrl || null,
           uploadTimestamp: new Date().toISOString()
-        })
-      }
+        }
+      })
+
+      const uploadedFilesData = await Promise.all(uploadPromises)
 
       // Store complete file metadata in localStorage
       localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
