@@ -22,9 +22,15 @@ const mockNotifications = [
   }
 ]
 
+import { useSocket } from '../../../../hooks/useSocket'
+import { useSocketContext } from '../../../../contexts/SocketProvider'
+
 function NotificationButton() {
   const [isOpen, setIsOpen] = useState(false)
+  const [notifications, setNotifications] = useState(mockNotifications)
+  const [unreadCount, setUnreadCount] = useState(1)
   const dropdownRef = useRef(null)
+  const { joinRoom, leaveRoom } = useSocketContext()
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -36,26 +42,67 @@ function NotificationButton() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    const loggedIn = localStorage.getItem("loggedInShopkeeper")
+    if (loggedIn) {
+      try {
+        const shop = JSON.parse(loggedIn)
+        if (shop && shop.id) {
+          joinRoom(`shop:${shop.id}`)
+          return () => {
+            leaveRoom(`shop:${shop.id}`)
+          }
+        }
+      } catch (e) {
+        console.error("Failed to join socket room in Header:", e)
+      }
+    }
+  }, [joinRoom, leaveRoom])
+
+  useSocket("notification-created", (notif) => {
+    console.log("[Socket] Notification received in header:", notif)
+    setNotifications((prev) => [
+      {
+        title: notif.title,
+        message: notif.message,
+        time: "Just now"
+      },
+      ...prev
+    ])
+    setUnreadCount((prev) => prev + 1)
+  })
+
+  const handleOpenDropdown = () => {
+    setIsOpen(!isOpen)
+    if (!isOpen) {
+      setUnreadCount(0)
+    }
+  }
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleOpenDropdown}
         className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm border border-slate-200 hover:bg-slate-50 transition active:scale-95"
         aria-label="Notifications"
       >
         <Bell size={18} className="text-slate-600" />
-        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+        {unreadCount > 0 && (
+          <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 flex items-center justify-center text-[7px] text-white font-extrabold" />
+        )}
       </button>
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl py-3 z-50 animate-scaleIn">
           <div className="px-4 pb-2 border-b border-slate-100 flex items-center justify-between">
             <h3 className="font-extrabold text-slate-800 text-sm">Notifications</h3>
-            <span className="text-[10px] bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full font-bold">New</span>
+            {unreadCount > 0 && (
+              <span className="text-[10px] bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full font-bold">New</span>
+            )}
           </div>
           <div className="mt-2 max-h-60 overflow-y-auto divide-y divide-slate-50 no-scrollbar">
-            {mockNotifications.map((notif, index) => (
+            {notifications.map((notif, index) => (
               <div key={index} className="p-3.5 hover:bg-violet-500/5 transition cursor-pointer text-left">
                 <div className="text-xs font-bold text-slate-800">{notif.title}</div>
                 <div className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed">{notif.message}</div>

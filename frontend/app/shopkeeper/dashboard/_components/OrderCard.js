@@ -126,10 +126,16 @@ const getPrintableUrl = async (fileUrl) => {
 
 export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPrint, onDownload }) {
   const handlePreview = async () => {
-    if (order.fileUrl) {
-      const url = await getPrintableUrl(order.fileUrl);
-      window.open(url, '_blank')
-    } else {
+    const filesList = order.files && order.files.length > 0 ? order.files : [order];
+    let openedCount = 0;
+    for (const file of filesList) {
+      if (file.fileUrl) {
+        const url = await getPrintableUrl(file.fileUrl);
+        window.open(url, '_blank')
+        openedCount++;
+      }
+    }
+    if (openedCount === 0) {
       alert('No file URL associated with this order.')
     }
   }
@@ -137,28 +143,42 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
   const handlePrint = async () => {
     if (onPrint) {
       onPrint(order);
-    } else if (order.fileUrl) {
-      const url = await getPrintableUrl(order.fileUrl);
-      window.open(url, '_blank')
-      if (onStatusChange && order.dbId) {
-        await onStatusChange(order.dbId, 'Completed')
-      }
     } else {
-      alert('No file URL associated with this order.')
+      const filesList = order.files && order.files.length > 0 ? order.files : [order];
+      let successCount = 0;
+      for (const file of filesList) {
+        if (file.fileUrl) {
+          const url = await getPrintableUrl(file.fileUrl);
+          window.open(url, '_blank')
+          successCount++;
+        }
+      }
+      if (successCount > 0 && onStatusChange && order.dbId) {
+        await onStatusChange(order.dbId, 'Completed')
+      } else if (successCount === 0) {
+        alert('No file URL associated with this order.')
+      }
     }
   }
 
   const handleDownload = async () => {
     if (onDownload) {
       onDownload(order)
-    } else if (order.fileUrl) {
-      const url = await getPrintableUrl(order.fileUrl);
-      window.open(url, '_blank')
-      if (onStatusChange && order.dbId) {
-        await onStatusChange(order.dbId, 'Downloaded')
-      }
     } else {
-      alert('No file URL associated with this order.')
+      const filesList = order.files && order.files.length > 0 ? order.files : [order];
+      let successCount = 0;
+      for (const file of filesList) {
+        if (file.fileUrl) {
+          const url = await getPrintableUrl(file.fileUrl);
+          window.open(url, '_blank')
+          successCount++;
+        }
+      }
+      if (successCount > 0 && onStatusChange && order.dbId) {
+        await onStatusChange(order.dbId, 'Downloaded')
+      } else if (successCount === 0) {
+        alert('No file URL associated with this order.')
+      }
     }
   }
 
@@ -188,13 +208,120 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-2.5 text-xs bg-slate-50/50 p-2 rounded-xl border border-slate-100">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-pink-50 border border-pink-100">
-          <FileText size={14} className="text-pink-600" />
-        </span>
-        <span className="font-semibold text-slate-600 truncate" title={order.fileName}>
-          {order.fileName}
-        </span>
+      <div className="mt-4 space-y-2">
+        {(order.files && order.files.length > 0 ? order.files : [{
+          fileName: order.fileName || "Untitled Document",
+          fileUrl: order.fileUrl,
+          copies: order.copies,
+          type: order.type,
+          size: order.size,
+          side: order.side,
+          price: order.price,
+          orderId: order.id
+        }]).map((file, fileIdx) => {
+          return (
+            <div key={file.id || fileIdx} className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 space-y-2">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-pink-50 border border-pink-100">
+                    <FileText size={12} className="text-pink-650" />
+                  </span>
+                  <span className="font-bold text-slate-700 truncate text-xs" title={file.fileName}>
+                    {file.fileName}
+                  </span>
+                  {file.orderId && (
+                    <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-extrabold flex-shrink-0">
+                      {file.orderId}
+                    </span>
+                  )}
+                </div>
+                {/* File-specific Action Icons */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (file.fileUrl) {
+                        const url = await getPrintableUrl(file.fileUrl);
+                        window.open(url, '_blank');
+                      } else {
+                        alert('No file URL associated with this document.');
+                      }
+                    }}
+                    className="p-1 rounded hover:bg-violet-100 text-violet-600 transition"
+                    title="Preview File"
+                  >
+                    <Eye size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (onPrint) {
+                        onPrint({ ...order, files: [file], fileUrl: file.fileUrl, fileName: file.fileName });
+                      } else if (file.fileUrl) {
+                        const url = await getPrintableUrl(file.fileUrl);
+                        window.open(url, '_blank');
+                        if (onStatusChange && order.dbId) {
+                          await onStatusChange(order.dbId, 'Completed');
+                        }
+                      } else {
+                        alert('No file URL associated with this document.');
+                      }
+                    }}
+                    className="p-1 rounded hover:bg-emerald-100 text-emerald-600 transition"
+                    title="Print File"
+                  >
+                    <Printer size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (onDownload) {
+                        onDownload({ ...order, files: [file], fileUrl: file.fileUrl, fileName: file.fileName });
+                      } else if (file.fileUrl) {
+                        const url = await getPrintableUrl(file.fileUrl);
+                        window.open(url, '_blank');
+                        if (onStatusChange && order.dbId) {
+                          await onStatusChange(order.dbId, 'Downloaded');
+                        }
+                      } else {
+                        alert('No file URL associated with this document.');
+                      }
+                    }}
+                    className="p-1 rounded hover:bg-sky-100 text-sky-600 transition"
+                    title="Download File"
+                  >
+                    <Download size={12} />
+                  </button>
+                </div>
+              </div>
+              {/* File details breakdown if not Wants to Talk */}
+              {order.variant !== 'talk' && (
+                <div className="flex flex-wrap gap-1 text-[10px] text-slate-500 font-bold pl-9">
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded">
+                    {file.type || order.type}
+                  </span>
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded">
+                    {(file.copies !== undefined ? file.copies : order.copies)}x
+                  </span>
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded">
+                    {file.size || order.size}
+                  </span>
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded">
+                    {file.side || order.side}
+                  </span>
+                  {file.price && (
+                    <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded">
+                      {file.price}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {order.variant === 'talk' ? <CustomerWantsToTalk /> : <DetailGrid order={order} />}

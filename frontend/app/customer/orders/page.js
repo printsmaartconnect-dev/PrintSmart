@@ -11,8 +11,10 @@ import RewardCardModal from '../../components/customer/RewardCardModal'
 import CustomerHeader from '../../components/customer/CustomerHeader'
 import { validateUpiParams, generateUpiUrl } from '../../../lib/upi'
 import { formatCurrency } from '../../../lib/currency'
+import { useSocket } from '../../../hooks/useSocket'
+import { useSocketContext } from '../../../contexts/SocketProvider'
 
-export function OrdersPageContent() {
+function OrdersPageContent() {
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -23,6 +25,47 @@ export function OrdersPageContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [transactionRef, setTransactionRef] = useState('')
+
+  const { joinRoom, leaveRoom } = useSocketContext();
+
+  useEffect(() => {
+    let resolvedUserId = customerUserId;
+    if (resolvedUserId === 'undefined' || resolvedUserId === 'null') {
+      resolvedUserId = null;
+    }
+    if (!resolvedUserId) {
+      const sessionStr = localStorage.getItem('customerSession');
+      if (sessionStr) {
+        try {
+          resolvedUserId = JSON.parse(sessionStr).userId;
+        } catch (err) {
+          console.error('Error parsing customer session:', err);
+        }
+      }
+    }
+
+    if (resolvedUserId) {
+      joinRoom(`customer:${resolvedUserId}`);
+      return () => {
+        leaveRoom(`customer:${resolvedUserId}`);
+      };
+    }
+  }, [joinRoom, leaveRoom, customerUserId]);
+
+  useSocket("new-order", (newOrder) => {
+    console.log("[Socket] Customer received new order:", newOrder);
+    setOrders((prev) => {
+      if (prev.some((o) => o.id === newOrder.id)) return prev;
+      return [newOrder, ...prev];
+    });
+  });
+
+  useSocket("order-updated", (updatedOrder) => {
+    console.log("[Socket] Customer received order update:", updatedOrder);
+    setOrders((prev) =>
+      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
+    );
+  });
   const [submittingRef, setSubmittingRef] = useState(false)
   
   // Delete Confirmation Modal State

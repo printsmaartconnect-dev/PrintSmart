@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: printsmart_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: strong_db_password
+      POSTGRES_DB: printsmart
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: printsmart_backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:strong_db_password@postgres:5432/printsmart?schema=public
+      - JWT_SECRET=0bec3445d6331fb8dc4b714228aa48f05ed7bb3afd804af6608b50f35ef765eb
+      - FRONTEND_URL=http://localhost:3000
+      # Optional AWS S3 Settings (Falls back to container local uploads directory if blank)
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - AWS_REGION=
+      - AWS_S3_BUCKET_NAME=
+      - UPLOAD_DIR=/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:5000
+        - NEXT_PUBLIC_APP_NAME=PrintSmart
+        - NEXT_PUBLIC_MAX_FILE_SIZE=52428800
+    container_name: printsmart_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - GROQ_API_KEY=your_groq_api_key_here
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  backend_uploads:

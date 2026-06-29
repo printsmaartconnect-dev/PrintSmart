@@ -19,19 +19,178 @@ import RecentOrders from "./_components/RecentOrders";
 import BottomDock from "./_components/BottomDock";
 import { bottomDockItems, dashboardStats, recentOrders } from "./_components/mockData";
 import PrintConfigModal from "./_components/PrintConfigModal";
+import { useSocket } from "../../../hooks/useSocket";
+import { useSocketContext } from "../../../contexts/SocketProvider";
 
 export default function ShopkeeperDashboard() {
   const router = useRouter();
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
-  const [shopName, setShopName] = useState("");
-  const [shopkeeperIdCode, setShopkeeperIdCode] = useState("");
-  const [memberSince, setMemberSince] = useState("");
+  const [shopName, setShopName] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.shopName || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const [shopkeeperIdCode, setShopkeeperIdCode] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.shopSlug || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const [memberSince, setMemberSince] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.createdAt || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const [subscriptionPlan, setSubscriptionPlan] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.subscriptionPlan || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
   const [activeFilter, setActiveFilter] = useState("All");
-  const [ordersList, setOrdersList] = useState([]);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  
+  const [ordersList, setOrdersList] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("cachedOrdersList");
+        return cached ? JSON.parse(cached) : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const [dataLoaded, setDataLoaded] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !!localStorage.getItem("cachedOrdersList");
+    }
+    return false;
+  });
+
   const [activePrintOrder, setActivePrintOrder] = useState(null);
-  const [shopAddress, setShopAddress] = useState("");
+  const [shopAddress, setShopAddress] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = JSON.parse(localStorage.getItem("loggedInShopkeeper") || localStorage.getItem("shopkeeper") || "{}");
+        return cached.address || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const { joinRoom, leaveRoom } = useSocketContext();
+
+  const mapRawOrderToFrontend = (o) => ({
+    id: o.orderId,
+    dbId: o.id,
+    status: o.status ? (o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()) : "Pending",
+    customerName: o.customerName || "Anonymous Customer",
+    phone: o.phone || "",
+    customerComment: o.customerComment || "",
+    fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
+    fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
+    pages: 1,
+    copies: o.printConfiguration?.copies || 1,
+    type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
+    size: o.printConfiguration?.paperSize || "A4",
+    side: o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single",
+    price: `₹${(o.price || 0.0).toFixed(2)}`,
+    timestamp:
+      new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
+      ", " +
+      new Date(o.createdAt).toLocaleDateString([], { month: "short", day: "numeric" }),
+    variant: o.variant || (o.orderFiles && o.orderFiles.length > 0 && (o.orderFiles[0].customFileName === "Customer wants to talk" || o.orderFiles[0].originalFileName === "Customer wants to talk" || o.price === 0) ? "talk" : "standard"),
+    paymentLog: o.paymentLog,
+    files: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles.map(f => {
+      const fConfig = f.config || {};
+      return {
+        id: f.id,
+        fileName: f.customFileName || f.originalFileName || "Untitled Document",
+        fileUrl: f.fileUrl,
+        copies: fConfig.copies || o.printConfiguration?.copies || 1,
+        type: fConfig.printType === "COLOR" ? "Color" : (fConfig.printType === "BW" ? "B&W" : (o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W")),
+        size: fConfig.paperSize || o.printConfiguration?.paperSize || "A4",
+        side: fConfig.sides === "DOUBLE" ? "Double" : (fConfig.sides === "SINGLE" ? "Single" : (o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single")),
+        price: f.price !== undefined ? `₹${parseFloat(f.price).toFixed(2)}` : `₹${(o.price || 0.0).toFixed(2)}`,
+        orderId: f.orderId || o.orderId,
+      };
+    }) : [{
+      id: o.orderId,
+      fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
+      fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
+      copies: o.printConfiguration?.copies || 1,
+      type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
+      size: o.printConfiguration?.paperSize || "A4",
+      side: o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single",
+      price: `₹${(o.price || 0.0).toFixed(2)}`,
+      orderId: o.orderId,
+    }],
+  });
+
+  // Join shop room on mount/auth load
+  useEffect(() => {
+    const loggedIn = localStorage.getItem("loggedInShopkeeper");
+    if (loggedIn) {
+      try {
+        const shop = JSON.parse(loggedIn);
+        if (shop && shop.id) {
+          joinRoom(`shop:${shop.id}`);
+          return () => {
+            leaveRoom(`shop:${shop.id}`);
+          };
+        }
+      } catch (e) {
+        console.error("Failed to parse shopkeeper for socket join:", e);
+      }
+    }
+  }, [joinRoom, leaveRoom, shopName]);
+
+  // Handle incoming new orders in real-time
+  useSocket("new-order", (newOrder) => {
+    console.log("[Socket] Dashboard received new order:", newOrder);
+    setOrdersList((prev) => {
+      if (prev.some((o) => o.dbId === newOrder.id || o.id === newOrder.orderId)) return prev;
+      return [mapRawOrderToFrontend(newOrder), ...prev];
+    });
+  });
+
+  // Handle order updates in real-time
+  useSocket("order-updated", (updatedOrder) => {
+    console.log("[Socket] Dashboard received order update:", updatedOrder);
+    setOrdersList((prev) =>
+      prev.map((o) => (o.dbId === updatedOrder.id || o.id === updatedOrder.orderId ? mapRawOrderToFrontend(updatedOrder) : o))
+    );
+  });
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
   console.log('Active API URL (Dashboard):', apiUrl);
@@ -76,8 +235,33 @@ export default function ShopkeeperDashboard() {
             new Date(o.createdAt).toLocaleDateString([], { month: "short", day: "numeric" }),
           variant: o.variant || (o.orderFiles && o.orderFiles.length > 0 && (o.orderFiles[0].customFileName === "Customer wants to talk" || o.orderFiles[0].originalFileName === "Customer wants to talk" || o.price === 0) ? "talk" : "standard"),
           paymentLog: o.paymentLog,
+          files: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles.map(f => {
+            const fConfig = f.config || {};
+            return {
+              id: f.id,
+              fileName: f.customFileName || f.originalFileName || "Untitled Document",
+              fileUrl: f.fileUrl,
+              copies: fConfig.copies || o.printConfiguration?.copies || 1,
+              type: fConfig.printType === "COLOR" ? "Color" : (fConfig.printType === "BW" ? "B&W" : (o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W")),
+              size: fConfig.paperSize || o.printConfiguration?.paperSize || "A4",
+              side: fConfig.sides === "DOUBLE" ? "Double" : (fConfig.sides === "SINGLE" ? "Single" : (o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single")),
+              price: f.price !== undefined ? `₹${parseFloat(f.price).toFixed(2)}` : `₹${(o.price || 0.0).toFixed(2)}`,
+              orderId: f.orderId || o.orderId,
+            };
+          }) : [{
+            id: o.orderId,
+            fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
+            fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
+            copies: o.printConfiguration?.copies || 1,
+            type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
+            size: o.printConfiguration?.paperSize || "A4",
+            side: o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single",
+            price: `₹${(o.price || 0.0).toFixed(2)}`,
+            orderId: o.orderId,
+          }],
         }));
         setOrdersList(mappedOrders);
+        localStorage.setItem("cachedOrdersList", JSON.stringify(mappedOrders));
         setDataLoaded(true);
       } else {
         setOrdersList(recentOrders);
@@ -174,6 +358,7 @@ export default function ShopkeeperDashboard() {
           setShopName(shopkeeper.shopName || "");
           setShopkeeperIdCode(shopkeeper.shopSlug || "");
           setShopAddress(shopkeeper.address || "");
+          setSubscriptionPlan(shopkeeper.subscriptionPlan || "");
           if (shopkeeper.createdAt) {
             setMemberSince(shopkeeper.createdAt);
           }
@@ -201,6 +386,7 @@ export default function ShopkeeperDashboard() {
         setShopName(profile.shopName || "");
         setShopkeeperIdCode(profile.shopSlug || "");
         setShopAddress(contact.shopAddress || "");
+        setSubscriptionPlan(account?.subscriptionPlan || "");
         if (account?.createdAt) {
           setMemberSince(account.createdAt);
         }
@@ -245,183 +431,201 @@ export default function ShopkeeperDashboard() {
       { key: 'cancelled', label: t('Cancelled'), badge: String(cancelledCount) },
       { key: 'addOrder', label: t('Add order'), badge: null, href: `/customer/language?shopkeeperAddOrder=true&shopId=${shopkeeperIdCode}` },
       { key: 'coupon', label: t('Business network'), badge: null, href: '/shopkeeper/business-network' },
-      { key: 'printsmartAi', label: t('PrintSmart AI'), badge: null, href: '/shopkeeper/printsmart-ai' },
+      { key: 'printsmartAi', label: t('🤖 AI Copilot'), badge: null, href: '/shopkeeper/ai' },
     ];
   })();
 
   const handleDirectPrint = async (order) => {
-    if (!order.fileUrl) {
-      alert(t('No file URL associated with this order.'));
-      return;
-    }
+    const filesList = order.files && order.files.length > 0 ? order.files : [{
+      fileUrl: order.fileUrl,
+      fileName: order.fileName
+    }];
 
-    const fileName = order.fileName || '';
-    const extension = fileName.split('.').pop().toLowerCase();
-    const token = localStorage.getItem("authToken");
-    let fileUrl = order.fileUrl;
+    let successCount = 0;
+    for (const file of filesList) {
+      if (!file.fileUrl) continue;
 
-    try {
-      // Fetch presigned URL if AWS
-      if (fileUrl.includes('amazonaws.com')) {
-        const response = await fetch(`${apiUrl}/api/files/presigned?fileUrl=${encodeURIComponent(fileUrl)}`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
+      const fileName = file.fileName || '';
+      const extension = fileName.split('.').pop().toLowerCase();
+      const token = localStorage.getItem("authToken");
+      let fileUrl = file.fileUrl;
+
+      try {
+        // Fetch presigned URL if AWS
+        if (fileUrl.includes('amazonaws.com')) {
+          const response = await fetch(`${apiUrl}/api/files/presigned?fileUrl=${encodeURIComponent(fileUrl)}`, {
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            fileUrl = data.presignedUrl;
           }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          fileUrl = data.presignedUrl;
         }
+      } catch (err) {
+        console.warn("Failed to retrieve presigned URL for printing:", err);
       }
-    } catch (err) {
-      console.warn("Failed to retrieve presigned URL for printing:", err);
-    }
 
-    try {
-      if (['pdf'].includes(extension)) {
-        // Fetch as Blob to bypass iframe CORS
-        const fileRes = await fetch(fileUrl);
-        if (!fileRes.ok) {
-          throw new Error("Failed to download PDF for printing.");
-        }
-        const blob = await fileRes.blob();
-        const bUrl = URL.createObjectURL(blob);
-
-        let iframe = document.getElementById('print-iframe');
-        if (!iframe) {
-          iframe = document.createElement('iframe');
-          iframe.id = 'print-iframe';
-          iframe.style.position = 'fixed';
-          iframe.style.right = '0';
-          iframe.style.bottom = '0';
-          iframe.style.width = '0';
-          iframe.style.height = '0';
-          iframe.style.border = '0';
-          document.body.appendChild(iframe);
-        }
-
-        iframe.src = bUrl;
-        iframe.onload = () => {
-          try {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-            setTimeout(() => {
-              URL.revokeObjectURL(bUrl);
-            }, 60000);
-          } catch (err) {
-            console.error("Iframe print fail:", err);
-            window.open(bUrl, '_blank');
+      try {
+        if (['pdf'].includes(extension)) {
+          // Fetch as Blob to bypass iframe CORS
+          const fileRes = await fetch(fileUrl);
+          if (!fileRes.ok) {
+            throw new Error("Failed to download PDF for printing.");
           }
-        };
-      } else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) {
-        let iframe = document.getElementById('print-iframe');
-        if (!iframe) {
-          iframe = document.createElement('iframe');
-          iframe.id = 'print-iframe';
-          iframe.style.position = 'fixed';
-          iframe.style.right = '0';
-          iframe.style.bottom = '0';
-          iframe.style.width = '0';
-          iframe.style.height = '0';
-          iframe.style.border = '0';
-          document.body.appendChild(iframe);
-        }
+          const blob = await fileRes.blob();
+          const bUrl = URL.createObjectURL(blob);
 
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(`
-          <html>
-            <head>
-              <style>
-                @page { size: auto; margin: 0mm; }
-                body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-                img { max-width: 100%; max-height: 100vh; object-fit: contain; }
-              </style>
-            </head>
-            <body>
-              <img src="${fileUrl}" onload="window.focus(); window.print();" />
-            </body>
-          </html>
-        `);
-        doc.close();
-      } else {
-        // Office format download
+          let iframe = document.getElementById('print-iframe');
+          if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'print-iframe';
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            document.body.appendChild(iframe);
+          }
+
+          iframe.src = bUrl;
+          iframe.onload = () => {
+            try {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+              setTimeout(() => {
+                URL.revokeObjectURL(bUrl);
+              }, 60000);
+            } catch (err) {
+              console.error("Iframe print fail:", err);
+              window.open(bUrl, '_blank');
+            }
+          };
+          successCount++;
+        } else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) {
+          let iframe = document.getElementById('print-iframe');
+          if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'print-iframe';
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            document.body.appendChild(iframe);
+          }
+
+          const doc = iframe.contentWindow.document;
+          doc.open();
+          doc.write(`
+            <html>
+              <head>
+                <style>
+                  @page { size: auto; margin: 0mm; }
+                  body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+                  img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+                </style>
+              </head>
+              <body>
+                <img src="${fileUrl}" onload="window.focus(); window.print();" />
+              </body>
+            </html>
+          `);
+          doc.close();
+          successCount++;
+        } else {
+          // Office format download
+          window.open(fileUrl, '_blank');
+          alert(t("Office documents cannot be printed directly from the browser. The file has been downloaded. Please print it locally."));
+          successCount++;
+        }
+      } catch (err) {
+        console.error("Direct print failed:", err);
+        alert(t("Direct printing failed for file: ") + fileName + t(". Opening file in a new tab."));
         window.open(fileUrl, '_blank');
-        alert(t("Office documents cannot be printed directly from the browser. The file has been downloaded. Please print it locally."));
+        successCount++;
       }
-    } catch (err) {
-      console.error("Direct print failed:", err);
-      alert(t("Direct printing failed. Opening file in a new tab."));
-      window.open(fileUrl, '_blank');
+    }
+
+    if (successCount === 0) {
+      alert(t('No file URL associated with this order.'));
     }
   };
 
   const handleDirectDownload = async (order) => {
-    if (!order.fileUrl) {
-      alert(t('No file URL associated with this order.'));
-      return;
-    }
+    const filesList = order.files && order.files.length > 0 ? order.files : [{
+      fileUrl: order.fileUrl,
+      fileName: order.fileName
+    }];
 
-    const fileName = order.fileName || 'download';
-    const token = localStorage.getItem("authToken");
-    let fileUrl = order.fileUrl;
+    let successCount = 0;
+    for (const file of filesList) {
+      if (!file.fileUrl) continue;
 
-    try {
-      // 1. Fetch presigned URL if AWS, specifying the download filename to force Content-Disposition
-      if (fileUrl.includes('amazonaws.com')) {
-        const response = await fetch(`${apiUrl}/api/files/presigned?fileUrl=${encodeURIComponent(fileUrl)}&filename=${encodeURIComponent(fileName)}`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
+      const fileName = file.fileName || 'download';
+      const token = localStorage.getItem("authToken");
+      let fileUrl = file.fileUrl;
+
+      try {
+        // 1. Fetch presigned URL if AWS, specifying the download filename to force Content-Disposition
+        if (fileUrl.includes('amazonaws.com')) {
+          const response = await fetch(`${apiUrl}/api/files/presigned?fileUrl=${encodeURIComponent(fileUrl)}&filename=${encodeURIComponent(fileName)}`, {
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            fileUrl = data.presignedUrl;
           }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          fileUrl = data.presignedUrl;
         }
+      } catch (err) {
+        console.warn("Failed to retrieve presigned URL for downloading:", err);
       }
-    } catch (err) {
-      console.warn("Failed to retrieve presigned URL for downloading:", err);
+
+      try {
+        // 2. Fetch file content as blob to force a local download in JavaScript
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+          throw new Error("Failed to download file content.");
+        }
+        const blob = await response.blob();
+        const bUrl = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = bUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Revoke the object URL after download finishes
+        setTimeout(() => {
+          URL.revokeObjectURL(bUrl);
+        }, 60000);
+        successCount++;
+      } catch (err) {
+        console.error("Direct download via Blob failed, falling back to direct link download:", err);
+        // 3. Fallback: navigate directly to the signed URL in the current tab.
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        successCount++;
+      }
     }
 
-    try {
-      // 2. Fetch file content as blob to force a local download in JavaScript
-      const response = await fetch(fileUrl);
-      if (!response.ok) {
-        throw new Error("Failed to download file content.");
-      }
-      const blob = await response.blob();
-      const bUrl = URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-      link.href = bUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Revoke the object URL after download finishes
-      setTimeout(() => {
-        URL.revokeObjectURL(bUrl);
-      }, 60000);
-
-      // Mark status as Downloaded
+    if (successCount > 0) {
       if (handleStatusChange && (order.dbId || order.id)) {
         await handleStatusChange(order.dbId || order.id, 'Downloaded');
       }
-    } catch (err) {
-      console.error("Direct download via Blob failed, falling back to direct link download:", err);
-      // 3. Fallback: navigate directly to the signed URL in the current tab.
-      // Since the presigned URL has response-content-disposition=attachment, this will trigger the download without leaving the dashboard.
-      const link = document.createElement('a');
-      link.href = fileUrl;
-      link.target = '_self';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      if (handleStatusChange && (order.dbId || order.id)) {
-        await handleStatusChange(order.dbId || order.id, 'Downloaded');
-      }
+    } else {
+      alert(t('No file URL associated with this order.'));
     }
   };
 
@@ -476,7 +680,7 @@ export default function ShopkeeperDashboard() {
 
       <div className="px-4 sm:px-6 lg:px-8 pb-28">
         <div className="mx-auto max-w-7xl space-y-6">
-          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} memberSince={memberSince} />
+          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} memberSince={memberSince} subscriptionPlan={subscriptionPlan} />
           <StatsRow stats={dynamicStats} />
           <RecentOrders 
             orders={displayedOrders} 

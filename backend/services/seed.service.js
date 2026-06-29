@@ -70,12 +70,54 @@ async function seedDefaultShopkeeper() {
         }
       });
 
-      console.log(`Default shopkeeper seeded successfully!`);
+      // Seed initial Inventory Items
+      await prisma.inventoryItem.createMany({
+        data: [
+          { shopkeeperId: shopkeeper.id, itemName: "Paper A4 Pack", quantity: 12, unit: "packs", minThreshold: 5 },
+          { shopkeeperId: shopkeeper.id, itemName: "Toner Cartridge", quantity: 4, unit: "cartridges", minThreshold: 2 },
+          { shopkeeperId: shopkeeper.id, itemName: "Glossy Photo Paper", quantity: 3, unit: "packs", minThreshold: 4 }, // low stock
+          { shopkeeperId: shopkeeper.id, itemName: "Spiral Binding Rings", quantity: 50, unit: "pcs", minThreshold: 15 }
+        ]
+      });
+
+      // Seed initial Printer Statistics
+      await prisma.printerStatistics.createMany({
+        data: [
+          { shopkeeperId: shopkeeper.id, printerName: "HP LaserJet Pro 400", pagesPrinted: 12450, inkLevel: 82.5, status: "ONLINE" },
+          { shopkeeperId: shopkeeper.id, printerName: "Epson L3250 EcoTank", pagesPrinted: 9800, inkLevel: 12.0, status: "ONLINE" } // low ink
+        ]
+      });
+
+      console.log(`Default shopkeeper seeded successfully with initial inventory and printer statistics!`);
       console.log(`Email: ${email}`);
       console.log(`Password: ${password}`);
       console.log(`Shop Slug: ${shopSlug}`);
       console.log(`QR Scanner URL: /take-a-print?shopId=${shopSlug}`);
     } else {
+      // If shopkeeper exists, check if inventory is empty and seed it just in case
+      const defaultShop = await prisma.shopkeeper.findFirst({ where: { email: "defaultshop@printsmart.com" } });
+      if (defaultShop) {
+        const invCount = await prisma.inventoryItem.count({ where: { shopkeeperId: defaultShop.id } });
+        if (invCount === 0) {
+          await prisma.inventoryItem.createMany({
+            data: [
+              { shopkeeperId: defaultShop.id, itemName: "Paper A4 Pack", quantity: 12, unit: "packs", minThreshold: 5 },
+              { shopkeeperId: defaultShop.id, itemName: "Toner Cartridge", quantity: 4, unit: "cartridges", minThreshold: 2 },
+              { shopkeeperId: defaultShop.id, itemName: "Glossy Photo Paper", quantity: 3, unit: "packs", minThreshold: 4 },
+              { shopkeeperId: defaultShop.id, itemName: "Spiral Binding Rings", quantity: 50, unit: "pcs", minThreshold: 15 }
+            ]
+          });
+        }
+        const prnCount = await prisma.printerStatistics.count({ where: { shopkeeperId: defaultShop.id } });
+        if (prnCount === 0) {
+          await prisma.printerStatistics.createMany({
+            data: [
+              { shopkeeperId: defaultShop.id, printerName: "HP LaserJet Pro 400", pagesPrinted: 12450, inkLevel: 82.5, status: "ONLINE" },
+              { shopkeeperId: defaultShop.id, printerName: "Epson L3250 EcoTank", pagesPrinted: 9800, inkLevel: 12.0, status: "ONLINE" }
+            ]
+          });
+        }
+      }
       console.log("Database contains registered shopkeepers. Skipping seed.");
     }
   } catch (error) {

@@ -106,13 +106,8 @@ export default function InvoicePage() {
 
   // Calculate pricing fallbacks
   const totalAmount = order.totalAmount || order.price || 0
-  const subtotal = order.subtotal || (totalAmount / 1.18)
-  const tax = order.tax || (totalAmount - subtotal)
   const discount = order.discount || 0
-  
-  // Tax breakdown (e.g. CGST + SGST 9% each)
-  const cgstAmount = tax / 2
-  const sgstAmount = tax / 2
+  const subtotal = order.price || (totalAmount + discount)
 
   const invoiceNumber = order.invoice?.invoiceNumber || order.orderId
 
@@ -182,7 +177,7 @@ export default function InvoicePage() {
             {/* Invoice Meta */}
             <div className="text-left sm:text-right flex flex-col items-start sm:items-end">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 uppercase tracking-wider mb-2">
-                {t('Tax Invoice')}
+                {t('Invoice')}
               </span>
               <h1 className="text-2xl font-black text-slate-800 tracking-tight">
                 #{invoiceNumber}
@@ -313,7 +308,7 @@ export default function InvoicePage() {
             <div className="sm:max-w-xs text-xs text-slate-500 leading-relaxed">
               <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-1">{t('Billing Information')}</h4>
               <p>
-                {t('This is a computer-generated tax invoice issued via PrintSmart queue networks. Remittance has been successfully processed.')}
+                {t('This is a computer-generated invoice issued via PrintSmart queue networks. Remittance has been successfully processed.')}
               </p>
               {order.queue && (
                 <div className="mt-3 flex items-center gap-1.5 text-indigo-600 font-semibold">
@@ -325,23 +320,13 @@ export default function InvoicePage() {
 
             {/* Financial Summary values */}
             <div className="w-full sm:w-72 text-xs sm:text-sm text-slate-500 space-y-2.5">
-              <div className="flex justify-between">
+              <div className="flex justify-between border-b border-slate-100 pb-2.5">
                 <span>{t('Subtotal')}</span>
                 <span className="font-semibold text-slate-800 font-mono">{formatCurrency(subtotal)}</span>
               </div>
-              
-              {/* IGST / SGST Breakdowns */}
-              <div className="flex justify-between items-center text-xs text-slate-400">
-                <span>{t('CGST (9%)')}</span>
-                <span className="font-medium font-mono">{formatCurrency(cgstAmount)}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-slate-400 border-b border-slate-100 pb-3">
-                <span>{t('SGST (9%)')}</span>
-                <span className="font-medium font-mono">{formatCurrency(sgstAmount)}</span>
-              </div>
 
               {discount > 0 && (
-                <div className="flex justify-between text-emerald-600">
+                <div className="flex justify-between text-emerald-600 border-b border-slate-100 pb-2.5">
                   <span>{t('Discount')}</span>
                   <span className="font-bold font-mono">-{formatCurrency(discount)}</span>
                 </div>

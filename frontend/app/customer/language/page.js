@@ -13,7 +13,7 @@ import CustomerHeader from '../../components/customer/CustomerHeader'
 import FilePreviewSection from '../../components/customer/FilePreviewSection'
 
 const LANGUAGES = [
-  { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
+  { code: 'en', name: 'English', native: 'English', flag: '🇮🇳' },
   { code: 'hi', name: 'Hindi', native: 'हिंदी', flag: '🇮🇳' },
   { code: 'mr', name: 'Marathi', native: 'मराठी', flag: '🇮🇳' },
   { code: 'gu', name: 'Gujarati', native: 'ગુજરાતી', flag: '🇮🇳' },
@@ -424,7 +424,7 @@ function CustomerLanguagePageContent() {
           throw new Error('Shop not found')
         }
         const data = await response.json()
-        
+
         if (data.shopkeeper && data.shopkeeper.isOnboarded === false) {
           setShopError(t('This printing shop is temporarily deactivated by the platform administration.'))
           return
@@ -560,14 +560,14 @@ function CustomerLanguagePageContent() {
       // Redirect to configuration page
       const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
       const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
-      let nextUrl = resolvedShopId 
+      let nextUrl = resolvedShopId
         ? `/customer/configuration?shopId=${resolvedShopId}&userId=${userId}`
         : `/customer/configuration?userId=${userId}`
-      
+
       if (isShopkeeper) {
         nextUrl += `&shopkeeperAddOrder=true`
       }
-      
+
       router.push(nextUrl)
     } catch (err) {
       setError(err.message || t('Failed to proceed'))
@@ -736,8 +736,8 @@ function CustomerLanguagePageContent() {
                     <div
                       {...getRootProps()}
                       className={`border-2 border-dashed rounded-xl p-6 text-center transition cursor-pointer ${isDragActive
-                          ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-gray-300 bg-white hover:border-gray-400'
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-300 bg-white hover:border-gray-400'
                         }`}
                     >
                       <input {...getInputProps()} />

@@ -228,10 +228,12 @@
   │   │   └── db.js                     # Prisma client initializer instance
   │   ├── controllers/                  # Route controller functions
   │   │   ├── admin.controller.js       # Platform administrator dashboard analytics [NEW]
+  │   │   ├── ai.controller.js          # AI Design generation and suggestions [NEW]
   │   │   ├── auth.controller.js        # Authentication & Profile management
   │   │   ├── feedback.controller.js    # Customer support submissions & updates
   │   │   ├── file.controller.js        # Multer-to-S3 file uploading bridge
   │   │   ├── order.controller.js       # Placement, queues, and invoices
+  │   │   ├── payment.controller.js     # Customer transaction reference submission & verification [NEW]
   │   │   ├── queue.controller.js       # Queue lists & positions editor
   │   │   ├── reward.controller.js      # Random rewards & scratch persistence logic [NEW]
   │   │   ├── statistics.controller.js  # Shop analytics compiling engine
@@ -243,27 +245,33 @@
   │   │   └── schema.prisma             # Entity models & cascades schema
   │   ├── routes/                       # REST endpoint routing mappings
   │   │   ├── admin.routes.js           # Admin stats & dashboard routes [NEW]
+  │   │   ├── ai.routes.js              # AI Poster Studio generation endpoints [NEW]
   │   │   ├── auth.routes.js            # Auth routing definitions
   │   │   ├── feedback.routes.js        # Customer issues routes
   │   │   ├── file.routes.js            # Multer upload route
   │   │   ├── order.routes.js           # Client & Shopkeeper order management
+  │   │   ├── payment.routes.js         # Transaction registration & verification endpoints [NEW]
   │   │   ├── queue.routes.js           # Position checking endpoints
   │   │   ├── reward.routes.js          # Customer reward & shopkeeper stats routes [NEW]
   │   │   ├── shopkeeper.routes.js      # Public shop specs & QR tools
   │   │   ├── statistics.routes.js      # Earnings & counts logs endpoints
   │   │   └── user.routes.js            # Core customer profiles creation
   │   ├── services/                     # Business logic workers
+  │   │   ├── csv.service.js            # In-memory CSV cache for rewards content [NEW]
   │   │   ├── invoice.service.js        # PDFKit-based professional billing PDF generator (supports premium itemized multi-column table)
   │   │   ├── order.service.js          # Custom MMDDYY print-type ID & Estimated wait calculations
   │   │   ├── qr.service.js             # Basic UUID QR codes generator
   │   │   ├── qrcode.service.js         # Base64 Data URL & Slug QR code builder
   │   │   ├── seed.service.js           # Automatic default shopkeeper registers
   │   │   ├── session.service.js        # Database-backed concurrent session tracker and 2-PC limit controller [NEW]
+  │   │   ├── socket.service.js         # Centralized Socket.IO rooms manager & events emitter [NEW]
   │   │   └── storage.service.js        # AWS S3 file upload with local folder fallback
   │   ├── uploads/                      # Local file fallback directory (git-ignored)
   │   │   ├── invoices/                 # Generated PDF invoices
   │   │   ├── qrcodes/                  # Shopkeeper entry QR codes
   │   │   └── orders/                   # Customer uploaded document storage
+  │   ├── utils/                        # Backend utility helpers [NEW]
+  │   │   └── currency.js               # Formats monetary amounts (supports Rupee symbol/INR code) [NEW]
   │   ├── package.json                  # Server package configuration
   │   └── server.js                     # Node.js runtime initialization & DB schemas synchronization
   │
@@ -351,9 +359,18 @@
       │   └── take-a-print/
       │       └── page.js               # Manual shop ID slug gateway (test fallback code "0000")
       │
+      ├── contexts/                     # React context providers [NEW]
+      │   └── SocketProvider.tsx        # App-wide Socket.IO client context [NEW]
+      ├── hooks/                        # Custom react hooks [NEW]
+      │   └── useSocket.ts              # Event listener auto-cleanup hook [NEW]
       ├── lib/                          # Helper library utilities
-      │   └── shop-context.js           # Caches full activeShop object in localStorage
+      │   ├── currency.js               # Format currency helper function (Rupee formatting) [NEW]
+      │   ├── i18n.js                   # Multi-language i18n client configuration [NEW]
+      │   ├── shop-context.js           # Caches full activeShop object in localStorage
+      │   └── upi.js                    # UPI link generator and validation helpers [NEW]
       ├── public/                       # Static public assets (images, designs)
+      ├── services/                     # Network services [NEW]
+      │   └── socket.ts                 # Socket.IO connection client singleton [NEW]
       ├── package.json                  # Client package configuration
       └── tailwind.config.js            # Tailwind layout and gradient extensions
   ```
@@ -555,6 +572,35 @@
   .mac-dots { display: flex; gap: 8px; }
   .mac-dot { width: 12px; height: 12px; border-radius: 50%; }
   ```
+
+  #### `app/I18nProvider.js`
+  **Purpose:** Multi-language i18n translation context provider for Next.js App Router client components.
+
+  **Full Contents:**
+  ```javascript
+  'use client'
+
+  import '../lib/i18n'
+  import { useEffect } from 'react'
+  import { I18nextProvider } from 'react-i18next'
+  import i18n from '../lib/i18n'
+
+  export default function I18nProvider({ children }) {
+    useEffect(() => {
+      // Sync language from localStorage on client side mount
+      const saved = localStorage.getItem('customerLanguage')
+      if (saved && i18n.language !== saved) {
+        i18n.changeLanguage(saved)
+      }
+    }, [])
+
+    return <I18nextProvider i18n={i18n}>{children}</I18nextProvider>
+  }
+  ```
+
+  **Key Features:**
+  - Wraps Next.js App Router subtrees with standard client-side locale initialization.
+  - Automatically queries `customerLanguage` from `localStorage` on component mount and changes active translation resources dynamically.
 
   ---
 
@@ -1131,6 +1177,61 @@
   - Ascending/descending date sorting filters and status badges.
 
   ---
+
+  #### `take-a-print/page.js`
+  **Purpose:** Manual shop ID slug gateway; falls back to test code "0000".
+  - Collects shop ID slug manually via inputs or QR scans.
+  - Queries backend shopkeeper route and updates the client context (`localStorage.activeShop`).
+
+  #### `qz-test/page.jsx`
+  **Purpose:** Diagnostics and testing page for QZ Tray integration.
+  - Exposes controls to initialize a WebSocket connection to the local QZ Tray client service.
+  - Lists detected local printing devices.
+  - Fires plain-text test sheets ("Hello from PrintSmaart") directly to the default printer.
+
+  ---
+
+  #### Customer Flow Components
+
+  ##### `components/customer/DocumentPreview.jsx`
+  **Purpose:** Live thumbnail & grayscale CSS preview renderer.
+  - Implements standard file previewing logic for PDF, Word documents (DOC/DOCX), images (PNG/JPG/JPEG/WEBP/GIF), and generic documents.
+  - Uses CSS filters `grayscale contrast-125` if B&W print configuration is selected.
+  - Provides professional custom fallback emblems and layouts for Microsoft Word and Adobe PDF documents if thumbnail generation fails or is pending.
+
+  ##### `components/customer/FilePreviewSection.jsx`
+  **Purpose:** Document title & config options wrapper showing live preview.
+  - Renders a premium, styled A4 aspect ratio (`aspect-[1/1.414]`) preview box on the customer configuration page.
+  - Handles preview loading states, displaying a spinner, and delegating actual rendering to `DocumentPreview`.
+
+  ---
+
+  #### Frontend Library Helpers
+
+  ##### `lib/currency.js`
+  **Purpose:** Client-side currency formatting.
+  - Formats numbers or string representations of prices into Indian Rupees format: `₹ X.XX` (e.g. `formatCurrency(11.18)` returns `₹ 11.18`).
+
+  ##### `lib/i18n.js`
+  **Purpose:** Client-side internationalization setup.
+  - Initializes `i18next` with react bindings, setting localized dictionary resources for English (`en`), Hindi (`hi`), Marathi (`mr`), and Gujarati (`gu`).
+  - Automatically recovers last active language from `localStorage.customerLanguage`.
+
+  ##### `lib/upi.js`
+  **Purpose:** Validates merchant UPI IDs and constructs deep-linking UPI Intent URLs.
+  - `validateUpiParams(upiId, shopName, amount)`: Validates that merchant details and numeric positive payment figures exist.
+  - `generateUpiUrl(upiId, shopName, amount)`: Encodes merchant parameters and compiles the intent URI scheme `upi://pay?pa={upiId}&pn={shopName}&am={amount}&cu=INR` for direct mobile payment routing.
+
+  ---
+
+  #### Frontend API Routes
+
+  ##### `api/ai/generate-config/route.js`
+  **Purpose:** Groq AI structured poster config endpoint.
+  - Receives user prompt instructions via `POST /api/ai/generate-config` requests.
+  - Directs model queries to **Groq SDK** utilizing the **`llama-3.3-70b-versatile`** model with temperature 0.5.
+  - Parses and validates responses to ensure they strictly conform to a structured JSON schema: `headline`, `subheadline`, `offerText`, `description`, `cta`, `theme`.
+  - Enforces server-side static bailout avoidance with `export const dynamic = 'force-dynamic'`.
 
   ---
 
@@ -2950,6 +3051,14 @@
   - Mock data only
   - localStorage limited to browser
 
+  ## [3.2.2] - 2026-06-20
+
+  ### Added
+  - Complete documentation for missing backend files: controllers (`payment.controller.js`, `ai.controller.js`), routes (`payment.routes.js`, `ai.routes.js`), and services (`csv.service.js`).
+  - Prisma database schema definitions for new models (`PaymentLog`, `AIAsset`, `AIUsage`, `RewardLog`, `UserSession`, `SystemSettings`).
+  - Core system workflows explaining payment verification, AI Marketing Studio (Gemini 3.5 Flash / custom keys), scratch card rewards, and 2-PC concurrent session limits.
+  - Complete API reference tables for the Payment Log & Verification API, conversational AI design generation (`/api/ai/chat-generate`), and platform settings/diagnostics endpoints.
+
   ## [3.2.1] - 2026-06-07
 
   ### Fixed
@@ -3412,7 +3521,9 @@
   │   ├── qrcode.service.js     # Shopkeeper slug QR code and base64 Data URL generators
   │   ├── order.service.js      # Custom Order ID sequencer, wait-time estimator, and statistics updater
   │   ├── invoice.service.js    # PDFKit-based PDF invoice layout generator
-  │   └── seed.service.js       # Default shopkeeper database seeding service
+  │   ├── seed.service.js       # Default shopkeeper database seeding service
+  │   ├── session.service.js    # Database-backed concurrent session tracker and 2-PC limit controller
+  │   └── csv.service.js        # In-memory CSV cache parser for scratch cards content fallback [NEW]
   ├── controllers/
   │   ├── auth.controller.js    # Shopkeeper registration, login, profile adjustments, and QR endpoints
   │   ├── file.controller.js    # Multer-to-Storage upload broker
@@ -3420,7 +3531,12 @@
   │   ├── order.controller.js   # Order placements, fetching, status modifications, and invoice downloads
   │   ├── queue.controller.js   # Active queue tracking and status updates
   │   ├── statistics.controller.js # Daily, weekly, monthly, and overall shopkeeper statistics analytics
-  │   └── feedback.controller.js   # Feedback submissions, query listing, and status updates
+  │   ├── feedback.controller.js   # Feedback submissions, query listing, and status updates
+  │   ├── ai.controller.js         # AI Poster Studio generation and prompt suggestion [NEW]
+  │   ├── payment.controller.js    # UPI/Cash payment transaction reference checks [NEW]
+  │   └── reward.controller.js     # Instant customer scratch cards controller [NEW]
+  ├── utils/
+  │   └── currency.js              # Formats monetary amounts (supports Rupee symbol/INR code) [NEW]
   └── routes/
       ├── auth.routes.js        # Auth-related routing endpoints
       ├── file.routes.js        # File uploading route broker
@@ -3429,8 +3545,25 @@
       ├── feedback.routes.js    # Customer issues and feedback endpoints
       ├── statistics.routes.js  # Analytics endpoints for shop statistics
       ├── user.routes.js        # Customer creation/update routing
-      └── shopkeeper.routes.js  # Public slug routing and protected shopkeeper utilities
+      ├── shopkeeper.routes.js  # Public slug routing and protected shopkeeper utilities
+      ├── ai.routes.js          # AI Poster Studio endpoints [NEW]
+      ├── payment.routes.js     # UPI/Cash payment verification endpoints [NEW]
+      └── reward.routes.js      # Customer scratch cards logs and stats [NEW]
   ```
+
+  ---
+
+  ### Backend Utilities & Middleware
+
+  #### `middleware/auth.middleware.js`
+  **Purpose:** JWT verification middleware protecting shopkeeper operations.
+  - Intercepts requests to routes that require authorization, checking for a valid JSON Web Token in the `Authorization` header.
+  - Decodes and extracts shopkeeper information.
+  - Integrates with the concurrent session manager (`session.service.js`) to verify that the token matches the active session. If a rolling logout occurred (session limit of 2 exceeded), returns a `401 Unauthorized` response with a clear error payload: `"Session limit exceeded. You have been logged out because you logged in on another device."`
+
+  #### `utils/currency.js`
+  **Purpose:** Backend currency formatting helper.
+  - Formats monetary values to a standardized Indian Rupee format, either with the Unicode symbol `₹ X.XX` (by default) or the ASCII equivalent `INR X.XX` (used for standard PDFKit fonts in invoice generation to avoid character encoding exceptions).
 
   ---
 
@@ -3595,6 +3728,66 @@
   - `lastUpdated` / `updatedAt` (DateTime)
   - *Indexes*: `@@index([shopkeeperId])`
 
+  #### 11. AIAsset
+  Holds details of generated designs for shopkeepers in the AI Poster Studio.
+  - `id` (String - UUID, Primary Key)
+  - `shopkeeperId` (String - UUID, Foreign Key) - Links to `Shopkeeper.id` (on delete `Cascade`)
+  - `title` (String) - Promotional title of the design
+  - `prompt` (String) - Optimized prompt used to generate the image
+  - `type` (String) - Design asset type (e.g. Poster, Banner)
+  - `generatedImageUrl` (String) - CDN or storage URL of the generated image
+  - `thumbnailUrl` (String, Optional) - Thumbnail image URL
+  - `createdAt` / `updatedAt` (DateTime)
+  - *Indexes*: `@@index([shopkeeperId])`
+
+  #### 12. AIUsage
+  Tracks usage statistics for AI features generated by shopkeepers.
+  - `id` (String - UUID, Primary Key)
+  - `shopkeeperId` (String - UUID, Foreign Key)
+  - `featureType` (String) - AI feature type (e.g. `SUGGEST_PROMPT`, `GENERATE`, `REGENERATE`)
+  - `generationCount` (Int, Default: `1`) - Number of generations executed
+  - `createdAt` (DateTime)
+  - *Indexes*: `@@index([shopkeeperId])`
+
+  #### 13. RewardLog
+  Tracks customer scratch loyalty card states and details linked to orders.
+  - `id` (String - UUID, Primary Key)
+  - `orderId` (String - UUID, Unique Foreign Key) - Links to `Order.id` (on delete `Cascade`)
+  - `shopId` (String - UUID, Foreign Key)
+  - `rewardType` (String) - Code for the award (e.g. `FREE_PRINT`, `HALF_PRICE_COLOR`, `ASTROLOGY`, `DID_YOU_KNOW`)
+  - `rewardCategory` (String) - Category of reward (e.g. `MONETARY`, `NON_MONETARY`)
+  - `scratched` (Boolean, Default: `false`) - Whether card has been scratched by user
+  - `applied` (Boolean, Default: `false`) - Whether monetary reward is applied to the order total
+  - `rewardMessage` (String, Optional) - Message content printed on the card
+  - `customerSession` (String, Optional) - Session token of customer who scratched it
+  - `createdAt` / `updatedAt` (DateTime)
+  - *Indexes*: `@@index([shopId])`, `@@index([rewardType])`
+
+  #### 14. UserSession
+  Enforces the 2-PC concurrent device session limit for shopkeepers.
+  - `id` (String - UUID, Primary Key)
+  - `shopkeeperId` (String - UUID, Foreign Key)
+  - `token` (String, Unique) - Hashed session token
+  - `createdAt` / `expiresAt` (DateTime)
+  - *Indexes*: `@@index([shopkeeperId])`
+
+  #### 15. PaymentLog
+  Stores verification logs for customer digital/UPI payment reference codes.
+  - `id` (String - UUID, Primary Key)
+  - `orderId` (String - UUID, Unique Foreign Key) - Links to `Order.id` (on delete `Cascade`)
+  - `transactionRef` (String, Unique) - Alphanumeric payment reference ID input by customer
+  - `paymentStatus` (String, Default: `"PENDING"`) - Status of check (`PENDING`, `VERIFIED`, `FAILED`)
+  - `amount` (Float) - Total payment amount verified
+  - `paymentGateway` (String, Default: `"UPI"`) - Gateway name used (e.g., `UPI`, `CASH`)
+  - `createdAt` / `updatedAt` (DateTime)
+  - *Indexes*: `@@index([transactionRef])`
+
+  #### 16. SystemSettings
+  Key-value registry for system-wide configurations and toggles.
+  - `key` (String, Primary Key) - Settings name/key
+  - `value` (String) - Settings serialized value string
+  - `createdAt` / `updatedAt` (DateTime)
+
   ---
 
   ## Core System Workflows
@@ -3657,6 +3850,58 @@
     - Daily distributions, paper sizes, and status breakdowns.
     - Weekly chart metrics over the past 7 days, calculating growth rate percentages compared to the prior week's volume.
     - Monthly aggregates detailing average order value, top paper sizes, and color-to-B&W ratios.
+
+  ### 6. Payment Verification Flow (UPI & Cash)
+  To process digital payments directly to the shopkeeper without high transaction gateway fees:
+  1. **Option Selection**: In `/customer/orders`, the customer sees the shopkeeper's verified UPI details and custom Payment QR Code (if uploaded).
+  2. **Payment Submission**: The customer pays using their own preferred UPI/wallet app, and inputs the alphanumeric payment reference number (transaction ID) in the input box.
+  3. **Verification Request**:
+     - Submitting sends a `POST /api/payments/verify/:orderId` request containing the reference.
+     - The backend records this code in the `PaymentLog` model with status `PENDING`, updates the order status to `ACCEPTED` so it appears on the shopkeeper's processing dashboard, and queues the job as `WAITING`.
+     - Duplicate submissions of the same reference number for other orders are explicitly blocked to prevent fraud.
+  4. **Shopkeeper Validation**:
+     - The shopkeeper sees the incoming transaction reference in their pending validations widget (`GET /api/payments/shopkeeper/pending`).
+     - Once verified in their bank records, they click "Verify" (`PUT /api/payments/shopkeeper/verify/:id` with status `VERIFIED`) or "Reject" (`FAILED`).
+     - A status update changes the payment status in `PaymentLog` accordingly.
+
+  ### 7. AI Marketing Studio & Conversational Design Flow
+  An automated creative suite for shopkeepers powered by Google Gemini and Pollinations AI:
+  1. **Prompt Optimization Form**:
+     - The shopkeeper inputs a brief title describing a sale, festival, or service.
+     - Clicking "Suggest Prompt" triggers `POST /api/ai/suggest-prompt`, calling Google Gemini (`gemini-3.5-flash`) to generate structured form suggestions (descriptions, audience targets, color schemes, themes, and CTAs) to speed up creation.
+  2. **Image Generation**:
+     - On submitting, `POST /api/ai/generate` sends inputs to the backend. The server calls Gemini to construct an optimized, detailed text-to-image prompt descriptive of a premium graphic layout.
+     - The backend contacts Pollinations AI with the prompt using a randomized seed to create design variations.
+     - The generated image buffer is downloaded by the server, saved to the storage service (AWS S3 or local fallback directory), and recorded under the `AIAsset` database model.
+  3. **Conversational Chat-to-Poster Tool**:
+     - In the AI Studio chat drawer, the shopkeeper can type a natural statement (e.g. "make a flyer for fast color printing").
+     - The backend (`POST /api/ai/chat-generate`) uses Gemini to parse this request, return structured layouts (headline, subheadline, CTA, theme), optimize an image prompt, generate/save the background image, and return the formatted card preview.
+  4. **Gemini API Key Overrides**:
+     - To bypass rate limits, shopkeepers can supply their own Gemini API keys in the settings dashboard.
+     - The client context saves this key and sends it in request headers as `X-Gemini-API-Key`. The backend reads this override header, executing AI queries on the user's quota before falling back to system keys.
+  5. **Direct Printing Integration**: Clicking "Print Now" converts design details, pushes a new order into the shopkeeper's queue, and logs the asset in the statistics charts.
+
+  ### 8. Scratch Card Loyalty Rewards Flow
+  Encourages customer retention via instant post-order scratch-off coupons:
+  1. **Pre-creation**: Upon order placement (while still `PENDING`), a corresponding scratch card is pre-created in the database `RewardLog` model.
+  2. **Eligibility & Odds**:
+     - If the order matches monetary eligibility criteria, it enters a randomized roll.
+     - Black & White prints have a 1.0% chance of a `FREE_PRINT` reward. Color prints have a 0.5% chance of a `HALF_PRICE_COLOR` reward.
+     - Winning rolls automatically adjust and apply the discount to the order subtotal instantly at checkout.
+  3. **Non-Monetary Rewards**:
+     - Losing rolls or non-eligible orders default to a non-monetary card containing fun facts (`DID_YOU_KNOW`) or celestial insights (`ASTROLOGY`).
+     - Content is parsed and cached in memory from local sheets (`csv.service.js`) on startup.
+  4. **Scratching and Verification**:
+     - The customer can access and scratch cards instantly from `/customer/orders` using an interactive HTML5 canvas.
+     - Revealing 30% of the silver layer calls `POST /api/rewards/:id/scratch`, marking the card as scratched and logging details. Clicking citations redirects to references.
+
+  ### 9. 2-PC Concurrent Session Limit
+  Protects shopkeeper portal subscriptions and details from unauthorized sharing:
+  1. **Token Tracking**: On login, a record is added to the `UserSession` model for the shopkeeper.
+  2. **Session Eviction**:
+     - If a shopkeeper attempts to log in on a 3rd active device, the database checks active sessions.
+     - The server performs a rolling logout: it evicts/invalidates the oldest session token in `UserSession`.
+  3. **Verification**: Subsequent requests using the evicted token fail with a `401 Unauthorized` response indicating the session limit has been exceeded.
 
   ---
 
@@ -3750,6 +3995,7 @@
   | `/api/ai/suggest-prompt` | `POST` | JWT token | `{ title: string }` | `{ businessDescription, audience, theme, cta, posterType, colorPalette, language }` |
   | `/api/ai/generate` | `POST` | JWT token | `{ title, businessName, description, language, audience, posterType, posterSize, themeStyle, colorPreference, cta }` | `{ id, generatedImageUrl, optimizedPrompt }` |
   | `/api/ai/regenerate` | `POST` | JWT token | `{ title, businessName, description, language, audience, posterType, posterSize, themeStyle, colorPreference, cta }` | `{ id, generatedImageUrl, optimizedPrompt }` |
+  | `/api/ai/chat-generate` | `POST` | JWT token | `{ prompt: string }` | `{ id, generatedImageUrl, config: { headline, subheadline, offerText, description, cta, theme } }` |
   | `/api/ai/history` | `GET` | JWT token | None | `AIAsset[]` |
 
   ### 10. Scratch Card Reward System
@@ -3761,6 +4007,24 @@
   | `/api/rewards/:id/scratch` | `POST` | None | None | `{ id, orderId, shopId, rewardType, rewardCategory, scratched: true, applied: true/false, ... }` (Marks card as scratched & applies coupon) |
   | `/api/rewards/shopkeeper/stats` | `GET` | JWT token | None | `{ rewardsGeneratedToday, freePrintRewardsUsed, discountRewardsUsed, customerEngagementLevel, totalScratched, totalGenerated }` |
   | `/api/rewards/admin/stats` | `GET` | None | None | `{ totalScratches, monetaryRewardsUsed, nonMonetaryRewardsViewed, scratchRate, totalCardsGenerated }` |
+
+  ### 11. Payment Log & Verification API
+  Enables customers to register verification logs for transaction references and shopkeepers to validate them.
+
+  | Route | Method | Headers/Auth | Request Body | Success Response |
+  |---|---|---|---|---|
+  | `/api/payments/verify/:orderId` | `POST` | None | `{ transactionRef, paymentGateway, amount }` | `{ message: "Payment transaction reference submitted successfully", paymentLog }` |
+  | `/api/payments/shopkeeper/verify/:id` | `PUT` | JWT token | `{ status }` (status must be `VERIFIED` or `FAILED`) | `{ message: "Payment status updated to VERIFIED/FAILED", paymentLog }` |
+  | `/api/payments/shopkeeper/pending` | `GET` | JWT token | None | `PaymentLog[]` (List of pending verification requests including orderId, customerName, totalAmount) |
+
+  ### 12. Platform Settings & Health Check Diagnostics
+  Utility endpoints used to track system health and fetch configurations.
+
+  | Route | Method | Headers/Auth | Request Body | Success Response |
+  |---|---|---|---|---|
+  | `/api/settings` | `GET` | None | None | `{ [key]: value }` (A map of platform configuration variables) |
+  | `/api/health` | `GET` | None | None | `{ status: "healthy", timestamp, storage: "s3/local" }` |
+  | `/debug/s3` | `GET` | None | None | `{ currentRegion, bucket, sdkVersion, credentialSource, canConnect, bucketAccessible, errorDetails }` |
 
   ---
 
@@ -3818,15 +4082,44 @@
       - **Non-Monetary Content Sourcing**: Non-eligible or losing rolls trigger a non-monetary card (`DID_YOU_KNOW` or `ASTROLOGY` on a 50/50 split). Card details are dynamically cached from local Excel/CSV worksheets (`Do You Know,Astrology.xlsx` converted to assets on startup).
       - **Immediate Customer Scratch Access**: Customers can view and scratch cards immediately from the orders queue page (`/customer/orders`) even while the order is pending or accepted. The scratch card modal dynamically parses JSON entries case-insensitively (supporting columns like `scratch_text`, `category`, `sub_category`, and `reference_link`) and renders clickable source references for facts.
       - **Real-Time Reward Metrics**: The Shopkeeper Statistics panel displays dynamic grids summarizing active scratch rate progress bars, total card distributions, and customer engagement tiers.
+  9. **PrintSmaart AI Copilot (Business Intelligence & Analytics Platform)**:
+      - **System Objective**: Combines Business Analytics, Business Intelligence, Workload Prediction, Pricing Optimizations, Inventory Replenishment, and Shopkeeper Virtual Support into a single unified AI system.
+      - **Database Additions**:
+          - `InventoryItem`: Tracks consumables like A4 Paper packs and cartridges.
+          - `PrinterStatistics`: Stores active printer status, page counter, and ink gauges.
+          - `BusinessMetrics`: Aggregates historical metrics for rapid computation.
+          - `AILog`: Stores prompt-response pairs.
+          - `AIRecommendation`: Retains generated actionable insights.
+          - `RecommendationHistory`: Tracks feedback when the user clicks "Apply".
+      - **Rule-Based Knowledge Base**: Fully externalized business logic stored in JSON configuration files (`pricing_rules.json`, `inventory_rules.json`, `business_rules.json`, `seasonal_trends.json`, `printer_rules.json`) that are dynamically parsed during metric computations and LLM context loading.
+      - **Prisma & TS Compiler Boot Hook**: The backend auto-compiles the TS subsystem (`npx tsc`) and pushes database schemas (`npx prisma db push`) synchronously on server boot before Express starts, ensuring the generated client is fully up to date.
+      - **Modular Backend Services (`src/ai`)**:
+          - `analytics.service.ts`: Pure database calculation engine (no LLM dependencies) computing today's earnings, averages, top services, peak hours, and stock ratios.
+          - `contextBuilder.service.ts`: Loads rules, computes a 100-point Health Score, gathers analytics, and returns a unified Business Context JSON. Never exposes raw database tables directly to the LLM.
+          - `pricing.service.ts` & `inventory.service.ts` & `prediction.service.ts` & `recommendation.service.ts`: Evaluate context metrics against loaded rule thresholds to output structured, prioritized recommendations.
+          - `ai.service.ts`: Standard Google Gemini chat connector with automatic offline failover support.
+      - **Frontend AI Copilot Dashboard (`/shopkeeper/ai`)**:
+          - A high-end dark themed workspace featuring real-time overview metrics and a 100-point Health score gauge (`AIDashboard.tsx`).
+          - Graphical ink level indicators, average order values, and critical stock warnings (`AIInsightCards.tsx`).
+          - Expected workload order counts, page counts, and weekly forecasts (`PredictionCard.tsx`).
+          - strategic advisory triggers with single-click apply buttons (`RecommendationCard.tsx`).
+          - Floating copilot panel with quick questions (`AIChat.tsx`).
+
+   10. **Real-Time Updates via Socket.IO & Fluid SWR Dashboard Traversal**:
+       - **System Objective**: Pushes live database changes instantly to relevant clients, removing manual page refreshes.
+       - **Backend Rooms & Events**: centralizes Socket.IO room subscriptions (`shop:{shopId}`, `customer:{userId}`, `admin`) inside `socket.service.js`. Emits `new-order`, `order-updated`, `payment-success`, and `notification-created` events after successful database writes.
+       - **Consumables & Hardware updates**: On order completion/download, dynamically decrements paper packs (`Paper A4 Pack`) and updates ink levels (`HP LaserJet Pro 400`/`Epson L3250 EcoTank`), broadcasting `inventory-updated` and `printer-status` events. Pushes warning notifications for low stock/ink.
+       - **Frontend Context Provider & useSocket Hook**: Wraps the App Router layout with a global `<SocketProvider>` context and utilizes a reusable `useSocket` subscription hook with automatic listener cleanup on unmount.
+       - **Fluid Traversal Pattern (SWR)**: Shopkeeper dashboard restores shop settings, custom codes, and order stats instantly from `localStorage` cached values on mount, rendering the dashboard in 0ms before background fetching silently updates and caches the latest queues. Dynamic Welcome Bar badge hides default mock "Premium Plan" crown pill unless a plan is resolved.
 
   ---
-  
+
   ## Document Version
   
-  - **Version:** 3.2.1
-  - **Last Updated:** June 07, 2026
+  - **Version:** 4.0.0
+  - **Last Updated:** June 28, 2026
   - **Author:** Antigravity AI
-  - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, Gemini 3.5 custom API key overrides, and fixes for order placement server errors and success redirection).
+  - **Status:** Complete (Fully updated with backend TypeScript compilation startup hooks, Supabase database schema push, rule-based JSON knowledge rules, modular context aggregations, Next.js TSX Copilot dashboard components, Socket.IO real-time notification/order streams, and fluid SWR latency-free cache restoration page traversals).
   
   ---
   

@@ -1,0 +1,30 @@
+{
+  "rules": [
+    {
+      "id": "IR-01",
+      "name": "Paper Reorder Level",
+      "item": "Paper A4 Pack",
+      "operator": "lte",
+      "metric": "quantity",
+      "threshold": 5,
+      "recommendation": "Paper stock is running low (<= 5 packs). Order at least 15 packs of A4 paper immediately to avoid queue delays."
+    },
+    {
+      "id": "IR-02",
+      "name": "Toner Cartridge Safety Stock",
+      "item": "Toner Cartridge",
+      "operator": "lte",
+      "metric": "quantity",
+      "threshold": 2,
+      "recommendation": "Spare toner cartridges are below safety stock (<= 2 cartridges). Order replacement cartridges to prevent downtime."
+    },
+    {
+      "id": "IR-03",
+      "name": "Estimated Stock Runout Speed",
+      "metric": "days_remaining",
+      "operator": "lt",
+      "value": 7,
+      "recommendation": "Based on weekly print volume, current paper stock will run out in less than 7 days. Replenish inventory."
+    }
+  ]
+}

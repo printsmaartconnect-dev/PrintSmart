@@ -1,0 +1,25 @@
+{
+  "trends": [
+    {
+      "id": "ST-01",
+      "month": [2, 3, 4],
+      "name": "Exam Preparation Peak",
+      "demand_multiplier": 1.4,
+      "recommended_action": "Student exam season is starting. Pre-print study materials, ensure toner levels are optimal, and stock extra A4 paper."
+    },
+    {
+      "id": "ST-02",
+      "month": [10, 11],
+      "name": "Festival & Marketing Peak",
+      "demand_multiplier": 1.3,
+      "recommended_action": "Festival seasons (Diwali/Wedding) generate high demand for glossy pamphlets and invitations. Prepare premium color paper stocks."
+    },
+    {
+      "id": "ST-03",
+      "day_of_week": [1, 2],
+      "name": "Early Week Corporate Workload",
+      "demand_multiplier": 1.2,
+      "recommended_action": "Mondays and Tuesdays show 20% higher business printing volumes. Schedule maintenance on weekends instead."
+    }
+  ]
+}
