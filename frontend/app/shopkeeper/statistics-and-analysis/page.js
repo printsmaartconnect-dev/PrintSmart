@@ -238,38 +238,7 @@ function MainPrintTrendsChart({ orders, timeRange }) {
     return { x, y };
   };
 
-  // Generate continuous smooth Bezier curves
-  const getBezierPath = (type) => {
-    if (points.length === 0) return "";
-    let d = "";
-    const start = getCoords(0, type);
-    d += `M ${start.x} ${start.y} `;
 
-    for (let i = 0; i < points.length - 1; i++) {
-      const curr = getCoords(i, type);
-      const next = getCoords(i + 1, type);
-      const cp1x = curr.x + (next.x - curr.x) / 3;
-      const cp1y = curr.y;
-      const cp2x = next.x - (next.x - curr.x) / 3;
-      const cp2y = next.y;
-      d += `C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next.x} ${next.y} `;
-    }
-    return d;
-  };
-
-  const getBezierAreaPath = (type) => {
-    const linePath = getBezierPath(type);
-    if (!linePath) return "";
-    const firstX = paddingX;
-    const lastX = paddingX + chartW;
-    const baseY = svgSize.height - paddingY;
-    return `${linePath} L ${lastX} ${baseY} L ${firstX} ${baseY} Z`;
-  };
-
-  const pagesPath = getBezierPath("pages");
-  const pagesAreaPath = getBezierAreaPath("pages");
-  const revenuePath = getBezierPath("revenue");
-  const revenueAreaPath = getBezierAreaPath("revenue");
 
   // Grid lines
   const gridLines = Array.from({ length: 5 }, (_, i) => {
@@ -331,69 +300,48 @@ function MainPrintTrendsChart({ orders, timeRange }) {
           </g>
         ))}
 
-        {/* Gradient fills */}
-        {pagesAreaPath && (
-          <path d={pagesAreaPath} fill="url(#pagesGrad)" />
-        )}
-        {revenueAreaPath && (
-          <path d={revenueAreaPath} fill="url(#revenueGrad)" />
-        )}
-
-        {/* Lines */}
-        {pagesPath && (
-          <path
-            d={pagesPath}
-            fill="none"
-            stroke="#8b5cf6"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="transition-all duration-300"
-          />
-        )}
-        {revenuePath && (
-          <path
-            d={revenuePath}
-            fill="none"
-            stroke="#f59e0b"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="transition-all duration-300"
-          />
-        )}
-
-        {/* Dynamic Interactive Nodes */}
+        {/* Grouped Columns */}
         {points.map((pt, idx) => {
-          const pgCoord = getCoords(idx, "pages");
-          const revCoord = getCoords(idx, "revenue");
+          const colW = 12;
+          const colGap = 3;
+          const x = paddingX + (idx / (points.length - 1)) * chartW;
           const isHovered = hoveredIdx === idx;
+
+          // Pages Column (Violet)
+          const pagesH = (pt.pages / maxPages) * chartH;
+          const pagesX = x - colW - colGap / 2;
+          const pagesY = svgSize.height - paddingY - pagesH;
+
+          // Revenue Column (Amber)
+          const revenueH = (pt.revenue / maxRevenue) * chartH;
+          const revenueX = x + colGap / 2;
+          const revenueY = svgSize.height - paddingY - revenueH;
 
           return (
             <g key={idx}>
-              {/* Pages Circle */}
-              <circle
-                cx={pgCoord.x}
-                cy={pgCoord.y}
-                r={isHovered ? 7 : 4}
-                fill="#ffffff"
-                stroke="#8b5cf6"
-                strokeWidth={isHovered ? 4 : 2}
-                className="transition-all duration-200 cursor-pointer"
+              {/* Pages Column */}
+              <rect
+                x={pagesX}
+                y={pagesY}
+                width={colW}
+                height={Math.max(2, pagesH)}
+                rx="3"
+                fill={isHovered ? "#a78bfa" : "#8b5cf6"}
+                className="transition-all duration-150 cursor-pointer"
               />
-              {/* Revenue Circle */}
-              <circle
-                cx={revCoord.x}
-                cy={revCoord.y}
-                r={isHovered ? 7 : 4}
-                fill="#ffffff"
-                stroke="#f59e0b"
-                strokeWidth={isHovered ? 4 : 2}
-                className="transition-all duration-200 cursor-pointer"
+              {/* Revenue Column */}
+              <rect
+                x={revenueX}
+                y={revenueY}
+                width={colW}
+                height={Math.max(2, revenueH)}
+                rx="3"
+                fill={isHovered ? "#fbbf24" : "#f59e0b"}
+                className="transition-all duration-150 cursor-pointer"
               />
               {/* X Axis Labels */}
               <text
-                x={pgCoord.x}
+                x={x}
                 y={svgSize.height - 10}
                 textAnchor="middle"
                 className="text-[10px] font-extrabold fill-slate-400"
@@ -493,8 +441,8 @@ function OrderDistributionChart({ orders }) {
   const totalOrders = stats.reduce((sum, item) => sum + item.count, 0) || 1;
 
   // Donut geometry constants
-  const r = 52;
-  const strokeW = 15;
+  const r = 40;
+  const strokeW = 80;
   const center = 80;
   const circ = 2 * Math.PI * r;
 
@@ -559,6 +507,15 @@ function OrderDistributionChart({ orders }) {
               />
             );
           })}
+          {/* Central white badge */}
+          <circle
+            cx={center}
+            cy={center}
+            r="32"
+            fill="#ffffff"
+            stroke="#f1f5f9"
+            strokeWidth="1.5"
+          />
         </svg>
 
         {/* Center label */}
