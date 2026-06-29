@@ -1051,7 +1051,7 @@ export default function AllOrdersPage() {
                 headerRight={
                   <div className="flex items-center gap-2">
                     <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
-                      {["Month", "Week", "Day"].map((filter) => (
+                      {["Week", "Day"].map((filter) => (
                         <button
                           key={filter}
                           type="button"
