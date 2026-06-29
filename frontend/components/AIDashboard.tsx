@@ -95,8 +95,7 @@ export const AIDashboard: React.FC<AIDashboardProps> = ({ summary, healthScore }
           </div>
         </div>
 
-        {/* Business Health Gauge (radial ring design) */}
-        <div className="relative overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950/80 border border-slate-800/80 rounded-2xl p-5 transition-all duration-300 hover:border-emerald-500/30 hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(16,185,129,0.08)] flex items-center justify-between group">
+        <div className="relative overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950/80 border border-slate-800/80 rounded-2xl p-5 transition-all duration-300 hover:border-emerald-500/30 hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(16,185,129,0.08)] flex items-center justify-between gap-4 group">
           <div className="space-y-1">
             <span className="text-slate-300 text-xs font-bold uppercase tracking-wider block">Health Score</span>
             <div className="flex items-baseline gap-1">

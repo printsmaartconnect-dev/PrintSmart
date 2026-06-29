@@ -93,9 +93,6 @@ export default function AdminPage() {
           </button>
         </form>
 
-        <p className="text-center text-gray-500 text-xs mt-6">
-          Demo credentials: admin@printsmart.com / admin123
-        </p>
       </div>
     </div>
   )
