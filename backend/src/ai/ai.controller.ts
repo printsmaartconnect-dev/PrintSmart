@@ -190,12 +190,22 @@ export class AICopilotController {
         const updatedPredictions = await PredictionService.getPredictions(updatedContext);
         
         const payload = {
-          summary: updatedContext.metrics,
+          summary: {
+            revenueToday: updatedContext.revenue.today,
+            revenueYesterday: updatedContext.revenue.yesterday,
+            revenueWeekly: updatedContext.revenue.weekly,
+            revenueMonthly: updatedContext.revenue.monthly,
+            revenueGrowth: updatedContext.revenue.growth,
+            averageOrderValue: updatedContext.revenue.averageOrderValue,
+            pendingOrders: updatedContext.orders.pending,
+            cancelledOrders: updatedContext.orders.cancelledWeekly,
+            colorPrintPercentage: updatedContext.colorPrintPercentage
+          },
           inventory: updatedContext.inventoryStatus,
           printers: updatedContext.printerStatus,
           predictions: updatedPredictions,
           recommendations: updatedRecommendations,
-          healthScore: updatedContext.healthScore
+          healthScore: updatedContext.businessHealthScore
         };
         
         socketService.emitToRoom(`shop:${shopkeeperId}`, "ai-summary-updated", payload);

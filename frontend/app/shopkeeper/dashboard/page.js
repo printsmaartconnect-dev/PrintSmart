@@ -18,7 +18,6 @@ import StatsRow from "./_components/StatsRow";
 import RecentOrders from "./_components/RecentOrders";
 import BottomDock from "./_components/BottomDock";
 import { bottomDockItems, dashboardStats, recentOrders } from "./_components/mockData";
-import PrintConfigModal from "./_components/PrintConfigModal";
 import { useSocket } from "../../../hooks/useSocket";
 import { useSocketContext } from "../../../contexts/SocketProvider";
 
@@ -157,6 +156,39 @@ export default function ShopkeeperDashboard() {
     }],
   });
 
+  const splitAndMapRawOrders = (rawOrders) => {
+    const result = [];
+    if (!rawOrders) return result;
+    
+    for (const o of rawOrders) {
+      const formatted = mapRawOrderToFrontend(o);
+      
+      if (!formatted.files || formatted.files.length <= 1) {
+        result.push(formatted);
+      } else {
+        formatted.files.forEach((file, index) => {
+          const filePrice = file.price || formatted.price;
+          result.push({
+            ...formatted,
+            id: file.orderId || `${formatted.id}-${index}`,
+            dbId: formatted.dbId,
+            fileName: file.fileName,
+            fileUrl: file.fileUrl,
+            copies: file.copies || formatted.copies,
+            type: file.type || formatted.type,
+            size: file.size || formatted.size,
+            side: file.side || formatted.side,
+            price: filePrice,
+            files: [file],
+            variant: (file.fileName === "Customer wants to talk" || filePrice === "₹0.00") ? "talk" : "standard",
+          });
+        });
+      }
+    }
+    
+    return result;
+  };
+
   // Join shop room on mount/auth load
   useEffect(() => {
     const loggedIn = localStorage.getItem("loggedInShopkeeper");
@@ -179,17 +211,27 @@ export default function ShopkeeperDashboard() {
   useSocket("new-order", (newOrder) => {
     console.log("[Socket] Dashboard received new order:", newOrder);
     setOrdersList((prev) => {
-      if (prev.some((o) => o.dbId === newOrder.id || o.id === newOrder.orderId)) return prev;
-      return [mapRawOrderToFrontend(newOrder), ...prev];
+      if (prev.some((o) => o.dbId === newOrder.id)) return prev;
+      const split = splitAndMapRawOrders([newOrder]);
+      return [...split, ...prev];
     });
   });
 
   // Handle order updates in real-time
   useSocket("order-updated", (updatedOrder) => {
     console.log("[Socket] Dashboard received order update:", updatedOrder);
-    setOrdersList((prev) =>
-      prev.map((o) => (o.dbId === updatedOrder.id || o.id === updatedOrder.orderId ? mapRawOrderToFrontend(updatedOrder) : o))
-    );
+    setOrdersList((prev) => {
+      const index = prev.findIndex((o) => o.dbId === updatedOrder.id);
+      if (index === -1) {
+        const split = splitAndMapRawOrders([updatedOrder]);
+        return [...split, ...prev];
+      }
+      const filtered = prev.filter((o) => o.dbId !== updatedOrder.id);
+      const split = splitAndMapRawOrders([updatedOrder]);
+      const copy = [...filtered];
+      copy.splice(index, 0, ...split);
+      return copy;
+    });
   });
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
@@ -214,52 +256,7 @@ export default function ShopkeeperDashboard() {
       });
       if (response.ok) {
         const data = await response.json();
-        const mappedOrders = data.map((o) => ({
-          id: o.orderId,
-          dbId: o.id,
-          status: o.status ? (o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()) : "Pending",
-          customerName: o.customerName || "Anonymous Customer",
-          phone: o.phone || "",
-          customerComment: o.customerComment || "",
-          fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
-          fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
-          pages: 1,
-          copies: o.printConfiguration?.copies || 1,
-          type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
-          size: o.printConfiguration?.paperSize || "A4",
-          side: o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single",
-          price: `₹${(o.price || 0.0).toFixed(2)}`,
-          timestamp:
-            new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
-            ", " +
-            new Date(o.createdAt).toLocaleDateString([], { month: "short", day: "numeric" }),
-          variant: o.variant || (o.orderFiles && o.orderFiles.length > 0 && (o.orderFiles[0].customFileName === "Customer wants to talk" || o.orderFiles[0].originalFileName === "Customer wants to talk" || o.price === 0) ? "talk" : "standard"),
-          paymentLog: o.paymentLog,
-          files: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles.map(f => {
-            const fConfig = f.config || {};
-            return {
-              id: f.id,
-              fileName: f.customFileName || f.originalFileName || "Untitled Document",
-              fileUrl: f.fileUrl,
-              copies: fConfig.copies || o.printConfiguration?.copies || 1,
-              type: fConfig.printType === "COLOR" ? "Color" : (fConfig.printType === "BW" ? "B&W" : (o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W")),
-              size: fConfig.paperSize || o.printConfiguration?.paperSize || "A4",
-              side: fConfig.sides === "DOUBLE" ? "Double" : (fConfig.sides === "SINGLE" ? "Single" : (o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single")),
-              price: f.price !== undefined ? `₹${parseFloat(f.price).toFixed(2)}` : `₹${(o.price || 0.0).toFixed(2)}`,
-              orderId: f.orderId || o.orderId,
-            };
-          }) : [{
-            id: o.orderId,
-            fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
-            fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
-            copies: o.printConfiguration?.copies || 1,
-            type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
-            size: o.printConfiguration?.paperSize || "A4",
-            side: o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single",
-            price: `₹${(o.price || 0.0).toFixed(2)}`,
-            orderId: o.orderId,
-          }],
-        }));
+        const mappedOrders = splitAndMapRawOrders(data);
         setOrdersList(mappedOrders);
         localStorage.setItem("cachedOrdersList", JSON.stringify(mappedOrders));
         setDataLoaded(true);
@@ -400,10 +397,15 @@ export default function ShopkeeperDashboard() {
   const displayedOrders =
     (activeFilter === "All" || activeFilter === t("All"))
       ? ordersList
-      : ordersList.filter((order) => t(order.status) === activeFilter);
+      : ordersList.filter((order) => {
+          if (activeFilter === "Completed" || activeFilter === t("Completed")) {
+            return order.status === "Completed" || order.status === "Downloaded";
+          }
+          return t(order.status) === activeFilter;
+        });
 
   const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
-  const completedCount = ordersList.filter((o) => o.status === "Completed").length;
+  const completedCount = ordersList.filter((o) => o.status === "Completed" || o.status === "Downloaded").length;
   const downloadedCount = ordersList.filter((o) => o.status === "Downloaded").length;
   const cancelledCount = ordersList.filter((o) => o.status === "Cancelled").length;
 
@@ -687,7 +689,12 @@ export default function ShopkeeperDashboard() {
             activeFilter={activeFilter} 
             onStatusChange={handleStatusChange} 
             onPaymentVerify={handlePaymentVerify}
-            onPrint={(order) => setActivePrintOrder(order)}
+            onPrint={async (order) => {
+              await handleDirectPrint(order);
+              if (handleStatusChange && (order.dbId || order.id)) {
+                await handleStatusChange(order.dbId || order.id, 'Completed');
+              }
+            }}
             onDownload={handleDirectDownload}
           />
         </div>
@@ -698,20 +705,6 @@ export default function ShopkeeperDashboard() {
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
       />
-
-      {activePrintOrder && (
-        <PrintConfigModal
-          order={activePrintOrder}
-          onClose={() => setActivePrintOrder(null)}
-          onConfirm={async (order) => {
-            await handleDirectPrint(order);
-            if (handleStatusChange && (order.dbId || order.id)) {
-              await handleStatusChange(order.dbId || order.id, 'Completed');
-            }
-            setActivePrintOrder(null);
-          }}
-        />
-      )}
     </div>
   );
 }
