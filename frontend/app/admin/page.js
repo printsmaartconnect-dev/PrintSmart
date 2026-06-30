@@ -21,9 +21,22 @@ export default function AdminPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // Simple admin credentials
-    if (formData.email === 'admin@printsmart.com' && formData.password === 'admin123') {
+    // Admin credentials
+    const allowedAdmins = [
+      { email: 'jayantghate13@gmail.com', password: 'Founder', name: 'Jayant', role: 'Founder' },
+      { email: 'yashg19@gmail.com', password: 'Co-founder', name: 'Yash', role: 'Co-founder' },
+      { email: 'printsmaart.connect@gmail.com', password: 'Admin123', name: 'Visiting Admin', role: 'Admin' }
+    ]
+
+    const matchedAdmin = allowedAdmins.find(
+      (admin) => admin.email.toLowerCase() === formData.email.trim().toLowerCase() && admin.password === formData.password
+    )
+
+    if (matchedAdmin) {
       localStorage.setItem('adminLoggedIn', 'true')
+      localStorage.setItem('adminEmail', matchedAdmin.email)
+      localStorage.setItem('adminName', matchedAdmin.name)
+      localStorage.setItem('adminRole', matchedAdmin.role)
       router.push('/admin/dashboard')
     } else {
       alert('Invalid admin credentials!')
@@ -55,7 +68,7 @@ export default function AdminPage() {
               autoCapitalize="none"
               spellCheck={false}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition"
-              placeholder="admin@printsmart.com"
+              placeholder="admin@example.com"
               required
             />
           </div>

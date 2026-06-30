@@ -40,4 +40,7 @@ router.delete("/feedback/:feedbackId", feedbackController.deleteFeedback);
 // @route   GET api/admin/analytics
 router.get("/analytics", adminController.getAnalytics);
 
+// @route   GET api/admin/growth
+router.get("/growth", adminController.getPlatformGrowth);
+
 module.exports = router;
