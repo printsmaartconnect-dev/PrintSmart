@@ -466,8 +466,8 @@
   /** @type {import('tailwindcss').Config} */
   module.exports = {
     content: [
-      './app/**/*.{js,jsx}',
-      './components/**/*.{js,jsx}',
+      './app/**/*.{js,jsx,ts,tsx}',
+      './components/**/*.{js,jsx,ts,tsx}',
     ],
     theme: {
       extend: {
@@ -1110,10 +1110,21 @@
       onDrop,
       accept: {
         'application/pdf': ['.pdf'],
-        'image/jpeg': ['.jpg', '.jpeg'],
-        'image/png': ['.png'],
         'application/msword': ['.doc'],
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+        'application/vnd.ms-excel': ['.xls'],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+        'application/vnd.ms-powerpoint': ['.ppt'],
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+        'application/vnd.oasis.opendocument.text': ['.odt'],
+        'application/vnd.oasis.opendocument.presentation': ['.odp'],
+        'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
+        'application/rtf': ['.rtf'],
+        'image/jpeg': ['.jpg', '.jpeg'],
+        'image/png': ['.png'],
+        'image/webp': ['.webp'],
+        'text/plain': ['.txt'],
+        'text/csv': ['.csv'],
       },
     })
 
@@ -2593,8 +2604,8 @@
   # 1. Check tailwind.config.js content paths
   module.exports = {
     content: [
-      './app/**/*.{js,jsx}',  // Make sure patterns match
-      './components/**/*.{js,jsx}',
+      './app/**/*.{js,jsx,ts,tsx}',  // Make sure patterns match
+      './components/**/*.{js,jsx,ts,tsx}',
     ],
   }
 
@@ -3474,7 +3485,7 @@
   - **Scalable SaaS Key Structure:** Uploaded documents are saved under a key structured as: `orders/{orderId}/{uuid_filename}.ext` (or `orders/temp/{uuid_filename}.ext` during initial upload before order placement).
   - **Graceful Local Fallback:** The backend checks for AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `AWS_S3_BUCKET`). If these keys are missing or S3 upload fails, the files are automatically written to the local fallback directory `backend/uploads/orders/` and served statically.
   - **File Type & Security Validation:** The file controller actively validates uploaded files:
-    - **Allowed Formats:** `.pdf`, `.doc`, `.docx`, `.jpg`, `.jpeg`, `.png` (mimetypes verified).
+    - **Allowed Formats:** `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`, `.odt`, `.odp`, `.ods`, `.rtf`, `.jpg`, `.jpeg`, `.png`, `.webp`, `.txt`, `.csv` (mimetypes verified).
     - **Explicit Blocklist:** Executable extensions (like `.exe`, `.bat`, `.apk`, `.sh`) are rejected with 400 Bad Request to prevent security vulnerabilities.
     - **Size Limit:** Max file upload size is capped at 50MB.
   - **S3 Connectivity Verification Script:** Developers can verify the configured S3 credentials and connectivity by executing `node test-s3.js` from the `backend/` directory. The script attempts to upload a test string to `test-folder/test.txt` and logs the resulting S3 URL.

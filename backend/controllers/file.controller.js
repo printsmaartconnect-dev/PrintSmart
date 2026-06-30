@@ -64,11 +64,11 @@ exports.upload = async (req, res) => {
       });
     }
 
-    // 3. File size safety check (50MB fallback limit in case it bypasses multer limits)
-    const sizeLimit = parseInt(process.env.FILE_SIZE_LIMIT || 50 * 1024 * 1024, 10);
+    // 3. File size safety check (100MB fallback limit in case it bypasses multer limits)
+    const sizeLimit = parseInt(process.env.FILE_SIZE_LIMIT || 100 * 1024 * 1024, 10);
     if (req.file.size > sizeLimit) {
       return res.status(400).json({
-        message: `File size exceeds the limit of ${(sizeLimit / (1024 * 1024)).toFixed(0)}MB.`
+        message: `File size exceeds the allowed limit of ${sizeLimit / (1024 * 1024)}MB.`
       });
     }
 

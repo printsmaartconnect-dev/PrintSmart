@@ -405,7 +405,7 @@ function CustomerLanguagePageContent() {
       'text/plain': ['.txt'],
       'text/csv': ['.csv'],
     },
-    maxSize: 52428800,
+    maxSize: 104857600,
   })
 
   // Cleanup object URLs on unmount
