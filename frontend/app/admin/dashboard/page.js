@@ -30,16 +30,42 @@ import {
   Sparkles,
   Ticket,
   DollarSign,
-  Maximize2
+  Maximize2,
+  Gift,
+  MapPin,
+  ArrowUpRight,
+  ArrowDownRight,
+  MessageSquare,
+  HelpCircle,
+  Share,
+  Download,
+  SlidersHorizontal,
+  Trash,
+  MoreVertical,
+  Pencil,
+  Eye,
+  MessageCircle
 } from 'lucide-react'
 import AdminSidebar from './_components/AdminSidebar'
 import StatCard from './_components/StatCard'
+import PlatformGrowthChart from './_components/PlatformGrowthChart'
+import RewardsAnalyticsChart from './_components/RewardsAnalyticsChart'
+import AIUsageOverview from './_components/AIUsageOverview'
 
 export default function AdminDashboardPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [loading, setLoading] = useState(true)
   const [toasts, setToasts] = useState([])
+  const [adminName, setAdminName] = useState('Jayant')
+  const [adminRole, setAdminRole] = useState('Founder')
+  const [isLogsModalOpen, setIsLogsModalOpen] = useState(false)
+  const [adminLogs, setAdminLogs] = useState([])
+  const [selectedShopId, setSelectedShopId] = useState(null)
+  const [shopStatusFilter, setShopStatusFilter] = useState('ALL')
+  const [shopPlanFilter, setShopPlanFilter] = useState('ALL')
+  const [shopCityFilter, setShopCityFilter] = useState('ALL')
+  const [shopJoinFilter, setShopJoinFilter] = useState('ALL')
   
   // Date Range selector state
   const [dateRange, setDateRange] = useState('May 12 - May 18, 2026')
@@ -78,6 +104,18 @@ export default function AdminDashboardPage() {
     allowedFileFormats: '.pdf,.png,.jpg',
   })
 
+  // Detailed Settings states matching mockup
+  const [couponSystemStatus, setCouponSystemStatus] = useState(true)
+  const [freePrintCardStatus, setFreePrintCardStatus] = useState(true)
+  const [halfOffCardStatus, setHalfOffCardStatus] = useState(true)
+  const [monetaryCouponsStatus, setMonetaryCouponsStatus] = useState(true)
+  const [aiStudioStatus, setAiStudioStatus] = useState(true)
+  const [aiPosterMakerStatus, setAiPosterMakerStatus] = useState(true)
+  const [aiBannerMakerStatus, setAiBannerMakerStatus] = useState(true)
+  const [aiImageEnhancerStatus, setAiImageEnhancerStatus] = useState(true)
+  const [dailyAiLimit, setDailyAiLimit] = useState('10000')
+  const [maintenanceMessage, setMaintenanceMessage] = useState('We are improving PrintSmart. Please visit again shortly.')
+
   // CRUD Dialog Modal States
   const [isShopModalOpen, setIsShopModalOpen] = useState(false)
   const [editingShop, setEditingShop] = useState(null)
@@ -86,14 +124,50 @@ export default function AdminDashboardPage() {
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false)
   const [editingCoupon, setEditingCoupon] = useState(null)
 
+  const logAdminAction = (action) => {
+    const name = localStorage.getItem('adminName') || 'Unknown Admin'
+    const email = localStorage.getItem('adminEmail') || ''
+    const currentLogs = JSON.parse(localStorage.getItem('adminActivityLogs') || '[]')
+    
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+    const formattedDate = new Date().toLocaleDateString('en-US', options)
+    
+    const newLog = {
+      id: 'LOG-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+      adminName: name,
+      adminEmail: email,
+      action: action,
+      timestamp: formattedDate
+    }
+    
+    localStorage.setItem('adminActivityLogs', JSON.stringify([newLog, ...currentLogs].slice(0, 50)))
+  }
+
   // Basic check for admin session
   useEffect(() => {
     if (!localStorage.getItem('adminLoggedIn')) {
       router.push('/admin')
       return
     }
+    const name = localStorage.getItem('adminName')
+    const role = localStorage.getItem('adminRole')
+    if (name) setAdminName(name)
+    if (role) setAdminRole(role)
     setLoading(false)
+
+    if (!sessionStorage.getItem('adminSessionLogged')) {
+      logAdminAction('Signed in to admin dashboard')
+      sessionStorage.setItem('adminSessionLogged', 'true')
+    }
   }, [router])
+
+  // Reload logs when modal is opened
+  useEffect(() => {
+    if (isLogsModalOpen) {
+      const logs = JSON.parse(localStorage.getItem('adminActivityLogs') || '[]')
+      setAdminLogs(logs)
+    }
+  }, [isLogsModalOpen])
 
   const fetchSettings = async () => {
     try {
@@ -119,9 +193,14 @@ export default function AdminDashboardPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(settingsData)
+        body: JSON.stringify({
+          ...settingsData,
+          dailyAiLimit,
+          maintenanceMessage
+        })
       })
       if (res.ok) {
+        logAdminAction('Saved administrative configurations')
         addToast('Administrative system configurations updated successfully!', 'success')
       } else {
         addToast('Failed to save settings', 'error')
@@ -257,6 +336,7 @@ export default function AdminDashboardPage() {
         body: JSON.stringify(shopForm)
       })
       if (res.ok) {
+        logAdminAction(isEdit ? `Updated shop: ${shopForm.shopName}` : `Created new shop: ${shopForm.shopName}`)
         addToast(isEdit ? 'Shop updated successfully!' : 'Shop created successfully!', 'success')
         setIsShopModalOpen(false)
         setEditingShop(null)
@@ -282,6 +362,7 @@ export default function AdminDashboardPage() {
         method: 'DELETE'
       })
       if (res.ok) {
+        logAdminAction(`Deleted shop ID: ${shopId}`)
         addToast('Shop deleted successfully', 'success')
         setShops(shops.filter(s => s.id !== shopId))
       } else {
@@ -304,6 +385,7 @@ export default function AdminDashboardPage() {
         body: JSON.stringify(couponForm)
       })
       if (res.ok) {
+        logAdminAction(isEdit ? `Updated coupon: ${couponForm.code}` : `Created new coupon: ${couponForm.code}`)
         addToast(isEdit ? 'Coupon updated successfully!' : 'Coupon created successfully!', 'success')
         setIsCouponModalOpen(false)
         setEditingCoupon(null)
@@ -325,6 +407,7 @@ export default function AdminDashboardPage() {
         method: 'DELETE'
       })
       if (res.ok) {
+        logAdminAction(`Deleted coupon ID: ${couponId}`)
         addToast('Coupon deleted successfully', 'success')
         setCouponsList(couponsList.filter(c => c.id !== couponId))
       } else {
@@ -426,6 +509,7 @@ export default function AdminDashboardPage() {
         method: 'PUT'
       })
       if (res.ok) {
+        logAdminAction(`Toggled onboarding status for shop ID: ${shopId}`)
         setShops(shops.map(shop => 
           shop.id === shopId ? { ...shop, isOnboarded: !shop.isOnboarded } : shop
         ))
@@ -436,7 +520,12 @@ export default function AdminDashboardPage() {
   }
 
   const handleLogout = () => {
+    logAdminAction('Signed out of admin dashboard')
     localStorage.removeItem('adminLoggedIn')
+    localStorage.removeItem('adminEmail')
+    localStorage.removeItem('adminName')
+    localStorage.removeItem('adminRole')
+    sessionStorage.removeItem('adminSessionLogged')
     router.push('/admin')
   }
 
@@ -510,14 +599,45 @@ export default function AdminDashboardPage() {
       const matchesSearch = 
         (shop.shopName || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
         (shop.ownerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (shop.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+        (shop.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (shop.address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (shop.shopkeeperIdCode || '').toLowerCase().includes(searchQuery.toLowerCase())
       
-      if (shopFilter === 'ALL') return matchesSearch
-      if (shopFilter === 'APPROVED') return matchesSearch && shop.isOnboarded
-      if (shopFilter === 'PENDING') return matchesSearch && !shop.isOnboarded
+      // Status Filter
+      if (shopStatusFilter !== 'ALL') {
+        const isActive = shop.isOnboarded;
+        if (shopStatusFilter === 'ACTIVE' && !isActive) return false;
+        if (shopStatusFilter === 'INACTIVE' && isActive) return false;
+      }
+
+      // Plan Filter
+      if (shopPlanFilter !== 'ALL') {
+        const isPremium = shop.totalOrders >= 40 || shop.totalEarnings > 5000;
+        if (shopPlanFilter === 'PREMIUM' && !isPremium) return false;
+        if (shopPlanFilter === 'FREE' && isPremium) return false;
+      }
+
+      // City Filter
+      if (shopCityFilter !== 'ALL') {
+        const city = (shop.address || '').split(',')[0].trim().toLowerCase();
+        if (city !== shopCityFilter.toLowerCase()) return false;
+      }
+
+      // Join Date Filter
+      if (shopJoinFilter !== 'ALL') {
+        const diffDays = (new Date() - new Date(shop.createdAt)) / (1000 * 60 * 60 * 24);
+        if (shopJoinFilter === 'TODAY' && diffDays > 1) return false;
+        if (shopJoinFilter === 'WEEK' && diffDays > 7) return false;
+        if (shopJoinFilter === 'MONTH' && diffDays > 30) return false;
+      }
+      
+      // Support old tab filter for backwards compatibility
+      if (shopFilter === 'APPROVED' && !shop.isOnboarded) return false;
+      if (shopFilter === 'PENDING' && shop.isOnboarded) return false;
+
       return matchesSearch
     })
-  }, [shops, searchQuery, shopFilter])
+  }, [shops, searchQuery, shopFilter, shopStatusFilter, shopPlanFilter, shopCityFilter, shopJoinFilter])
 
   // Mapped list of orders matching filter criteria
   const filteredOrdersList = useMemo(() => {
@@ -544,7 +664,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex">
       {/* LEFT SIDEBAR SECTION */}
-      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} onShowLogs={() => setIsLogsModalOpen(true)} />
       
       {/* MAIN CONTAINER */}
       <main className="flex-1 ml-64 min-h-screen flex flex-col">
@@ -583,15 +703,15 @@ export default function AdminDashboardPage() {
 
             {/* User Profile */}
             <div className="flex items-center gap-3 cursor-pointer group">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black text-sm shadow-sm group-hover:scale-105 transition">
-                A
+              <div className="w-10 h-10 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 font-black text-sm shadow-sm group-hover:scale-105 transition">
+                {adminName ? adminName[0].toUpperCase() : 'A'}
               </div>
               <div className="text-left">
                 <p className="text-xs font-black text-slate-800 flex items-center gap-1">
-                  <span>Admin</span>
+                  <span>{adminName}</span>
                   <ChevronDown size={12} className="text-slate-400" />
                 </p>
-                <p className="text-[10px] text-slate-400 font-extrabold">Super Admin</p>
+                <p className="text-[10px] text-slate-400 font-extrabold">{adminRole}</p>
               </div>
             </div>
 
@@ -654,430 +774,390 @@ export default function AdminDashboardPage() {
           {/* PANEL A: OVERVIEW PAGE (MAIN FIRST SCREEN) */}
           {/* ---------------------------------------------------- */}
           {activeTab === 'dashboard' && (
-            <div className="space-y-8 animate-fadeIn">
+            <div className="space-y-8 animate-fadeIn text-slate-700">
               
-              {/* TOP 8 KPI METRIC CARDS */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard 
-                  title="Total Shopkeepers"
-                  value={stats?.totalShopkeepers ? stats.totalShopkeepers.toString() : '0'}
-                  icon={Store}
-                  trend="12.4%"
-                  trendText="vs last month"
-                  trendUp={true}
-                  colorClass="text-purple-600"
-                  bgClass="bg-purple-50"
-                  sparklinePath="M0,22 Q25,8 50,18 T100,5"
-                />
-                <StatCard 
-                  title="Registered Users"
-                  value={stats?.totalUsers ? stats.totalUsers.toString() : '0'}
-                  icon={Users}
-                  trend="8.3%"
-                  trendText="vs last month"
-                  trendUp={true}
-                  colorClass="text-indigo-600"
-                  bgClass="bg-indigo-50"
-                  sparklinePath="M0,25 Q30,12 60,20 T100,8"
-                />
-                <StatCard 
-                  title="Active Customers"
-                  value={stats?.totalCustomers ? stats.totalCustomers.toString() : '0'}
-                  icon={Activity}
-                  trend="6.8%"
-                  trendText="with order history"
-                  trendUp={true}
-                  colorClass="text-emerald-600"
-                  bgClass="bg-emerald-50"
-                  sparklinePath="M0,25 Q20,10 40,24 T80,12 T100,18"
-                />
-                <StatCard 
-                  title="Total Orders"
-                  value={stats?.totalOrders ? stats.totalOrders.toLocaleString() : '0'}
-                  icon={ShoppingCart}
-                  trend="18.6%"
-                  trendText="vs last month"
-                  trendUp={true}
-                  colorClass="text-amber-600"
-                  bgClass="bg-amber-50"
-                  sparklinePath="M0,20 Q25,25 50,15 T100,8"
-                />
-                <StatCard 
-                  title="Total Revenue"
-                  value={`₹${(stats?.revenue || 0).toLocaleString()}`}
-                  icon={DollarSign}
-                  trend="15.2%"
-                  trendText="vs last month"
-                  trendUp={true}
-                  colorClass="text-pink-600"
-                  bgClass="bg-pink-50"
-                  sparklinePath="M0,22 Q30,15 60,25 T100,10"
-                />
-                <StatCard 
-                  title="Coupons Issued"
-                  value={stats?.couponsGenerated ? stats.couponsGenerated.toString() : '0'}
-                  icon={Tag}
-                  trend="9.4%"
-                  trendText="monetary rewards"
-                  trendUp={true}
-                  colorClass="text-orange-600"
-                  bgClass="bg-orange-50"
-                  sparklinePath="M0,10 Q25,18 50,12 T100,24"
-                />
-                <StatCard 
-                  title="Coupons Redeemed"
-                  value={stats?.couponsRedeemed ? stats.couponsRedeemed.toString() : '0'}
-                  icon={Ticket}
-                  trend="24.7%"
-                  trendText="scratched coupons"
-                  trendUp={true}
-                  colorClass="text-violet-600"
-                  bgClass="bg-violet-50"
-                  sparklinePath="M0,25 Q25,8 50,22 T100,12"
-                />
-                <StatCard 
-                  title="Scratch Cards Dist."
-                  value={stats?.scratchCardsGenerated ? stats.scratchCardsGenerated.toString() : '0'}
-                  icon={Sparkles}
-                  trend="14.2%"
-                  trendText="total promo cards"
-                  trendUp={true}
-                  colorClass="text-rose-600"
-                  bgClass="bg-rose-50"
-                  sparklinePath="M0,15 Q30,5 60,25 T100,18"
-                />
-              </div>
-
-              {/* GRID: TREND GRAPH + PERFORMANCE TABLES */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* TOP SECTION: WELCOME BANNER & TODAY'S SUMMARY */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* Orders Trend Curve (SVG) */}
-                <div className="lg:col-span-8 bg-white border border-slate-100 rounded-[28px] p-6 sm:p-8 shadow-sm space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-800">Orders Trend</h3>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Platform volume timeline and print status</p>
-                    </div>
-                    
-                    {/* Time Frame Toggles */}
-                    <div className="flex bg-slate-50 border border-slate-200 rounded-xl p-1 gap-1.5 shadow-inner-sm">
-                      {['Daily', 'Weekly', 'Monthly'].map((mode) => (
-                        <button
-                          key={mode}
-                          onClick={() => addToast(`Switched filter scope to ${mode}`, 'info')}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                            mode === 'Daily' ? 'bg-[#6366F1] text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          {mode}
-                        </button>
-                      ))}
-                    </div>
+                {/* Welcome Card */}
+                <div className="lg:col-span-2 bg-gradient-to-r from-violet-50 via-indigo-50 to-slate-50 border border-slate-100 rounded-[28px] p-8 flex items-center justify-between min-h-[200px] shadow-sm relative overflow-hidden group">
+                  <div className="space-y-4 max-w-md relative z-10">
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                      Welcome back, {adminName}! 👋
+                    </h2>
+                    <p className="text-xs font-black text-violet-600 uppercase tracking-widest">
+                      Welcome to PrintSmart Control Center
+                    </p>
+                    <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                      Monitor your platform performance, manage shops, rewards, AI usage and much more.
+                    </p>
+                    <button 
+                      onClick={() => addToast('Opening detailed analytics summary...', 'info')}
+                      className="bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-sm shadow-violet-600/20 active:scale-98 transition-all duration-300"
+                    >
+                      View Analytics
+                    </button>
                   </div>
 
-                  {/* Orders Wavy Graphic Curve */}
-                  <div className="w-full h-72 bg-slate-50/50 rounded-2xl p-4 border border-slate-100 relative">
-                    <svg viewBox="0 0 500 200" className="w-full h-full">
-                      {/* Grid Y-lines */}
-                      <line x1="40" y1="30" x2="480" y2="30" stroke="#E2E8F0" strokeWidth="0.8" strokeDasharray="3 3" />
-                      <line x1="40" y1="75" x2="480" y2="75" stroke="#E2E8F0" strokeWidth="0.8" strokeDasharray="3 3" />
-                      <line x1="40" y1="120" x2="480" y2="120" stroke="#E2E8F0" strokeWidth="0.8" strokeDasharray="3 3" />
-                      <line x1="40" y1="165" x2="480" y2="165" stroke="#94A3B8" strokeWidth="1.2" />
-
-                      {/* Orders curve line */}
-                      <path
-                        d="M40,150 Q100,90 160,110 T280,60 T400,105 T480,85"
-                        fill="none"
-                        stroke="#6366F1"
-                        strokeWidth="3.5"
-                        strokeLinecap="round"
-                      />
-                      {/* Completed curve line */}
-                      <path
-                        d="M40,160 Q100,110 160,130 T280,80 T400,125 T480,105"
-                        fill="none"
-                        stroke="#10B981"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                      />
-
-                      {/* Wavy Markers */}
-                      {[
-                        { x: 40, label: 'May 12', count: 32 },
-                        { x: 113, label: 'May 13', count: 54 },
-                        { x: 186, label: 'May 14', count: 48 },
-                        { x: 259, label: 'May 15', count: 88 },
-                        { x: 332, label: 'May 16', count: 72 },
-                        { x: 405, label: 'May 17', count: 98 },
-                        { x: 480, label: 'May 18', count: 110 },
-                      ].map((marker, i) => (
-                        <g key={i} className="group/node cursor-pointer">
-                          <circle cx={marker.x} cy="165" r="3" fill="#64748B" />
-                          <text x={marker.x} y="185" textAnchor="middle" fontSize="9" fontWeight="bold" fill="#94A3B8">
-                            {marker.label}
-                          </text>
-                        </g>
-                      ))}
+                  {/* 3D-style abstract graphic SVG */}
+                  <div className="hidden md:block pr-4 relative z-10 transition-transform duration-500 group-hover:scale-105">
+                    <svg viewBox="0 0 200 120" className="w-52 h-auto drop-shadow-md">
+                      <defs>
+                        <linearGradient id="cylinderGrad" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#8B5CF6" />
+                          <stop offset="50%" stopColor="#A78BFA" />
+                          <stop offset="100%" stopColor="#7C3AED" />
+                        </linearGradient>
+                        <linearGradient id="donutGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#C084FC" />
+                          <stop offset="100%" stopColor="#6366F1" />
+                        </linearGradient>
+                      </defs>
+                      <ellipse cx="140" cy="60" rx="32" ry="18" fill="none" stroke="url(#donutGrad)" strokeWidth="8" strokeDasharray="120 40" />
+                      <ellipse cx="140" cy="63" rx="32" ry="18" fill="none" stroke="#4F46E5" strokeWidth="8" strokeDasharray="70 90" opacity="0.3" />
+                      <path d="M30,90 L30,45 A8,4 0 0,1 46,45 L46,90 A8,4 0 0,1 30,90 Z" fill="url(#cylinderGrad)" />
+                      <ellipse cx="38" cy="45" rx="8" ry="4" fill="#C084FC" />
+                      <path d="M60,90 L60,30 A8,4 0 0,1 76,30 L76,90 A8,4 0 0,1 60,90 Z" fill="url(#cylinderGrad)" />
+                      <ellipse cx="68" cy="30" rx="8" ry="4" fill="#C084FC" />
+                      <path d="M90,95 L90,55 A8,4 0 0,1 106,55 L106,95 A8,4 0 0,1 90,95 Z" fill="url(#cylinderGrad)" />
+                      <ellipse cx="98" cy="55" rx="8" ry="4" fill="#C084FC" />
                     </svg>
-
-                    {/* Chart Legends */}
-                    <div className="absolute bottom-4 left-4 flex gap-4 text-[10px] font-bold">
-                      <div className="flex items-center gap-1.5 text-[#6366F1]">
-                        <div className="w-2 h-2 rounded-full bg-[#6366F1]" />
-                        <span>Orders Volume</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[#10B981]">
-                        <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-                        <span>Completed Prints</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
-                {/* Donut Status Breakdown Chart */}
-                <div className="lg:col-span-4 bg-white border border-slate-100 rounded-[28px] p-6 sm:p-8 shadow-sm space-y-6">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-800">Order Status Breakdown</h3>
-                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Summary of platform fulfillments</p>
+                {/* Today's Summary Card */}
+                <div className="bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition duration-300">
+                  <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-3">
+                    <Activity size={16} className="text-violet-600" />
+                    <h3 className="text-xs font-bold text-slate-800">Today's Summary</h3>
                   </div>
 
-                  {/* SVG Donut */}
-                  <div className="flex flex-col items-center space-y-6">
-                    <div className="relative w-36 h-36">
-                      <svg className="w-full h-full transform -rotate-90">
-                        <circle cx="72" cy="72" r="45" fill="transparent" stroke="#F1F5F9" strokeWidth="12" />
-                        {/* Completed segment (approx 81.8% -> stroke-dashoffset = 282 * (1 - 0.818) = 51) */}
-                        <circle 
-                          cx="72" cy="72" r="45" 
-                          fill="transparent" 
-                          stroke="#10B981" 
-                          strokeWidth="12" 
-                          strokeDasharray="282.6"
-                          strokeDashoffset="51.4"
-                        />
-                        {/* Pending segment (approx 13.5% -> dashoffset = 282 * (1 - 0.135) = 244) */}
-                        <circle 
-                          cx="72" cy="72" r="45" 
-                          fill="transparent" 
-                          stroke="#F59E0B" 
-                          strokeWidth="12" 
-                          strokeDasharray="282.6"
-                          strokeDashoffset="244.5"
-                          className="transform rotate-[295deg] origin-[72px_72px]"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Total</span>
-                        <span className="text-2xl font-black text-slate-800">340</span>
-                      </div>
-                    </div>
-
-                    {/* Donut Legend Elements */}
-                    <div className="w-full space-y-2">
-                      {[
-                        { label: 'Completed', count: 278, percent: '81.8%', color: 'bg-emerald-500' },
-                        { label: 'Pending', count: 46, percent: '13.5%', color: 'bg-amber-500' },
-                        { label: 'Cancelled', count: 16, percent: '4.7%', color: 'bg-rose-500' },
-                      ].map((leg) => (
-                        <div key={leg.label} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-bold text-slate-700">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2.5 h-2.5 rounded-full ${leg.color}`} />
-                            <span>{leg.label}</span>
-                          </div>
-                          <span className="text-slate-800 font-black">{leg.count} ({leg.percent})</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { label: 'Active Shops', val: '842', color: 'text-emerald-600 bg-emerald-50' },
+                      { label: 'Orders', val: '1,284', color: 'text-blue-600 bg-blue-50' },
+                      { label: 'AI Jobs', val: '381', color: 'text-violet-600 bg-violet-50' },
+                      { label: 'Revenue', val: '₹42,580', color: 'text-pink-600 bg-pink-50' }
+                    ].map((item, idx) => (
+                      <div key={idx} className="space-y-1">
+                        <span className="text-[10px] text-slate-400 font-bold block">{item.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-1.5 h-1.5 rounded-full ${item.color.replace('bg-', 'bg-')}`} />
+                          <span className="text-sm font-black text-slate-800">{item.val}</span>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
+
               </div>
 
-              {/* GRID ROW 2: SHOP PERFORMANCE + RECENT PLATFORM ALERTS */}
+              {/* TOP KPI STRIP (8 metric cards) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+                {[
+                  {
+                    title: 'Total Shops',
+                    value: stats?.totalShopkeepers ? stats.totalShopkeepers.toString() : '1,284',
+                    icon: Store,
+                    trend: '↗ 12.4%',
+                    trendText: 'vs last month',
+                    trendUp: true,
+                    color: 'text-purple-600 bg-purple-50'
+                  },
+                  {
+                    title: 'Active Shops',
+                    value: '842',
+                    icon: Activity,
+                    trend: '↗ 8.7%',
+                    trendText: 'vs yesterday',
+                    trendUp: true,
+                    color: 'text-emerald-600 bg-emerald-50'
+                  },
+                  {
+                    title: 'Total Orders',
+                    value: stats?.totalOrders ? stats.totalOrders.toLocaleString() : '52,821',
+                    icon: ShoppingCart,
+                    trend: '↗ 18.6%',
+                    trendText: 'vs last month',
+                    trendUp: true,
+                    color: 'text-blue-600 bg-blue-50'
+                  },
+                  {
+                    title: 'Monthly Rev',
+                    value: stats?.revenue ? `₹${((stats.revenue * 30) / 100000).toFixed(1)}L` : '₹4.8L',
+                    icon: DollarSign,
+                    trend: '↗ 15.2%',
+                    trendText: 'vs last month',
+                    trendUp: true,
+                    color: 'text-pink-600 bg-pink-50'
+                  },
+                  {
+                    title: 'Rewards Gen',
+                    value: stats?.scratchCardsGenerated ? stats.scratchCardsGenerated.toLocaleString() : '92,821',
+                    icon: Gift,
+                    trend: '↗ 14.3%',
+                    trendText: 'vs last month',
+                    trendUp: true,
+                    color: 'text-orange-600 bg-orange-50'
+                  },
+                  {
+                    title: 'AI Gen Runs',
+                    value: '2,481',
+                    icon: Sparkles,
+                    trend: '↗ 24.7%',
+                    trendText: 'vs last month',
+                    trendUp: true,
+                    color: 'text-indigo-600 bg-indigo-50'
+                  },
+                  {
+                    title: 'Open Tickets',
+                    value: feedbackList.filter(f => f.status === 'OPEN').length.toString() || '8',
+                    icon: MessageSquare,
+                    trend: '↘ 2',
+                    trendText: 'vs yesterday',
+                    trendUp: false,
+                    color: 'text-rose-600 bg-rose-50'
+                  },
+                  {
+                    title: 'Alerts',
+                    value: '4',
+                    icon: AlertTriangle,
+                    trend: 'Attention',
+                    trendText: 'Needs review',
+                    trendUp: false,
+                    color: 'text-amber-600 bg-amber-50'
+                  }
+                ].map((kpi, idx) => (
+                  <div 
+                    key={idx} 
+                    className="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-28"
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block truncate max-w-[80px]">{kpi.title}</span>
+                      <div className={`p-1.5 rounded-lg ${kpi.color}`}>
+                        <kpi.icon size={12} />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-800 tracking-tight">{kpi.value}</h4>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className={`text-[8px] font-black ${kpi.trend === 'Attention' ? 'text-rose-600' : kpi.trendUp ? 'text-emerald-600' : 'text-rose-500'}`}>
+                          {kpi.trend}
+                        </span>
+                        <span className="text-[7px] text-slate-400 font-bold block truncate max-w-[50px]">{kpi.trendText}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* MIDDLE SECTION: GRAPH & LIVE ACTIVITY FEED */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
-                {/* Shop Performance Table */}
-                <div className="lg:col-span-6 bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm space-y-6">
-                  <div className="flex items-center justify-between">
+                {/* Platform Growth Chart */}
+                <div className="lg:col-span-8">
+                  <PlatformGrowthChart apiUrl={apiUrl} />
+                </div>
+
+                {/* Live Activity Feed */}
+                <div className="lg:col-span-4 bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm flex flex-col justify-between min-h-[380px] hover:shadow-md transition duration-300">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-800">Live Activity</h3>
+                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Real-time platform action timeline</p>
+                    </div>
+                    <button 
+                      onClick={() => addToast('Displaying complete system activities...', 'info')}
+                      className="text-violet-600 text-xs font-bold hover:underline"
+                    >
+                      View All
+                    </button>
+                  </div>
+
+                  <div className="flex-1 space-y-4 overflow-y-auto max-h-[280px] pr-1.5">
+                    {[
+                      { text: 'New shop "Shree Graphics" joined', time: '2 mins ago', color: 'border-emerald-500 bg-emerald-50 text-emerald-600', icon: PlusCircle },
+                      { text: 'AI Poster generated by Ganesh Xerox', time: '5 mins ago', color: 'border-violet-500 bg-violet-50 text-violet-600', icon: Sparkles },
+                      { text: 'Reward scratched by Customer (₹50 OFF)', time: '8 mins ago', color: 'border-amber-500 bg-amber-50 text-amber-600', icon: Gift },
+                      { text: 'Subscription activated by Modern Prints', time: '15 mins ago', color: 'border-blue-500 bg-blue-50 text-blue-600', icon: CheckCircle2 },
+                      { text: 'Support ticket created by Smart Print Hub', time: '20 mins ago', color: 'border-rose-500 bg-rose-50 text-rose-600', icon: HelpCircle },
+                      { text: 'Coupon generated for 50% OFF', time: '25 mins ago', color: 'border-pink-500 bg-pink-50 text-pink-600', icon: Tag }
+                    ].map((act, i) => (
+                      <div key={i} className="flex gap-3 text-xs leading-normal">
+                        <div className={`w-8 h-8 rounded-full border flex items-center justify-center flex-shrink-0 mt-0.5 ${act.color.split(' ')[0]} ${act.color.split(' ')[1]}`}>
+                          <act.icon size={14} className={act.color.split(' ')[2]} />
+                        </div>
+                        <div className="flex-1 space-y-0.5">
+                          <p className="font-bold text-slate-700">{act.text}</p>
+                          <span className="block text-[9px] text-slate-400 font-extrabold">{act.time}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* BOTTOM SECTION: DEEP DIVES */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                
+                {/* Top Performing Shops */}
+                <div className="lg:col-span-5 bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition duration-300">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div>
                       <h3 className="text-base font-bold text-slate-800">Top Performing Shops</h3>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Highest generating stores by revenue</p>
+                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Highest order volume generators</p>
                     </div>
                     <button 
-                      onClick={() => setActiveTab('shops')} 
-                      className="text-[#6366F1] text-xs font-bold hover:underline"
+                      onClick={() => setActiveTab('shops')}
+                      className="text-violet-600 text-xs font-bold hover:underline"
                     >
                       View All
                     </button>
                   </div>
 
-                  <div className="space-y-4.5">
-                    {[
-                      { name: 'Yash Digital Prints', orders: 62, revenue: '₹4,520.00', percent: 'w-full bg-indigo-500' },
-                      { name: 'Creative Print Hub', orders: 48, revenue: '₹3,180.00', percent: 'w-[78%] bg-purple-500' },
-                      { name: 'Smart Xerox Center', orders: 37, revenue: '₹2,610.00', percent: 'w-[62%] bg-violet-500' },
-                      { name: 'Print Point', orders: 29, revenue: '₹1,980.00', percent: 'w-[48%] bg-pink-500' },
-                      { name: 'Quick Print Shop', orders: 24, revenue: '₹1,450.00', percent: 'w-[38%] bg-rose-500' },
-                    ].map((shop, i) => (
-                      <div key={i} className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-slate-50/50 hover:bg-slate-50 border border-slate-100/50 transition">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs font-bold text-slate-800 truncate">{shop.name}</span>
-                            <span className="text-xs font-black text-slate-900">{shop.revenue}</span>
-                          </div>
-                          {/* Linear meter scale bar */}
-                          <div className="w-full h-1.5 bg-slate-200/60 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${shop.percent}`} />
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="block text-xs font-black text-slate-700">{shop.orders}</span>
-                          <span className="text-[9px] text-slate-400 font-extrabold uppercase">Orders</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Urgent Alerts panel */}
-                <div className="lg:col-span-6 bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-800">Urgent Alerts Panel</h3>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Critical system events needing review</p>
-                    </div>
-                    <span className="px-2.5 py-1 text-[9px] font-bold bg-rose-50 text-rose-600 rounded-lg">Real-time</span>
-                  </div>
-
-                  <div className="space-y-3.5 max-h-[340px] overflow-y-auto pr-1">
-                    {urgentAlerts.map((alt) => (
-                      <div key={alt.id} className={`p-4.5 rounded-2xl border flex items-start gap-3 shadow-inner-sm transition ${
-                        alt.type === 'critical' 
-                          ? 'bg-rose-50/40 border-rose-100 text-rose-950' 
-                          : alt.type === 'warning' 
-                            ? 'bg-amber-50/40 border-amber-100 text-amber-950' 
-                            : 'bg-blue-50/40 border-blue-100 text-blue-950'
-                      }`}>
-                        <div className={`p-1.5 rounded-lg flex-shrink-0 mt-0.5 ${
-                          alt.type === 'critical' ? 'text-rose-600 bg-rose-100/50' : alt.type === 'warning' ? 'text-amber-600 bg-amber-100/50' : 'text-blue-600 bg-blue-100/50'
-                        }`}>
-                          <AlertTriangle size={14} />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <p className="text-xs font-bold leading-normal">{alt.text}</p>
-                          <span className="block text-[9px] font-extrabold text-slate-400">{alt.time}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* GRID ROW 3: RECENT ORDERS TABLE & QUICK ACTIONS */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                
-                {/* Recent Orders Table */}
-                <div className="lg:col-span-8 bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-800">Recent Platform Orders</h3>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Real-time flow of shop transactions</p>
-                    </div>
-                    <button 
-                      onClick={() => setActiveTab('orders')} 
-                      className="text-[#6366F1] text-xs font-bold hover:underline"
-                    >
-                      View All
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto no-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[500px]">
+                  <div className="overflow-x-auto no-scrollbar flex-1 py-2">
+                    <table className="w-full text-left border-collapse min-w-[340px]">
                       <thead>
-                        <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-widest text-[9px] font-black">
-                          <th className="pb-3">Order ID</th>
-                          <th className="pb-3">Shop Name</th>
-                          <th className="pb-3">Total Amount</th>
-                          <th className="pb-3">Print Status</th>
+                        <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-widest text-[8px] font-black">
+                          <th className="pb-2">Shop Name</th>
+                          <th className="pb-2 text-right">Orders</th>
+                          <th className="pb-2 text-right">Revenue</th>
+                          <th className="pb-2 text-right">Rewards</th>
+                          <th className="pb-2 text-center">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="text-xs font-semibold text-slate-700">
-                        {recentOrders.length > 0 ? recentOrders.slice(0, 5).map((order) => (
-                          <tr key={order.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
-                            <td className="py-3.5 font-bold text-slate-800">{order.orderId || order.id.substring(0, 8)}</td>
-                            <td className="py-3.5 flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-black shadow-sm">
-                                {order.shopkeeper?.shopName?.charAt(0) || 'S'}
-                              </div>
-                              <span className="font-bold text-slate-800">{order.shopkeeper?.shopName || 'Unknown Shop'}</span>
+                      <tbody className="text-[10px] font-bold text-slate-600">
+                        {(shops.length > 0 ? shops : [
+                          { shopName: 'Ganesh Xerox', address: 'Pune', totalOrders: 412, totalEarnings: 8200, isOnboarded: true },
+                          { shopName: 'Smart Prints', address: 'Mumbai', totalOrders: 382, totalEarnings: 7800, isOnboarded: true },
+                          { shopName: 'Modern Graphics', address: 'Nagpur', totalOrders: 298, totalEarnings: 5600, isOnboarded: true },
+                          { shopName: 'Fast Copy Center', address: 'Nashik', totalOrders: 243, totalEarnings: 4300, isOnboarded: true }
+                        ]).slice(0, 4).map((shop, i) => (
+                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
+                            <td className="py-2.5">
+                              <span className="block font-black text-slate-800 leading-tight">{shop.shopName}</span>
+                              <span className="text-[8px] text-slate-400 font-semibold block">{shop.address?.split(',')[0] || 'Maharashtra'}</span>
                             </td>
-                            <td className="py-3.5 font-bold text-slate-900">₹{order.totalAmount}</td>
-                            <td className="py-3.5">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                order.status === 'COMPLETED' 
-                                  ? 'bg-green-50 text-green-700 border-green-200' 
-                                  : order.status === 'PENDING'
-                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                    : 'bg-blue-50 text-blue-700 border-blue-200'
-                              }`}>
-                                {order.status}
+                            <td className="py-2.5 text-right font-black">{shop.totalOrders || 24}</td>
+                            <td className="py-2.5 text-right font-black text-slate-800">₹{(shop.totalEarnings || 240).toLocaleString()}</td>
+                            <td className="py-2.5 text-right text-slate-400">{Math.floor((shop.totalOrders || 24) * 0.15) || 5}</td>
+                            <td className="py-2.5 text-center">
+                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 text-[8px] font-black rounded-md">
+                                Active
                               </span>
                             </td>
                           </tr>
-                        )) : (
-                          <tr>
-                            <td colSpan="4" className="py-8 text-center text-slate-400 font-bold">No recent orders recorded.</td>
-                          </tr>
-                        )}
+                        ))}
                       </tbody>
                     </table>
                   </div>
                 </div>
 
-                {/* Quick Actions Panel */}
-                <div className="lg:col-span-4 bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm space-y-6">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-800">Quick Actions</h3>
-                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Instant platform administrative actions</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <button 
-                      onClick={() => { setActiveTab('shops'); setShopFilter('PENDING'); addToast('Filter pending shops active!', 'info') }}
-                      className="p-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100/50 hover:border-indigo-200 text-left transition relative overflow-hidden group active:scale-98"
-                    >
-                      <PlusCircle className="text-indigo-500 mb-2 group-hover:scale-105 transition" size={20} />
-                      <span className="block text-xs font-black">Add New Shop</span>
-                      <span className="text-[9px] text-slate-400 font-bold mt-1 block">Review applications</span>
-                    </button>
-
-                    <button 
-                      onClick={() => { setActiveTab('coupons'); addToast('Loading Coupons & Rewards setup...', 'info') }}
-                      className="p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-100/50 hover:border-emerald-200 text-left transition relative overflow-hidden group active:scale-98"
-                    >
-                      <Tag className="text-emerald-500 mb-2 group-hover:scale-105 transition" size={20} />
-                      <span className="block text-xs font-black">Create Coupon</span>
-                      <span className="text-[9px] text-slate-400 font-bold mt-1 block">Create public scratch card</span>
-                    </button>
-
-                    <button 
-                      onClick={() => setActiveTab('orders')}
-                      className="p-4 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-100/50 hover:border-purple-200 text-left transition relative overflow-hidden group active:scale-98"
-                    >
-                      <ShoppingCart className="text-purple-500 mb-2 group-hover:scale-105 transition" size={20} />
-                      <span className="block text-xs font-black">View Orders</span>
-                      <span className="text-[9px] text-slate-400 font-bold mt-1 block">Platform transactions</span>
-                    </button>
-
-                    <button 
-                      onClick={() => addToast('Administrative system notification sent to all stores!', 'success')}
-                      className="p-4 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-100/50 hover:border-amber-200 text-left transition relative overflow-hidden group active:scale-98"
-                    >
-                      <Bell className="text-amber-500 mb-2 group-hover:scale-105 transition" size={20} />
-                      <span className="block text-xs font-black">Send Alert</span>
-                      <span className="text-[9px] text-slate-400 font-bold mt-1 block">Broadcast notices</span>
-                    </button>
-                  </div>
+                {/* Rewards Donut Chart */}
+                <div className="lg:col-span-4">
+                  <RewardsAnalyticsChart 
+                    totalRewards={stats?.scratchCardsGenerated || 92821} 
+                    rewardCost={stats?.couponsRedeemed ? (stats.couponsRedeemed * 10) : 2140} 
+                  />
                 </div>
+
+                {/* AI Progress Overview */}
+                <div className="lg:col-span-3">
+                  <AIUsageOverview stats={stats} />
+                </div>
+
+              </div>
+
+              {/* FOOTER SECTION: IMPORTANT ALERTS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                
+                {/* Alerts Card 1 */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between min-h-[140px]">
+                  <div className="space-y-2">
+                    <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg w-fit"><AlertTriangle size={14} /></div>
+                    <h4 className="text-xs font-black text-slate-800">Subscription Expiring</h4>
+                    <p className="text-[10px] text-slate-400 font-bold leading-normal">12 shops subscription expiring in 3 days</p>
+                  </div>
+                  <button 
+                    onClick={() => { setActiveTab('shops'); addToast('Showing shops list...', 'info') }}
+                    className="text-[#6366F1] hover:text-[#4F46E5] text-[9px] font-black flex items-center gap-1 mt-3"
+                  >
+                    <span>View Shops</span>
+                    <ArrowRight size={10} />
+                  </button>
+                </div>
+
+                {/* Alerts Card 2 */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between min-h-[140px]">
+                  <div className="space-y-2">
+                    <div className="p-1.5 bg-violet-50 text-violet-600 rounded-lg w-fit"><Cpu size={14} /></div>
+                    <h4 className="text-xs font-black text-slate-800">AI API Usage High</h4>
+                    <p className="text-[10px] text-slate-400 font-bold leading-normal">AI generations limit reaching 80% of node limits</p>
+                  </div>
+                  <button 
+                    onClick={() => { setActiveTab('ai'); addToast('Loading AI settings details...', 'info') }}
+                    className="text-[#6366F1] hover:text-[#4F46E5] text-[9px] font-black flex items-center gap-1 mt-3"
+                  >
+                    <span>View Details</span>
+                    <ArrowRight size={10} />
+                  </button>
+                </div>
+
+                {/* Alerts Card 3 */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between min-h-[140px]">
+                  <div className="space-y-2">
+                    <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg w-fit"><HelpCircle size={14} /></div>
+                    <h4 className="text-xs font-black text-slate-800">Support Tickets Pending</h4>
+                    <p className="text-[10px] text-slate-400 font-bold leading-normal">8 tickets waiting for platform admin response</p>
+                  </div>
+                  <button 
+                    onClick={() => { setActiveTab('support'); addToast('Loading support ticket dashboard...', 'info') }}
+                    className="text-[#6366F1] hover:text-[#4F46E5] text-[9px] font-black flex items-center gap-1 mt-3"
+                  >
+                    <span>View Tickets</span>
+                    <ArrowRight size={10} />
+                  </button>
+                </div>
+
+                {/* Alerts Card 4 */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between min-h-[140px]">
+                  <div className="space-y-2">
+                    <div className="p-1.5 bg-pink-50 text-pink-600 rounded-lg w-fit"><DollarSign size={14} /></div>
+                    <h4 className="text-xs font-black text-slate-800">Revenue Collection Pending</h4>
+                    <p className="text-[10px] text-slate-400 font-bold leading-normal">₹12,450 payment pending invoice claims from 7 shops</p>
+                  </div>
+                  <button 
+                    onClick={() => { setActiveTab('revenue'); addToast('Opening revenue and invoicing claims...', 'info') }}
+                    className="text-[#6366F1] hover:text-[#4F46E5] text-[9px] font-black flex items-center gap-1 mt-3"
+                  >
+                    <span>View Payments</span>
+                    <ArrowRight size={10} />
+                  </button>
+                </div>
+
+                {/* Grow Your Platform Promotional Card */}
+                <div className="bg-gradient-to-br from-violet-600 to-indigo-700 text-white rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col justify-between min-h-[140px] hover:brightness-[1.02] transition-all">
+                  <div className="space-y-1.5 relative z-10">
+                    <h4 className="text-xs font-black">Grow Your Platform</h4>
+                    <p className="text-[9px] text-indigo-100 font-semibold leading-normal">Unlock premium tools and detailed diagnostics.</p>
+                  </div>
+                  
+                  {/* Floating rocket graphic */}
+                  <div className="absolute right-1 bottom-1 w-20 h-20 opacity-20 pointer-events-none select-none">
+                    <svg viewBox="0 0 24 24" className="w-full h-full text-white">
+                      <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18Z" />
+                    </svg>
+                  </div>
+
+                  <button 
+                    onClick={() => addToast('PrintSmart premium package options loaded.', 'success')}
+                    className="bg-white hover:bg-slate-50 text-indigo-700 px-3.5 py-2 rounded-xl font-bold text-[9px] tracking-wide shadow-md active:scale-98 transition relative z-10 w-fit mt-3"
+                  >
+                    Upgrade Now
+                  </button>
+                </div>
+
               </div>
 
             </div>
@@ -1086,127 +1166,513 @@ export default function AdminDashboardPage() {
           {/* PANEL B: SHOPS LIST PAGE */}
           {/* ---------------------------------------------------- */}
           {activeTab === 'shops' && (
-            <div className="space-y-8 animate-fadeIn">
+            <div className="space-y-8 animate-fadeIn text-slate-700">
               
-              {/* Filter Tabs & Search query summary */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 border border-slate-100 rounded-3xl shadow-sm">
-                <div className="flex bg-slate-50 border border-slate-200 rounded-xl p-1 gap-1 shadow-inner-sm w-fit">
-                  {[
-                    { id: 'ALL', label: 'All Shops' },
-                    { id: 'APPROVED', label: 'Approved Only' },
-                    { id: 'PENDING', label: 'Pending Approval' }
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      onClick={() => setShopFilter(f.id)}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
-                        shopFilter === f.id ? 'bg-[#6366F1] text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
+              {/* TITLE BAR SECTION */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-black text-slate-800 tracking-tight">Shop Management</h1>
+                  <p className="text-xs font-bold text-slate-400 mt-1">
+                    Manage and monitor all shop partners on PrintSmart platform
+                  </p>
                 </div>
-
+                
                 <div className="flex items-center gap-3">
-                  <button
+                  <button 
                     onClick={() => { setEditingShop(null); setIsShopModalOpen(true) }}
-                    className="px-4 py-2 bg-[#6366F1] text-white font-bold rounded-xl text-xs hover:brightness-105 transition"
+                    className="bg-violet-600 hover:bg-violet-700 text-white px-4.5 py-2.5 rounded-xl font-bold text-xs shadow-sm shadow-violet-600/20 active:scale-98 transition flex items-center gap-1.5"
                   >
-                    + Add New Shop
+                    <span>+ Add Shop</span>
                   </button>
-                  <div className="text-xs font-bold text-slate-400">
-                    Showing {filteredShopsList.length} total stores
-                  </div>
+                  <button 
+                    onClick={() => addToast('Exporting shops CSV list...', 'success')}
+                    className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5"
+                  >
+                    <Share size={13} />
+                    <span>Export</span>
+                  </button>
+                  <button 
+                    onClick={() => addToast('Broadcast announcement prompt...', 'info')}
+                    className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5"
+                  >
+                    <Bell size={13} />
+                    <span>Send Announcement</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Shops Grid */}
-              {usersShopsLoading ? (
-                <div className="h-64 flex items-center justify-center bg-white rounded-3xl border border-slate-100">
-                  <div className="w-12 h-12 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
+              {/* KPI STRIP ROW (5 Metrics cards) */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {[
+                  {
+                    title: 'Total Shops',
+                    value: shops.length.toString(),
+                    trend: '↗ 12.4% vs last month',
+                    color: 'text-purple-600 bg-purple-50'
+                  },
+                  {
+                    title: 'Active Shops',
+                    value: shops.filter(s => s.isOnboarded).length.toString(),
+                    trend: '↗ 8.7% vs yesterday',
+                    color: 'text-emerald-600 bg-emerald-50'
+                  },
+                  {
+                    title: 'New Shops (This Month)',
+                    value: '52',
+                    trend: '↗ 18.6% vs last month',
+                    color: 'text-blue-600 bg-blue-50'
+                  },
+                  {
+                    title: 'Premium Shops',
+                    value: shops.filter(s => s.totalOrders >= 40 || s.totalEarnings > 5000).length.toString(),
+                    trend: '↗ 15.2% vs last month',
+                    color: 'text-amber-600 bg-amber-50'
+                  },
+                  {
+                    title: 'Inactive Shops',
+                    value: shops.filter(s => !s.isOnboarded).length.toString(),
+                    trend: '↘ 4.3% vs last month',
+                    trendUp: false,
+                    color: 'text-rose-600 bg-rose-50'
+                  }
+                ].map((kpi, idx) => (
+                  <div key={idx} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col justify-between h-24">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block truncate">{kpi.title}</span>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <span className="text-xl font-black text-slate-800">{kpi.value}</span>
+                      <span className={`text-[8px] font-black ${kpi.trendUp === false ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {kpi.trend.split(' ')[0]} {kpi.trend.split(' ')[1]}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* DUAL COLUMNS SIDE-BY-SIDE */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                {/* Left side: Shops Table list */}
+                <div className="lg:col-span-8 bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm space-y-6">
+                  
+                  {/* Search and drop-down filters row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                    
+                    {/* Search query box */}
+                    <div className="sm:col-span-4 relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input 
+                        type="text" 
+                        placeholder="Search name, city or Shop ID..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:bg-white transition"
+                      />
+                    </div>
+
+                    {/* Filter Status */}
+                    <div className="sm:col-span-2">
+                      <select 
+                        value={shopStatusFilter} 
+                        onChange={(e) => setShopStatusFilter(e.target.value)}
+                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none"
+                      >
+                        <option value="ALL">Status: All</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                      </select>
+                    </div>
+
+                    {/* Filter Plan */}
+                    <div className="sm:col-span-2">
+                      <select 
+                        value={shopPlanFilter} 
+                        onChange={(e) => setShopPlanFilter(e.target.value)}
+                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none"
+                      >
+                        <option value="ALL">Plan: All</option>
+                        <option value="FREE">Free</option>
+                        <option value="PREMIUM">Premium</option>
+                      </select>
+                    </div>
+
+                    {/* Filter City */}
+                    <div className="sm:col-span-2">
+                      <select 
+                        value={shopCityFilter} 
+                        onChange={(e) => setShopCityFilter(e.target.value)}
+                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none"
+                      >
+                        <option value="ALL">City: All</option>
+                        {Array.from(new Set(shops.map(s => (s.address || '').split(',')[0].trim()).filter(Boolean))).map(city => (
+                          <option key={city} value={city}>{city}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Filter Join Date */}
+                    <div className="sm:col-span-2">
+                      <select 
+                        value={shopJoinFilter} 
+                        onChange={(e) => setShopJoinFilter(e.target.value)}
+                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none"
+                      >
+                        <option value="ALL">Join Date: All</option>
+                        <option value="TODAY">Joined Today</option>
+                        <option value="WEEK">Last 7 Days</option>
+                        <option value="MONTH">Last 30 Days</option>
+                      </select>
+                    </div>
+
+                  </div>
+
+                  {/* Dynamic Table list */}
+                  <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left border-collapse min-w-[600px]">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-widest text-[9px] font-black">
+                          <th className="pb-3.5 pl-2"><input type="checkbox" className="rounded border-slate-300" /></th>
+                          <th className="pb-3.5">Shop Details</th>
+                          <th className="pb-3.5">State</th>
+                          <th className="pb-3.5 text-right">Orders</th>
+                          <th className="pb-3.5 text-right">Revenue</th>
+                          <th className="pb-3.5 text-center">Plan</th>
+                          <th className="pb-3.5 text-center">Status</th>
+                          <th className="pb-3.5 text-center">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-xs font-semibold text-slate-700">
+                        {usersShopsLoading ? (
+                          <tr>
+                            <td colSpan="8" className="py-12 text-center text-slate-400 font-bold">Loading shop entries...</td>
+                          </tr>
+                        ) : filteredShopsList.length > 0 ? filteredShopsList.map((shop) => {
+                          const isPremium = shop.totalOrders >= 40 || shop.totalEarnings > 5000;
+                          const isSelected = selectedShopId === shop.id || (!selectedShopId && filteredShopsList[0]?.id === shop.id);
+                          return (
+                            <tr 
+                              key={shop.id} 
+                              onClick={() => setSelectedShopId(shop.id)}
+                              className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer ${
+                                isSelected ? 'bg-violet-50/40 hover:bg-violet-50/50' : ''
+                              }`}
+                            >
+                              <td className="py-4.5 pl-2" onClick={(e) => e.stopPropagation()}>
+                                <input type="checkbox" className="rounded border-slate-300" />
+                              </td>
+                              <td className="py-4.5 flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-black shadow-inner-sm">
+                                  {shop.shopName.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div>
+                                  <span className="block font-black text-slate-800 leading-tight">{shop.shopName}</span>
+                                  <span className="text-[10px] text-slate-400 font-bold block">{shop.ownerName || 'Unknown Owner'}</span>
+                                </div>
+                              </td>
+                              <td className="py-4.5 text-slate-500 font-semibold">
+                                {((shop.address || '').split(',')[1]?.trim() || 'Maharashtra').toLowerCase().includes('maharashtra') ? 'maharashtra' : ((shop.address || '').split(',')[1]?.trim() || 'Mahar.')}
+                              </td>
+                              <td className="py-4.5 text-right font-black text-slate-800">{shop.totalOrders}</td>
+                              <td className="py-4.5 text-right font-black text-slate-900">₹{shop.totalEarnings.toLocaleString()}</td>
+                              <td className="py-4.5 text-center">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
+                                  isPremium ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {isPremium ? 'Premium' : 'Free'}
+                                </span>
+                              </td>
+                              <td className="py-4.5 text-center">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
+                                  shop.isOnboarded ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                                }`}>
+                                  {shop.isOnboarded ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                              <td className="py-4.5" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-center gap-2 text-slate-400">
+                                  <button onClick={() => setSelectedShopId(shop.id)} className="p-1 hover:text-violet-600 transition" title="View details"><Eye size={13} /></button>
+                                  <button onClick={() => { setEditingShop(shop); setIsShopModalOpen(true) }} className="p-1 hover:text-blue-600 transition" title="Edit"><Pencil size={13} /></button>
+                                  <button onClick={() => addToast(`Opening chat support window for ${shop.shopName}...`, 'info')} className="p-1 hover:text-emerald-600 transition" title="Chat"><MessageCircle size={13} /></button>
+                                  <button onClick={() => handleDeleteShop(shop.id)} className="p-1 hover:text-rose-600 transition" title="Delete"><Trash size={13} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }) : (
+                          <tr>
+                            <td colSpan="8" className="py-12 text-center text-slate-400 font-bold">No shops recorded in database.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination widget */}
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-4 text-xs font-bold text-slate-400">
+                    <span>Showing 1 to {filteredShopsList.length} of {shops.length} shops</span>
+                    
+                    <div className="flex items-center bg-slate-50 border border-slate-200/50 rounded-xl p-1 gap-1">
+                      <button className="px-2.5 py-1 text-slate-400 hover:text-slate-700 text-[10px]">‹</button>
+                      <button className="px-2.5 py-1 bg-violet-600 text-white rounded-lg shadow-sm text-[10px]">1</button>
+                      <button className="px-2.5 py-1 hover:text-slate-700 text-[10px]">›</button>
+                    </div>
+                  </div>
+
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {filteredShopsList.length > 0 ? filteredShopsList.map((shop) => (
-                    <div key={shop.id} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1.5 flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-base font-black text-slate-800 truncate">{shop.shopName}</h3>
-                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] font-bold rounded-md">Pro Store</span>
+
+                {/* Right side: Detailed Shop Panel card */}
+                <div className="lg:col-span-4 bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm space-y-6 hover:shadow-md transition duration-300">
+                  {(() => {
+                    const shop = shops.find(s => s.id === selectedShopId) || filteredShopsList[0] || null;
+                    if (!shop) {
+                      return (
+                        <div className="h-64 flex flex-col items-center justify-center text-slate-400 font-bold space-y-2">
+                          <Store size={32} className="text-slate-300" />
+                          <p>No shop selected</p>
+                        </div>
+                      )
+                    }
+
+                    const isPremium = shop.totalOrders >= 40 || shop.totalEarnings > 5000;
+                    return (
+                      <div className="space-y-6">
+                        {/* Selected Header */}
+                        <div className="flex items-start justify-between relative border-b border-slate-100 pb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center text-base font-black shadow-inner-sm">
+                              {shop.shopName.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div className="space-y-0.5">
+                              <h3 className="text-sm font-black text-slate-800">{shop.shopName}</h3>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`w-2 h-2 rounded-full ${shop.isOnboarded ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                <span className="text-[10px] text-slate-400 font-bold">{shop.isOnboarded ? 'Active' : 'Inactive'}</span>
+                              </div>
+                              <span className="text-[9px] font-mono text-slate-400 block">ID: PS-{shop.shopkeeperIdCode || shop.id.substring(0, 5)}</span>
+                            </div>
                           </div>
-                          <p className="text-xs text-slate-400 font-bold">Owner: {shop.ownerName || 'N/A'}</p>
-                          <div className="flex flex-col gap-1 text-[10px] text-slate-500 font-semibold pt-1">
-                            <span className="flex items-center gap-1.5 truncate"><Mail size={12} className="text-slate-400" /> {shop.email}</span>
-                            <span className="flex items-center gap-1.5"><Phone size={12} className="text-slate-400" /> {shop.phone}</span>
-                            {shop.upiId && <span className="flex items-center gap-1.5 font-mono text-[9px] text-[#6366F1]">UPI: {shop.upiId}</span>}
+                          <button onClick={() => setSelectedShopId(null)} className="text-slate-300 hover:text-slate-500 font-bold text-sm">✕</button>
+                        </div>
+
+                        {/* Plan and Verified badges */}
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-1 text-[9px] font-black rounded-lg ${
+                            isPremium ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {isPremium ? 'Premium Plan' : 'Free Plan'}
+                          </span>
+                          <span className="px-2.5 py-1 text-[9px] font-black bg-emerald-50 text-emerald-700 rounded-lg flex items-center gap-1">
+                            <CheckCircle2 size={10} className="fill-emerald-100" />
+                            <span>Verified</span>
+                          </span>
+                        </div>
+
+                        {/* OWNER DETAILS Section */}
+                        <div className="space-y-3">
+                          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Owner Details</h4>
+                          
+                          <div className="space-y-2 text-xs font-semibold text-slate-600">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Owner Name</span>
+                              <span className="text-slate-800 font-black">{shop.ownerName || 'N/A'}</span>
+                            </div>
+                            
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-400">Phone Number</span>
+                              <div className="flex items-center gap-1.5 text-slate-800 font-black">
+                                <span>{shop.phone}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Email</span>
+                              <span className="text-slate-800 font-black truncate max-w-[150px]">{shop.email}</span>
+                            </div>
+
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">City</span>
+                              <span className="text-slate-800 font-black">{(shop.address || 'Maharashtra').split(',')[0]}</span>
+                            </div>
+
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Joined On</span>
+                              <span className="text-slate-800 font-black">
+                                {new Date(shop.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Status Check badge */}
-                        <div className={`px-2.5 py-1 text-[9px] font-bold rounded-lg border ${
-                          shop.isOnboarded 
-                             ? 'bg-green-50 text-green-700 border-green-100' 
-                             : 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse'
-                        }`}>
-                          {shop.isOnboarded ? 'Operational' : 'Pending Review'}
+                        {/* PERFORMANCE OVERVIEW Section */}
+                        <div className="space-y-3 pt-3 border-t border-slate-100">
+                          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Performance Overview</h4>
+                          
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                              <span className="text-[14px] font-black text-slate-800 block leading-tight">{shop.totalOrders}</span>
+                              <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">Total Orders</span>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                              <span className="text-[14px] font-black text-slate-800 block leading-tight">₹{shop.totalEarnings}</span>
+                              <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">Total Rev</span>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                              <span className="text-[14px] font-black text-slate-800 block leading-tight">
+                                {Math.floor(shop.totalOrders * 0.15) || 5}
+                              </span>
+                              <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">Rewards Given</span>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                              <span className="text-[14px] font-black text-slate-800 block leading-tight">
+                                {Math.floor(shop.totalOrders * 0.08) || 3}
+                              </span>
+                              <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">AI runs</span>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                              <span className="text-[14px] font-black text-slate-800 block leading-tight">98%</span>
+                              <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">Comp. Rate</span>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                              <span className="text-[14px] font-black text-slate-800 block leading-tight">4.8 ★</span>
+                              <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">Rating</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Earnings & Orders Metrics row */}
-                      <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                        <div>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">Total Orders</span>
-                          <p className="text-sm font-black text-slate-800 mt-0.5">{shop.totalOrders || 0}</p>
-                        </div>
-                        <div>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">Total Earnings</span>
-                          <p className="text-sm font-black text-emerald-600 mt-0.5">₹{(shop.totalEarnings || 0).toLocaleString()}</p>
-                        </div>
                       </div>
+                    )
+                  })()}
+                </div>
 
-                      {/* Administrative toggle controls */}
-                      <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                          <span>{shop.isOnboarded ? 'Active Access' : 'Restrict Access'}</span>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={shop.isOnboarded} 
-                              onChange={() => {
-                                toggleOnboarding(shop.id)
-                                addToast(shop.isOnboarded ? 'Deactivated store access.' : 'Activated store access successfully!', 'info')
-                              }}
-                              className="sr-only peer"
+              </div>
+
+              {/* BOTTOM SECTION: ANALYTICS */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch mt-8">
+                
+                {/* Top Revenue Shops ranking list */}
+                <div className="bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm hover:shadow-md transition duration-300 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-xs font-black text-slate-800">Top Revenue Shops</h3>
+                      <p className="text-[9px] font-semibold text-slate-400 mt-0.5">Ranking list based on gross billing</p>
+                    </div>
+                    <span className="text-[9px] font-black text-violet-600 uppercase">This Month</span>
+                  </div>
+
+                  <div className="space-y-3.5">
+                    {shops.slice().sort((a,b) => b.totalEarnings - a.totalEarnings).slice(0, 5).map((shop, i) => (
+                      <div key={i} className="flex justify-between items-center text-xs font-bold">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-[10px] font-black text-slate-400">{i + 1}</span>
+                          <div className="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-[10px] font-black shadow-inner-sm">
+                            {shop.shopName.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="block text-slate-800 font-extrabold">{shop.shopName}</span>
+                            <span className="text-[9px] text-slate-400">{(shop.address || 'Maharashtra').split(',')[0]}</span>
+                          </div>
+                        </div>
+                        <span className="font-black text-slate-800">₹{shop.totalEarnings.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Plan Distribution Donut Chart (Replaces the Health Score chart) */}
+                <div className="bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm hover:shadow-md transition duration-300 space-y-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-xs font-black text-slate-800">Shops Plan Distribution</h3>
+                      <p className="text-[9px] font-semibold text-slate-400 mt-0.5">Ratio of active Premium vs Free tiers</p>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const total = shops.length || 1;
+                    const premiumCount = shops.filter(s => s.totalOrders >= 40 || s.totalEarnings > 5000).length;
+                    const freeCount = total - premiumCount;
+                    const premiumPercent = Math.round((premiumCount / total) * 100);
+                    const freePercent = 100 - premiumPercent;
+
+                    const radius = 45;
+                    const circumference = 2 * Math.PI * radius; // ~282.7
+                    const strokePremium = (premiumPercent / 100) * circumference;
+
+                    return (
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="relative w-28 h-28">
+                          <svg className="w-full h-full transform -rotate-90">
+                            <circle cx="56" cy="56" r={radius} fill="transparent" stroke="#F1F5F9" strokeWidth="10" />
+                            <circle 
+                              cx="56" 
+                              cy="56" 
+                              r={radius} 
+                              fill="transparent" 
+                              stroke="#8B5CF6" 
+                              strokeWidth="10" 
+                              strokeDasharray={`${strokePremium} ${circumference - strokePremium}`}
+                              strokeDashoffset="0"
                             />
-                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#6366F1]/10 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#6366F1]"></div>
-                          </label>
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                            <span className="text-xl font-black text-slate-800">{shops.length}</span>
+                            <span className="text-[7px] text-slate-400 font-extrabold uppercase">Shops</span>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          <button 
-                            onClick={() => { setEditingShop(shop); setIsShopModalOpen(true) }}
-                            className="text-[10px] font-bold text-[#6366F1] hover:underline"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteShop(shop.id)}
-                            className="text-[10px] font-bold text-rose-600 hover:underline"
-                          >
-                            Delete
-                          </button>
+                        <div className="w-full grid grid-cols-2 gap-2 text-[9px] font-bold">
+                          <div className="p-2 bg-purple-50 rounded-xl flex items-center justify-between text-purple-700">
+                            <span>Premium ({premiumCount})</span>
+                            <span className="font-black">{premiumPercent}%</span>
+                          </div>
+                          <div className="p-2 bg-slate-50 rounded-xl flex items-center justify-between text-slate-600">
+                            <span>Free ({freeCount})</span>
+                            <span className="font-black">{freePercent}%</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )) : (
-                    <div className="col-span-2 text-center py-12 bg-white rounded-3xl border border-slate-100">
-                      <p className="text-sm font-bold text-slate-400">No shops found matching filter criteria.</p>
-                    </div>
-                  )}
+                    )
+                  })()}
                 </div>
-              )}
+
+                {/* Top Cities progress timeline */}
+                <div className="bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm hover:shadow-md transition duration-300 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-xs font-black text-slate-800">Shops by City</h3>
+                      <p className="text-[9px] font-semibold text-slate-400 mt-0.5">Top regional operational centers</p>
+                    </div>
+                    <span className="text-[9px] font-black text-violet-600 cursor-pointer hover:underline" onClick={() => addToast('Displaying all regional cities logs...', 'info')}>View All</span>
+                  </div>
+
+                  <div className="space-y-3.5">
+                    {(() => {
+                      const citiesMap = {};
+                      shops.forEach(s => {
+                        const city = (s.address || 'Maharashtra').split(',')[0].trim();
+                        citiesMap[city] = (citiesMap[city] || 0) + 1;
+                      });
+                      const sortedCities = Object.entries(citiesMap).sort((a,b) => b[1] - a[1]).slice(0, 4);
+                      const maxCityCount = sortedCities[0] ? sortedCities[0][1] : 10;
+
+                      return sortedCities.map(([city, count], idx) => {
+                        const widthPercent = Math.max(Math.round((count / maxCityCount) * 100), 20);
+                        return (
+                          <div key={idx} className="space-y-1.5">
+                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                              <span>{city}</span>
+                              <span className="font-black text-slate-800">{count} shops</span>
+                            </div>
+                            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-violet-500 rounded-full" style={{ width: `${widthPercent}%` }} />
+                            </div>
+                          </div>
+                        )
+                      });
+                    })()}
+                  </div>
+                </div>
+
+              </div>
 
             </div>
           )}
@@ -1831,100 +2297,373 @@ export default function AdminDashboardPage() {
           {/* PANEL H: PLATFORM SETTINGS */}
           {/* ---------------------------------------------------- */}
           {activeTab === 'settings' && (
-            <div className="max-w-3xl bg-white border border-slate-100 rounded-[28px] p-6 sm:p-8 shadow-sm space-y-8 animate-fadeIn">
+            <div className="space-y-8 animate-fadeIn text-slate-700 max-w-5xl">
               
-              <div className="space-y-6">
-                {/* Maintenance Mode */}
-                <div className="flex items-center justify-between p-5 rounded-2xl border border-slate-100 bg-slate-50/40">
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
-                      <Cpu size={16} className="text-slate-400" />
-                      <span>Maintenance Mode</span>
-                    </h3>
-                    <p className="text-xs text-slate-400 font-bold">Temporarily freeze platform request pipelines for scheduled service.</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={settingsData.maintenanceMode} 
-                      onChange={() => {
-                        setSettingsData({ ...settingsData, maintenanceMode: !settingsData.maintenanceMode })
-                        addToast(settingsData.maintenanceMode ? 'Maintenance Mode deactivated.' : 'Maintenance Mode activated.', 'info')
-                      }}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#6366F1]/10 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#6366F1]"></div>
-                  </label>
-                </div>
-
-                {/* Auto Approve Shops */}
-                <div className="flex items-center justify-between p-5 rounded-2xl border border-slate-100 bg-slate-50/40">
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
-                      <Store size={16} className="text-slate-400" />
-                      <span>Auto-Approve New Shopkeepers</span>
-                    </h3>
-                    <p className="text-xs text-slate-400 font-bold">Instantly onboard shops upon successful signup without admin approval.</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={settingsData.autoApproveShops} 
-                      onChange={() => {
-                        setSettingsData({ ...settingsData, autoApproveShops: !settingsData.autoApproveShops })
-                        addToast(settingsData.autoApproveShops ? 'Auto-Approve deactivated.' : 'Auto-Approve activated successfully!', 'info')
-                      }}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#6366F1]/10 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#6366F1]"></div>
-                  </label>
-                </div>
-
-                {/* Platform Tax Service Rate */}
-                <div className="p-5 rounded-2xl border border-slate-100 bg-slate-50/40 space-y-3">
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
-                      <TrendingUp size={16} className="text-slate-400" />
-                      <span>Platform Commission Service Fee (%)</span>
-                    </h3>
-                    <p className="text-xs text-slate-400 font-bold">The service commission percentage applied to each customer order transaction.</p>
-                  </div>
-                  <input 
-                    type="number" 
-                    value={settingsData.platformTaxRate}
-                    onChange={(e) => setSettingsData({ ...settingsData, platformTaxRate: e.target.value })}
-                    className="w-full md:w-48 px-4.5 py-2.5 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6366F1]/10 focus:border-[#6366F1] font-bold text-xs"
-                    placeholder="5"
-                  />
-                </div>
-
-                {/* File Upload extensions config */}
-                <div className="p-5 rounded-2xl border border-slate-100 bg-slate-50/40 space-y-3">
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-2">
-                      <CheckCircle2 size={16} className="text-slate-400" />
-                      <span>Allowed Document Formats</span>
-                    </h3>
-                    <p className="text-xs text-slate-400 font-bold">Comma separated file extensions accepted during customer uploading flow.</p>
-                  </div>
-                  <input 
-                    type="text" 
-                    value={settingsData.allowedFileFormats}
-                    onChange={(e) => setSettingsData({ ...settingsData, allowedFileFormats: e.target.value })}
-                    className="w-full px-4.5 py-2.5 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6366F1]/10 focus:border-[#6366F1] font-bold text-xs"
-                    placeholder=".pdf,.png,.jpg"
-                  />
-                </div>
-
-                {/* Save administrative Settings button */}
-                <button 
-                  onClick={handleSaveSettings}
-                  className="w-full bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs shadow-lg hover:brightness-105 active:scale-99 transition-all duration-300"
-                >
-                  <ShieldCheck size={16} />
-                  <span>Save Administrative Configurations</span>
-                </button>
+              {/* TITLE AND HEADER DESCRIPTION */}
+              <div>
+                <h1 className="text-2xl font-black text-slate-800 tracking-tight">Settings</h1>
+                <p className="text-xs font-bold text-slate-400 mt-1">
+                  Manage platform preferences and configurations
+                </p>
               </div>
+
+              {/* CARD 1: ADMIN ACCOUNT */}
+              <div className="bg-white border border-slate-100 rounded-[24px] p-6 shadow-sm space-y-4 hover:shadow-md transition duration-300">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-100/60">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-violet-50 text-violet-600 rounded-2xl"><Users size={18} /></div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800">Admin Account</h3>
+                      <p className="text-[10px] text-slate-400 font-bold">Manage your admin profile and account details</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => addToast('Admin details editing is locked.', 'warning')}
+                    className="border border-slate-200 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm transition"
+                  >
+                    <Pencil size={11} />
+                    <span>Edit</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold pt-1">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-bold block">Name</label>
+                    <input 
+                      type="text" 
+                      value={adminName} 
+                      disabled
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-slate-500 rounded-xl font-bold focus:outline-none cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-bold block">Email</label>
+                    <input 
+                      type="text" 
+                      value={localStorage.getItem('adminEmail') || 'admin@printsmart.in'} 
+                      disabled
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-slate-500 rounded-xl font-bold focus:outline-none cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-bold block">Mobile Number</label>
+                    <input 
+                      type="text" 
+                      value="+91 98765 43210" 
+                      disabled
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-slate-500 rounded-xl font-bold focus:outline-none cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button 
+                    onClick={() => addToast('Change password dialog prompted.', 'info')}
+                    className="border border-violet-200 hover:bg-violet-50 text-violet-700 px-4 py-2 rounded-xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm transition"
+                  >
+                    <span>Change Password</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* CARD 2: COUPON SYSTEM */}
+              <div className="bg-white border border-slate-100 rounded-[24px] p-6 shadow-sm hover:shadow-md transition duration-300 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                <div className="md:col-span-2 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-violet-50 text-violet-600 rounded-2xl"><Gift size={18} /></div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800">Coupon System</h3>
+                      <p className="text-[10px] text-slate-400 font-bold">Enable or disable the entire coupon (scratch card) system</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400">Coupon System Status</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        couponSystemStatus ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                      }`}>
+                        {couponSystemStatus ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                      Scratch card system is currently active and generating rewards for users.
+                    </p>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      setCouponSystemStatus(!couponSystemStatus)
+                      addToast(couponSystemStatus ? 'Coupon system disabled.' : 'Coupon system activated successfully!', 'info')
+                    }}
+                    className={`border px-4 py-2 rounded-xl font-bold text-[10px] transition shadow-sm ${
+                      couponSystemStatus 
+                        ? 'border-rose-200 text-rose-600 hover:bg-rose-50' 
+                        : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                    }`}
+                  >
+                    {couponSystemStatus ? 'Disable Coupon System' : 'Enable Coupon System'}
+                  </button>
+                </div>
+
+                {/* Vector Gift box Illustration */}
+                <div className="flex justify-center items-center">
+                  <svg viewBox="0 0 240 240" className="w-28 h-28 text-violet-500">
+                    <path fill="#EEF2F6" d="M120,30 C70.29,30 30,70.29 30,120 C30,169.71 70.29,210 120,210 C169.71,210 210,169.71 210,120 C210,70.29 169.71,30 120,30 Z" />
+                    <rect x="75" y="100" width="90" height="70" rx="10" fill="#8B5CF6" />
+                    <rect x="65" y="85" width="110" height="20" rx="6" fill="#A78BFA" />
+                    <path d="M120,45 C130,45 135,70 120,85 C105,70 110,45 120,45 Z" fill="#FBBF24" />
+                    <path d="M120,45 C110,45 105,70 120,85 C135,70 130,45 120,45 Z" fill="#F59E0B" />
+                    <rect x="110" y="85" width="20" height="85" fill="#FBBF24" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* CARD 3: MONETARY COUPONS */}
+              <div className="bg-white border border-slate-100 rounded-[24px] p-6 shadow-sm hover:shadow-md transition duration-300 space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100/60">
+                  <div className="p-2.5 bg-amber-50 text-amber-600 rounded-2xl"><Tag size={18} /></div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800">Monetary Coupons</h3>
+                    <p className="text-[10px] text-slate-400 font-bold">Control monetary based reward cards (cost bearing coupons)</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+                  <div className="space-y-4">
+                    {/* Free Print Card switch */}
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/20">
+                      <div>
+                        <span className="block text-xs font-black text-slate-700">Free Print Card</span>
+                        <span className="text-[10px] text-slate-400 font-bold">Allows users to win free print reward cards.</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={freePrintCardStatus}
+                          onChange={() => setFreePrintCardStatus(!freePrintCardStatus)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-violet-600/10 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#8B5CF6]"></div>
+                      </label>
+                    </div>
+
+                    {/* 50% OFF Card switch */}
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/20">
+                      <div>
+                        <span className="block text-xs font-black text-slate-700">50% OFF Card</span>
+                        <span className="text-[10px] text-slate-400 font-bold">Allows users to win 50% OFF discount cards.</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={halfOffCardStatus}
+                          onChange={() => setHalfOffCardStatus(!halfOffCardStatus)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-violet-600/10 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#8B5CF6]"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Monetary Coupons Detailed panel right */}
+                  <div className="bg-slate-50/30 border border-slate-100 rounded-2xl p-5 flex flex-col justify-between h-full">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-700">Monetary Coupons Status</span>
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-[9px] font-bold">Enabled</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-bold leading-normal">Monetary based reward cards are active.</p>
+                    </div>
+                    <button 
+                      onClick={() => addToast('Monetary coupons disabled temporarily.', 'info')}
+                      className="w-full border border-rose-200 hover:bg-rose-50 text-rose-600 py-2.5 rounded-xl font-bold text-[10px] transition shadow-sm mt-3"
+                    >
+                      Disable Monetary Coupons
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 4: AI SETTINGS */}
+              <div className="bg-white border border-slate-100 rounded-[24px] p-6 shadow-sm hover:shadow-md transition duration-300 space-y-5">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100/60">
+                  <div className="p-2.5 bg-sky-50 text-sky-600 rounded-2xl"><Sparkles size={18} /></div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800">AI Settings</h3>
+                    <p className="text-[10px] text-slate-400 font-bold">Manage AI Studio and its features</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-semibold">
+                  {[
+                    { label: 'AI Studio', state: aiStudioStatus, setState: setAiStudioStatus },
+                    { label: 'Poster Maker', state: aiPosterMakerStatus, setState: setAiPosterMakerStatus },
+                    { label: 'Banner Maker', state: aiBannerMakerStatus, setState: setAiBannerMakerStatus },
+                    { label: 'Image Enhancer', state: aiImageEnhancerStatus, setState: setAiImageEnhancerStatus },
+                  ].map((ai, i) => (
+                    <div key={i} className="flex justify-between items-center p-3.5 border border-slate-100 bg-slate-50/20 rounded-xl">
+                      <div>
+                        <span className="block font-black text-slate-700 leading-tight">{ai.label}</span>
+                        <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-0.5 block">{ai.state ? 'Enabled' : 'Disabled'}</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={ai.state}
+                          onChange={() => ai.setState(!ai.state)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-violet-600/10 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#8B5CF6]"></div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
+                  <div className="sm:col-span-10 space-y-1.5">
+                    <label className="text-slate-400 font-bold block text-xs">Daily AI Job Limit</label>
+                    <input 
+                      type="number" 
+                      value={dailyAiLimit}
+                      onChange={(e) => setDailyAiLimit(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <button 
+                      onClick={handleSaveSettings}
+                      className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs py-2 rounded-xl transition shadow-sm shadow-violet-600/10 active:scale-98"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 5: MAINTENANCE MODE */}
+              <div className="bg-white border border-slate-100 rounded-[24px] p-6 shadow-sm hover:shadow-md transition duration-300 space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100/60">
+                  <div className="p-2.5 bg-rose-50 text-rose-600 rounded-2xl"><Cpu size={18} /></div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800">Maintenance Mode</h3>
+                    <p className="text-[10px] text-slate-400 font-bold">Put the platform under maintenance to temporarily disable access</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-700">Maintenance Mode Status</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        settingsData.maintenanceMode ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {settingsData.maintenanceMode ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-bold">
+                      {settingsData.maintenanceMode ? 'Platform is currently closed for maintenance.' : 'Platform is live and accessible to all users.'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Maintenance Message</label>
+                    <textarea 
+                      value={maintenanceMessage}
+                      onChange={(e) => setMaintenanceMessage(e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-[10px] font-semibold focus:outline-none"
+                    />
+                    <span className="text-[8px] text-slate-400 font-bold block text-right mt-0.5">{maintenanceMessage.length}/200</span>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button 
+                      onClick={() => {
+                        const nextVal = !settingsData.maintenanceMode;
+                        setSettingsData({ ...settingsData, maintenanceMode: nextVal })
+                        logAdminAction(nextVal ? 'Activated maintenance mode' : 'Deactivated maintenance mode')
+                        addToast(nextVal ? 'Maintenance Mode activated.' : 'Maintenance Mode deactivated.', 'info')
+                      }}
+                      className="w-full md:w-fit bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs px-4.5 py-3 rounded-xl transition shadow-md active:scale-98"
+                    >
+                      {settingsData.maintenanceMode ? 'Disable Maintenance Mode' : 'Enable Maintenance Mode'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 6: SECURITY */}
+              <div className="bg-white border border-slate-100 rounded-[24px] p-6 shadow-sm hover:shadow-md transition duration-300 space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100/60">
+                  <div className="p-2.5 bg-amber-50 text-amber-600 rounded-2xl"><ShieldCheck size={18} /></div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800">Security</h3>
+                    <p className="text-[10px] text-slate-400 font-bold">Secure your account and manage login activities</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-semibold">
+                  {[
+                    { title: 'Change Password', desc: 'Update your password' },
+                    { title: 'Login History', desc: 'View recent login activity' },
+                    { title: 'Active Sessions', desc: 'Manage active devices' },
+                    { title: 'Two-Factor Auth', desc: 'Add extra security' },
+                  ].map((sec, i) => (
+                    <div 
+                      key={i} 
+                      onClick={() => addToast(`Opening security section: ${sec.title}`, 'info')}
+                      className="p-4 border border-slate-100 hover:border-slate-200 bg-slate-50/20 hover:bg-slate-50/40 rounded-xl flex items-center justify-between cursor-pointer group transition"
+                    >
+                      <div>
+                        <span className="block font-black text-slate-700 group-hover:text-violet-600 transition">{sec.title}</span>
+                        <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">{sec.desc}</span>
+                      </div>
+                      <span className="text-slate-300 group-hover:text-violet-500 transition-transform group-hover:translate-x-0.5">➔</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CARD 7: SYSTEM INFORMATION */}
+              <div className="bg-white border border-slate-100 rounded-[24px] p-6 shadow-sm hover:shadow-md transition duration-300 space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100/60">
+                  <div className="p-2.5 bg-sky-50 text-sky-600 rounded-2xl"><SlidersHorizontal size={18} /></div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800">System Information</h3>
+                    <p className="text-[10px] text-slate-400 font-bold">View platform information and system status</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {[
+                    { label: 'PrintSmart Version', val: 'v1.0.0', sub: 'Latest Version' },
+                    { label: 'Server Status', val: 'Online', sub: 'All systems operational', badge: true },
+                    { label: 'Database Status', val: 'Connected', sub: 'Last checked 1m ago', badge: true },
+                    { label: 'Last Backup', val: 'Today, 02:15 AM', sub: 'Automated Daily' },
+                    { label: 'Platform Uptime', val: '99.9%', sub: 'Last 30 days' },
+                  ].map((inf, i) => (
+                    <div key={i} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between min-h-[90px]">
+                      <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block truncate">{inf.label}</span>
+                      <div className="mt-2">
+                        {inf.badge ? (
+                          <span className="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[9px] font-black">{inf.val}</span>
+                        ) : (
+                          <span className="text-sm font-black text-slate-800 block">{inf.val}</span>
+                        )}
+                        <span className="text-[8px] text-slate-400 font-extrabold mt-1 block truncate">{inf.sub}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* FOOTER AUTOMATICALLY SAVED */}
+              <div className="flex items-center justify-center gap-1.5 text-[9px] text-slate-400 font-extrabold tracking-widest uppercase py-4">
+                <ShieldCheck size={12} className="text-slate-300" />
+                <span>All changes are saved automatically</span>
+              </div>
+
             </div>
           )}
 
@@ -1957,7 +2696,12 @@ export default function AdminDashboardPage() {
                 <label className="text-slate-500 font-bold block">Email</label>
                 <input required type="email" name="email" defaultValue={editingShop?.email || ''} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
               </div>
-              {!editingShop && (
+              {editingShop ? (
+                <div className="space-y-1.5">
+                  <label className="text-slate-500 font-bold block">Reset Password (Optional)</label>
+                  <input type="password" name="password" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" placeholder="Leave blank to keep current" />
+                </div>
+              ) : (
                 <div className="space-y-1.5">
                   <label className="text-slate-500 font-bold block">Password</label>
                   <input required type="password" name="password" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl" />
@@ -2084,6 +2828,76 @@ export default function AdminDashboardPage() {
                 <button type="submit" className="flex-1 py-3 bg-[#6366F1] text-white rounded-xl font-bold shadow-md">Save Coupon</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN LOGS OVERLAY MODAL */}
+      {isLogsModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-100 max-w-2xl w-full p-6 space-y-6 shadow-2xl relative">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                  <Activity size={18} className="text-violet-600 animate-pulse" />
+                  <span>Admin Activity Logs</span>
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold mt-1">
+                  Chronological trail of admin sessions and sign-ins on the PrintSmart platform
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsLogsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm bg-slate-50 hover:bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-3.5 pr-2 no-scrollbar">
+              {adminLogs.length > 0 ? (
+                adminLogs.map((log) => (
+                  <div key={log.id} className="p-3.5 bg-slate-50 border border-slate-200/50 rounded-2xl flex justify-between items-start text-xs hover:border-slate-300 transition-all">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-slate-800">{log.adminName}</span>
+                        <span className="text-[9px] text-slate-400 font-bold">({log.adminEmail})</span>
+                      </div>
+                      <p className="text-slate-500 font-semibold">{log.action}</p>
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-bold tracking-tight text-right whitespace-nowrap">
+                      {log.timestamp}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="py-12 text-center text-slate-400 font-bold space-y-2">
+                  <Activity size={24} className="mx-auto text-slate-300" />
+                  <p>No activity logs recorded yet</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              <button 
+                onClick={() => {
+                  if (confirm('Are you sure you want to clear all admin activity logs?')) {
+                    localStorage.removeItem('adminActivityLogs')
+                    setAdminLogs([])
+                    addToast('Activity logs cleared successfully!', 'info')
+                  }
+                }}
+                className="text-rose-600 hover:text-rose-700 font-black text-[10px] hover:underline"
+              >
+                Clear Log History
+              </button>
+              <button 
+                onClick={() => setIsLogsModalOpen(false)}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl transition"
+              >
+                Close Logs
+              </button>
+            </div>
           </div>
         </div>
       )}
