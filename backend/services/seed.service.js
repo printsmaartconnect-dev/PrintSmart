@@ -5,6 +5,19 @@ const qrcodeService = require("./qrcode.service");
 // Seed default shopkeeper if none exists in the database
 async function seedDefaultShopkeeper() {
   try {
+    // Seed allowedFileFormats system setting on startup
+    try {
+      const allowedFormats = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.odp,.ods,.rtf,.jpg,.jpeg,.png,.webp,.txt,.csv';
+      await prisma.systemSettings.upsert({
+        where: { key: 'allowedFileFormats' },
+        update: { value: allowedFormats },
+        create: { key: 'allowedFileFormats', value: allowedFormats }
+      });
+      console.log("System settings allowedFileFormats seeded successfully.");
+    } catch (setErr) {
+      console.error("Failed to seed allowedFileFormats on startup:", setErr);
+    }
+
     const count = await prisma.shopkeeper.count();
     if (count === 0) {
       console.log("No shopkeepers found in the database. Seeding default shopkeeper...");
