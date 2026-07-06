@@ -1,6 +1,4 @@
 require("dotenv").config();
-<<<<<<< Updated upstream
-=======
 const path = require("path");
 const fs = require("fs");
 const { execSync } = require("child_process");
@@ -63,11 +61,9 @@ try {
 }
 
 // 2. Load standard Express route imports (ensuring dist/ folder is populated)
->>>>>>> Stashed changes
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
-const fs = require("fs");
+
 
 const authRoutes = require("./routes/auth.routes");
 const fileRoutes = require("./routes/file.routes");
@@ -173,6 +169,8 @@ if (!fs.existsSync(uploadDir)) {
 
 // Serve uploaded files statically for local fallback storage
 app.use("/uploads", express.static(uploadDir));
+
+
 
 // Route handlers
 app.use("/api/auth", authRoutes);
@@ -289,7 +287,22 @@ app.use((err, req, res, next) => {
 });
 
 // Start listening
-app.listen(PORT, async () => {
+const http = require("http");
+const server = http.createServer(app);
+const socketService = require("./services/socket.service");
+socketService.initialize(server);
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`\n[Server Error] Port ${PORT} is already in use by another process.`);
+    console.error(`Please terminate the process running on port ${PORT}, or modify the PORT environment variable in .env.\n`);
+    process.exit(1);
+  } else {
+    console.error("[Server Error] Startup error:", err);
+  }
+});
+
+server.listen(PORT, async () => {
   console.log(`PrintSmart backend running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`);
 
   // DNS Diagnostics

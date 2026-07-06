@@ -15,6 +15,7 @@ import {
   User,
   XCircle,
   Plus,
+  Receipt,
 } from 'lucide-react'
 
 const iconMap = {
@@ -29,6 +30,7 @@ const iconMap = {
   coupon: Store,
   printsmartAi: Sparkles,
   addOrder: Plus,
+  customBill: Receipt,
 }
 
 const filterItems = new Set(['pending', 'completed', 'downloaded', 'cancelled'])
@@ -47,6 +49,7 @@ function DockItem({ item, activeFilter, onFilterChange }) {
   const isAiItem = item.key === 'printsmartAi'
   const isAddOrderItem = item.key === 'addOrder'
   const isCouponItem = item.key === 'coupon'
+  const isCustomBillItem = item.key === 'customBill'
 
   const content = (
     <>
@@ -58,9 +61,11 @@ function DockItem({ item, activeFilter, onFilterChange }) {
               ? 'rounded-full border border-indigo-200 bg-indigo-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] scale-105'
               : isAddOrderItem
                 ? 'rounded-[14px] bg-[#3B82F6] text-white hover:bg-[#2563EB] shadow-[0_4px_12px_rgba(59,130,246,0.3)] scale-105'
-                : isActive
-                  ? 'text-[#5D3EBC]'
-                  : 'text-slate-600'
+                : isCustomBillItem
+                  ? 'rounded-[14px] bg-[#10B981] text-white hover:bg-[#059669] shadow-[0_4px_12px_rgba(16,185,129,0.3)] scale-105'
+                  : isActive
+                    ? 'text-[#5D3EBC]'
+                    : 'text-slate-600'
         }`}
       >
         {isAiItem ? (
@@ -75,7 +80,7 @@ function DockItem({ item, activeFilter, onFilterChange }) {
             <Icon size={18} className="text-white" />
           </>
         ) : (
-          <Icon size={19} className={isAddOrderItem ? 'text-white' : isActive ? 'text-[#5D3EBC]' : 'text-slate-600 group-hover:text-slate-800'} />
+          <Icon size={19} className={(isAddOrderItem || isCustomBillItem) ? 'text-white' : isActive ? 'text-[#5D3EBC]' : 'text-slate-600 group-hover:text-slate-800'} />
         )}
         
         {item.badge ? (
@@ -96,6 +101,19 @@ function DockItem({ item, activeFilter, onFilterChange }) {
         ? 'bg-[#ECE9F8]/80 border border-violet-200/50 shadow-[0_4px_16px_rgba(124,58,237,0.08)]'
         : 'hover:bg-violet-50/50 border border-transparent'
     }`
+
+  if (item.onClick) {
+    return (
+      <button
+        type="button"
+        className={className}
+        aria-label={translatedLabel}
+        onClick={item.onClick}
+      >
+        {content}
+      </button>
+    )
+  }
 
   if (item.href) {
     return (

@@ -26,4 +26,28 @@ router.put("/shops/:id/onboard", adminController.toggleShopOnboard);
 // @desc    Get platform analytics data
 router.get("/analytics", adminController.getAnalytics);
 
+// @route   GET api/admin/settings
+// @desc    Get platform configurations
+router.get("/settings", adminController.getSettings);
+
+// @route   PUT api/admin/settings
+// @desc    Update platform configurations
+router.put("/settings", adminController.updateSettings);
+
+// @route   GET api/admin/coupons
+// @desc    Get scratch loyalty rewards telemetry
+router.get("/coupons", adminController.getCoupons);
+
+// @route   GET api/admin/tickets
+// @desc    Get support/feedback tickets
+router.get("/tickets", adminController.getTickets);
+
+// @route   PUT api/admin/tickets/:id
+// @desc    Update status of a feedback ticket
+router.put("/tickets/:id", adminController.updateTicketStatus);
+
+// @route   GET api/admin/ai-usage
+// @desc    Get AI Studio usage telemetries
+router.get("/ai-usage", adminController.getAIUsage);
+
 module.exports = router;

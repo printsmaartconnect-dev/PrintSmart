@@ -383,20 +383,143 @@ export default function ProfileSetupPage() {
         <head>
           <title>Print QR Code - ${form.shopName || 'Shop'}</title>
           <style>
-            body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; margin: 0; }
-            h1 { margin-bottom: 20px; font-size: 24px; color: #1e293b; }
-            p { margin-top: 10px; font-size: 14px; color: #64748b; font-weight: bold; }
-            img { width: 300px; height: 300px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
-            @media print {
-              img { width: 400px; height: 400px; }
+            @page {
+              size: A4 portrait;
+              margin: 10mm;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              background-color: #ffffff;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 95vh;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .standee {
+              width: 100%;
+              max-width: 640px;
+              border: 10px double #7c3aed;
+              border-radius: 32px;
+              padding: 50px;
+              text-align: center;
+              background-color: #ffffff !important;
+              box-sizing: border-box;
+              box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+            }
+            .subtitle {
+              font-size: 18px;
+              color: #4f46e5 !important;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              margin-top: 0;
+              margin-bottom: 16px;
+            }
+            h1 {
+              margin: 0 0 25px 0;
+              font-size: 42px;
+              color: #1e1b4b !important;
+              font-weight: 900;
+              line-height: 1.2;
+              word-wrap: break-word;
+            }
+            .qr-container {
+              width: 320px;
+              height: 320px;
+              border: 4px solid #7c3aed;
+              border-radius: 16px;
+              margin: 25px auto;
+              padding: 15px;
+              background-color: #FAF8FF !important;
+              box-sizing: border-box;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+            .qr-container img {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+            }
+            .steps-container {
+              text-align: left;
+              background-color: #f5f3ff !important;
+              padding: 24px 32px;
+              border-radius: 18px;
+              border: 1px solid #ddd6fe;
+              margin: 25px 0;
+              box-sizing: border-box;
+            }
+            .steps-title {
+              margin: 0 0 16px 0;
+              font-size: 16px;
+              font-weight: 800;
+              color: #7c3aed !important;
+              text-transform: uppercase;
+              letter-spacing: 1.5px;
+              text-align: center;
+            }
+            .step-row {
+              margin-bottom: 12px;
+              font-size: 16px;
+              color: #374151 !important;
+              font-weight: 600;
+              line-height: 1.5;
+            }
+            .step-row:last-child {
+              margin-bottom: 0;
+            }
+            .step-dot {
+              display: inline-block;
+              width: 8px;
+              height: 8px;
+              background-color: #7c3aed !important;
+              border-radius: 50%;
+              margin-right: 12px;
+              vertical-align: middle;
+            }
+            .footer {
+              margin-top: 20px;
+              font-size: 16px;
+              color: #6b7280 !important;
+              font-weight: 600;
+            }
+            .footer span {
+              color: #1e1b4b !important;
+              font-weight: 800;
             }
           </style>
         </head>
         <body>
-          <h1>${form.shopName || 'Shop'}</h1>
-          <p>Scan to upload print files</p>
-          <img src="${fullUrl}" onload="window.print(); window.close();" />
-          <p>Shop ID: ${shopkeeperIdCode || 'N/A'}</p>
+          <div class="standee">
+            <div class="subtitle">PrintSmart Secure Access</div>
+            <h1>${form.shopName || 'Shop'}</h1>
+            <div class="qr-container">
+              <img src="${fullUrl}" id="qr-image" />
+            </div>
+            <div class="steps-container">
+              <div class="steps-title">Follow these simple steps:</div>
+              <div class="step-row"><span class="step-dot"></span> 1. Scan this QR using your phone camera</div>
+              <div class="step-row"><span class="step-dot"></span> 2. Upload your documents directly</div>
+              <div class="step-row"><span class="step-dot"></span> 3. Configure layout and payment options</div>
+              <div class="step-row"><span class="step-dot"></span> 4. Collect your printouts instantly!</div>
+            </div>
+            <div class="footer">Shop ID: <span>${shopkeeperIdCode || 'N/A'}</span></div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                setTimeout(function() {
+                  window.close();
+                }, 1000);
+              }, 500);
+            };
+          </script>
         </body>
       </html>
     `)

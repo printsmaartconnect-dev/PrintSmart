@@ -11,13 +11,6 @@ import RewardCardModal from '../../components/customer/RewardCardModal'
 import CustomerHeader from '../../components/customer/CustomerHeader'
 import { validateUpiParams, generateUpiUrl } from '../../../lib/upi'
 import { formatCurrency } from '../../../lib/currency'
-<<<<<<< Updated upstream
-=======
-import { useSocket } from '../../../hooks/useSocket'
-import { useSocketContext } from '../../../contexts/SocketProvider'
-import PaymentButton from '../../../components/payment/PaymentButton'
-import { usePayment } from '../../../hooks/usePayment'
->>>>>>> Stashed changes
 
 export function OrdersPageContent() {
   const { t } = useTranslation()
@@ -42,39 +35,8 @@ export function OrdersPageContent() {
   const [selectedOrderId, setSelectedOrderId] = useState(null)
 
   // UPI Payment State
-<<<<<<< Updated upstream
   const [isMobile, setIsMobile] = useState(false)
   const [showUpiModal, setShowUpiModal] = useState(false)
-=======
-  const [platform, setPlatform] = useState('desktop')
-  const [paymentInitiated, setPaymentInitiated] = useState(false)
-  const [desktopError, setDesktopError] = useState(false)
-
-  const {
-    loading: paymentLoading,
-    error: paymentError,
-    success: paymentSuccess,
-    paymentDetails,
-    initiatePayment,
-    resetState: resetPaymentState
-  } = usePayment()
-
-  const latestPendingOrder = orders.find(o => o.status === 'PENDING' || o.status === 'PENDING_PAYMENT')
-  const upiId = latestPendingOrder?.shopkeeper?.upiId
-  const shopName = latestPendingOrder?.shopkeeper?.shopName
-  const amount = latestPendingOrder?.totalAmount
-
-  let upiUrl = ''
-  let validationError = null
-
-  if (latestPendingOrder) {
-    try {
-      upiUrl = generateUpiUrl(upiId, shopName, amount)
-    } catch (err) {
-      validationError = err.message
-    }
-  }
->>>>>>> Stashed changes
 
   useEffect(() => {
     const checkMobile = () => {
@@ -132,8 +94,6 @@ export function OrdersPageContent() {
     fetchOrders()
   }, [customerUserId])
 
-<<<<<<< Updated upstream
-=======
   // Polling for pending order payments
   useEffect(() => {
     let intervalId
@@ -152,7 +112,7 @@ export function OrdersPageContent() {
         }
         if (resolvedUserId) {
           try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
             const response = await fetch(`${apiUrl}/api/orders/user/${resolvedUserId}`)
             if (response.ok) {
               const data = await response.json()
@@ -170,7 +130,6 @@ export function OrdersPageContent() {
     }
   }, [orders, customerUserId])
 
->>>>>>> Stashed changes
   const openDeleteModal = (order) => {
     setOrderToDelete(order)
     setShowDeleteModal(true)
@@ -334,7 +293,6 @@ export function OrdersPageContent() {
           </div>
         )}
 
-<<<<<<< Updated upstream
         {/* Payment Box Section */}
         {orders.length > 0 && orders.some(o => o.status === 'PENDING') && (
           (() => {
@@ -363,16 +321,12 @@ export function OrdersPageContent() {
               }
             }
 
-=======
-        {orders.length > 0 && orders.some(o => o.status === 'PENDING' || o.status === 'PENDING_PAYMENT') && (
-            (() => {
->>>>>>> Stashed changes
             return (
               <div className="mb-8 p-5 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl space-y-4 shadow-sm animate-fade-in flex flex-col">
                 <div className="space-y-1 text-center">
                   <h3 className="font-bold text-slate-800 text-sm">{t('Payment Options for Order')} <span className="text-indigo-650 font-mono">({latestPendingOrder.orderId})</span></h3>
                   <p className="text-xs text-gray-500 font-semibold">
-                    {t('Pay online via secure Razorpay checkout to start printing.')}
+                    {t('Pay online via UPI or pay cash directly at the counter.')}
                   </p>
                 </div>
                 
@@ -381,7 +335,6 @@ export function OrdersPageContent() {
                   <div className="flex-1 flex flex-col items-center gap-3 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm justify-between">
                     <div className="w-full flex flex-col items-center gap-3">
                       <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">{t('Option A: Pay Online')}</p>
-<<<<<<< Updated upstream
                       
                       {validationError ? (
                         <div className="w-full bg-rose-50 border border-rose-100 rounded-xl p-3 text-left">
@@ -405,21 +358,6 @@ export function OrdersPageContent() {
                           ⚡ {t('Pay with UPI')}
                         </button>
                       )}
-=======
-
-                      <PaymentButton
-                        orderId={latestPendingOrder.id}
-                        amount={latestPendingOrder.totalAmount}
-                        customerName={latestPendingOrder.customerName}
-                        customerPhone={latestPendingOrder.phone || ""}
-                        onPayTrigger={async (orderId, details) => {
-                          await initiatePayment(orderId, details, () => {
-                            fetchOrders();
-                          });
-                        }}
-                        loading={paymentLoading}
-                      />
->>>>>>> Stashed changes
                     </div>
 
                     {!validationError && (
@@ -785,115 +723,6 @@ export function OrdersPageContent() {
         />
       )}
 
-      {/* Razorpay Checkout Status Modals */}
-      {paymentSuccess && paymentDetails && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-emerald-100 text-center animate-fade-in space-y-6">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-[0_4px_20px_rgba(16,185,129,0.2)]">
-              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">{t('Payment Successful')}</h2>
-              <p className="text-xs font-semibold text-slate-400">{t('Your print order is now paid and confirmed!')}</p>
-            </div>
-
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 text-left text-xs font-semibold text-slate-700 space-y-3">
-              <div className="flex justify-between border-b border-slate-100 pb-2">
-                <span className="text-slate-400">{t('Payment ID')}:</span>
-                <span className="font-mono text-indigo-650 font-extrabold select-all">{paymentDetails.paymentId}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-2">
-                <span className="text-slate-400">{t('Amount Paid')}:</span>
-                <span className="font-extrabold text-slate-850">₹{paymentDetails.amount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-2">
-                <span className="text-slate-400">{t('Order Status')}:</span>
-                <span className="inline-flex items-center rounded bg-emerald-50 text-emerald-700 border border-emerald-200/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider">
-                  {t('PAID')}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">{t('Estimated Waiting Time')}:</span>
-                <span className="font-bold text-indigo-650">
-                  {orders.find(o => o.id === paymentDetails.orderId)?.estimatedTime || 5} {t('minutes')}
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                resetPaymentState();
-                fetchOrders();
-              }}
-              className="w-full py-3.5 px-6 rounded-2xl text-sm font-bold text-white bg-indigo-650 hover:bg-indigo-700 transition shadow-[0_4px_14px_rgba(79,70,229,0.25)]"
-            >
-              {t('Track Order Queue')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {paymentError && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-rose-100 text-center animate-fade-in space-y-6">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-[0_4px_20px_rgba(239,68,68,0.2)]">
-              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">{t('Payment Failed')}</h2>
-              <p className="text-xs text-rose-600 font-bold leading-normal">{paymentError}</p>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  resetPaymentState();
-                }}
-                className="flex-1 py-3 px-6 rounded-2xl text-xs font-bold border border-slate-200 text-slate-700 hover:bg-slate-50 transition"
-              >
-                {t('Close')}
-              </button>
-              {latestPendingOrder && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    resetPaymentState();
-                    const customerDetails = {
-                      name: latestPendingOrder.customerName || "Anonymous Customer",
-                      phone: latestPendingOrder.phone || "",
-                      email: "customer@printsmart.com"
-                    };
-                    await initiatePayment(latestPendingOrder.id, customerDetails, () => {
-                      fetchOrders();
-                    });
-                  }}
-                  className="flex-1 py-3 px-6 rounded-2xl text-xs font-bold text-white bg-indigo-650 hover:bg-indigo-700 transition"
-                >
-                  {t('Retry Payment')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {paymentLoading && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-[1px]">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-xl text-center space-y-4 animate-fade-in border border-slate-100">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-650 mx-auto"></div>
-            <p className="text-slate-800 font-extrabold text-sm">{t('Processing Secure Checkout...')}</p>
-            <p className="text-[10px] text-slate-400 font-semibold leading-normal">{t('Please do not refresh this page or close the window.')}</p>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

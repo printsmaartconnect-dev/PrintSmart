@@ -462,12 +462,6 @@ exports.updateOrderStatus = async (req, res) => {
 
     // Map string status to Enum OrderStatus
     let statusEnum = status.toUpperCase();
-<<<<<<< Updated upstream
-    if (statusEnum === "DOWNLOADED") {
-      statusEnum = "COMPLETED";
-    }
-    if (!["PENDING", "ACCEPTED", "PRINTING", "COMPLETED", "CANCELLED"].includes(statusEnum)) {
-=======
     if (![
       "CREATED",
       "PENDING_PAYMENT",
@@ -481,7 +475,6 @@ exports.updateOrderStatus = async (req, res) => {
       "PENDING",
       "ACCEPTED"
     ].includes(statusEnum)) {
->>>>>>> Stashed changes
       return res.status(400).json({ message: "Invalid order status value" });
     }
 

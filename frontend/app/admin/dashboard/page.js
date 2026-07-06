@@ -70,6 +70,27 @@ export default function AdminDashboardPage() {
     allowedFileFormats: '.pdf,.png,.jpg',
   })
 
+  const [aiStats, setAiStats] = useState({
+    posterMaker: 0,
+    bgRemover: 0,
+    bannerMaker: 0,
+    failedJobs: 0,
+    recentGenerations: []
+  })
+
+  const [couponStats, setCouponStats] = useState({
+    scratchCardsCount: 0,
+    rewardsDistributed: 0,
+    couponUsageTrend: [],
+    shopWiseCoupons: []
+  })
+
+  const [supportStats, setSupportStats] = useState({
+    openTickets: 0,
+    closedTickets: 0,
+    tickets: []
+  })
+
   // Basic check for admin session
   useEffect(() => {
     if (!localStorage.getItem('adminLoggedIn')) {
@@ -83,16 +104,18 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (!localStorage.getItem('adminLoggedIn')) return
 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+
     const fetchDashboard = async () => {
       setStatsLoading(true)
       try {
-        const statsRes = await fetch('http://localhost:5000/api/admin/stats')
+        const statsRes = await fetch(`${apiUrl}/api/admin/stats`)
         if (statsRes.ok) {
           const statsData = await statsRes.json()
           setStats(statsData)
         }
 
-        const ordersRes = await fetch('http://localhost:5000/api/admin/recent-orders')
+        const ordersRes = await fetch(`${apiUrl}/api/admin/recent-orders`)
         if (ordersRes.ok) {
           const ordersData = await ordersRes.json()
           setRecentOrders(ordersData)
@@ -107,7 +130,7 @@ export default function AdminDashboardPage() {
     const fetchUsersAndShops = async () => {
       setUsersShopsLoading(true)
       try {
-        const usersRes = await fetch('http://localhost:5000/api/admin/users')
+        const usersRes = await fetch(`${apiUrl}/api/admin/users`)
         if (usersRes.ok) {
           const usersData = await usersRes.json()
           setUsers(Array.isArray(usersData) ? usersData : [])
@@ -115,7 +138,7 @@ export default function AdminDashboardPage() {
           setUsers([])
         }
 
-        const shopsRes = await fetch('http://localhost:5000/api/admin/shops')
+        const shopsRes = await fetch(`${apiUrl}/api/admin/shops`)
         if (shopsRes.ok) {
           const shopsData = await shopsRes.json()
           setShops(Array.isArray(shopsData) ? shopsData : [])
@@ -134,7 +157,7 @@ export default function AdminDashboardPage() {
     const fetchAnalytics = async () => {
       setAnalyticsLoading(true)
       try {
-        const analyticsRes = await fetch('http://localhost:5000/api/admin/analytics')
+        const analyticsRes = await fetch(`${apiUrl}/api/admin/analytics`)
         if (analyticsRes.ok) {
           const data = await analyticsRes.json()
           setAnalyticsData(data)
@@ -146,20 +169,80 @@ export default function AdminDashboardPage() {
       }
     }
 
-    if (activeTab === 'dashboard' || activeTab === 'revenue') {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/admin/settings`)
+        if (res.ok) {
+          const data = await res.json()
+          setSettingsData(data)
+        }
+      } catch (err) {
+        console.error('Error fetching admin settings:', err)
+      }
+    }
+
+    const fetchCoupons = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/admin/coupons`)
+        if (res.ok) {
+          const data = await res.json()
+          setCouponStats(data)
+        }
+      } catch (err) {
+        console.error('Error fetching admin coupons:', err)
+      }
+    }
+
+    const fetchTickets = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/admin/tickets`)
+        if (res.ok) {
+          const data = await res.json()
+          setSupportStats(data)
+        }
+      } catch (err) {
+        console.error('Error fetching admin tickets:', err)
+      }
+    }
+
+    const fetchAIUsage = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/admin/ai-usage`)
+        if (res.ok) {
+          const data = await res.json()
+          setAiStats(data)
+        }
+      } catch (err) {
+        console.error('Error fetching admin ai usage:', err)
+      }
+    }
+
+    if (activeTab === 'dashboard') {
       fetchDashboard()
       fetchAnalytics()
+    } else if (activeTab === 'revenue') {
+      fetchDashboard()
+      fetchAnalytics()
+      fetchCoupons()
     } else if (activeTab === 'shops' || activeTab === 'orders') {
       fetchUsersAndShops()
-    } else if (activeTab === 'analytics' || activeTab === 'ai') {
+    } else if (activeTab === 'analytics') {
       fetchAnalytics()
+    } else if (activeTab === 'ai') {
+      fetchAnalytics()
+      fetchAIUsage()
+    } else if (activeTab === 'support') {
+      fetchTickets()
+    } else if (activeTab === 'settings') {
+      fetchSettings()
     }
   }, [activeTab])
 
   // Onboard status change trigger
   const toggleOnboarding = async (shopId) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/shops/${shopId}/onboard`, {
+      const res = await fetch(`${apiUrl}/api/admin/shops/${shopId}/onboard`, {
         method: 'PUT'
       })
       if (res.ok) {
@@ -177,60 +260,55 @@ export default function AdminDashboardPage() {
     router.push('/admin')
   }
 
+  const handleSaveSettings = async () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsData)
+      })
+      if (res.ok) {
+        addToast('Administrative system config updated successfully!', 'success')
+      } else {
+        addToast('Failed to save settings.', 'error')
+      }
+    } catch (err) {
+      console.error('Failed to save settings:', err)
+      addToast('Error saving configurations.', 'error')
+    }
+  }
+
+  const toggleTicketStatus = async (ticketId, currentStatus) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+    const newStatus = currentStatus === 'Open' ? 'Closed' : 'Open'
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/tickets/${ticketId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      if (res.ok) {
+        setSupportStats(prev => ({
+          ...prev,
+          tickets: prev.tickets.map(t => t.realId === ticketId ? { ...t, status: newStatus } : t),
+          openTickets: newStatus === 'Open' ? prev.openTickets + 1 : prev.openTickets - 1,
+          closedTickets: newStatus === 'Closed' ? prev.closedTickets + 1 : prev.closedTickets - 1
+        }))
+        addToast(`Ticket status updated to ${newStatus}.`, 'success')
+      } else {
+        addToast('Failed to update ticket status.', 'error')
+      }
+    } catch (err) {
+      console.error('Error toggling ticket status:', err)
+      addToast('Error updating ticket status.', 'error')
+    }
+  }
+
   // ----------------------------------------------------
   // HIGH-QUALITY DUMMY DATA FOR PLATFORM telemetries
   // ----------------------------------------------------
   
-  // TODO: Connect AI Usage panels to backend aggregated logs when ready
-  const aiStats = useMemo(() => ({
-    posterMaker: 1240,
-    bgRemover: 3820,
-    bannerMaker: 850,
-    imageEnhancer: 1980,
-    textToImage: 1150,
-    failedJobs: 4,
-    recentGenerations: [
-      { id: 'GEN-849', tool: 'AI Poster Maker', shop: 'Yash Digital Prints', time: '10 mins ago', status: 'Success' },
-      { id: 'GEN-848', tool: 'Background Remover', shop: 'Creative Print Hub', time: '23 mins ago', status: 'Success' },
-      { id: 'GEN-847', tool: 'Banner Generator', shop: 'Smart Xerox Center', time: '1 hour ago', status: 'Success' },
-      { id: 'GEN-846', tool: 'AI Poster Maker', shop: 'Print Point', time: '2 hours ago', status: 'Failed' },
-    ]
-  }), [])
-
-  // TODO: Connect Coupons & Rewards telemetry to backend model when available
-  const couponStats = useMemo(() => ({
-    scratchCardsCount: 840,
-    rewardsDistributed: 12560,
-    couponUsageTrend: [
-      { date: 'May 12', usage: 42 },
-      { date: 'May 13', usage: 55 },
-      { date: 'May 14', usage: 68 },
-      { date: 'May 15', usage: 50 },
-      { date: 'May 16', usage: 82 },
-      { date: 'May 17', usage: 95 },
-      { date: 'May 18', usage: 110 }
-    ],
-    shopWiseCoupons: [
-      { shopName: 'Yash Digital Prints', couponsUsed: 220, discountAmount: 4400 },
-      { shopName: 'Creative Print Hub', couponsUsed: 180, discountAmount: 3600 },
-      { shopName: 'Smart Xerox Center', couponsUsed: 140, discountAmount: 2800 },
-      { shopName: 'Print Point', couponsUsed: 95, discountAmount: 1900 },
-    ]
-  }), [])
-
-  // TODO: Integrate support tickets table to live db models
-  const supportStats = useMemo(() => ({
-    openTickets: 5,
-    closedTickets: 24,
-    tickets: [
-      { id: 'TKT-101', customer: 'Rohan Sharma', subject: 'Refund request for cancelled order', shop: 'Yash Digital Prints', priority: 'High', status: 'Open', time: '2 hours ago' },
-      { id: 'TKT-102', customer: 'Amit Patel', subject: 'Printer connection failure via USB', shop: 'Creative Print Hub', priority: 'High', status: 'Open', time: '4 hours ago' },
-      { id: 'TKT-103', customer: 'Sita Gupta', subject: 'Coupon discount not applied', shop: 'Smart Xerox Center', priority: 'Medium', status: 'Open', time: '1 day ago' },
-      { id: 'TKT-104', customer: 'Vijay Shah', subject: 'Invoice PDF download failing', shop: 'Print Point', priority: 'Low', status: 'Closed', time: '2 days ago' },
-      { id: 'TKT-105', customer: 'Neha Patel', subject: 'Paper size dimensions configuration', shop: 'Quick Print Shop', priority: 'Low', status: 'Closed', time: '3 days ago' },
-    ]
-  }), [])
-
   // Platform Alerts Telemetry
   const urgentAlerts = useMemo(() => [
     { id: 'ALT-1', type: 'critical', text: '5 shops have pending pricing setup details', time: '2 hours ago' },
@@ -1271,10 +1349,10 @@ export default function AdminDashboardPage() {
                           </td>
                           <td className="py-4">
                             <button 
-                              onClick={() => addToast(`Opening support dialogue for ${tkt.id}`, 'info')}
+                              onClick={() => toggleTicketStatus(tkt.realId, tkt.status)}
                               className="text-[10px] font-bold text-[#6366F1] hover:underline"
                             >
-                              Reply
+                              {tkt.status === 'Open' ? 'Resolve' : 'Reopen'}
                             </button>
                           </td>
                         </tr>
@@ -1438,7 +1516,7 @@ export default function AdminDashboardPage() {
 
                 {/* Save administrative Settings button */}
                 <button 
-                  onClick={() => addToast('Administrative system config updated successfully!', 'success')}
+                  onClick={handleSaveSettings}
                   className="w-full bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs shadow-lg hover:brightness-105 active:scale-99 transition-all duration-300"
                 >
                   <ShieldCheck size={16} />

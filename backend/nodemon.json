@@ -1,0 +1,14 @@
+{
+  "watch": ["."],
+  "ext": "js,json",
+  "ignore": [
+    "dist/*",
+    "uploads/*",
+    "assets/*",
+    "node_modules/*",
+    "package-lock.json",
+    "tsconfig.json",
+    "test-routes.js"
+  ],
+  "delay": "1000"
+}

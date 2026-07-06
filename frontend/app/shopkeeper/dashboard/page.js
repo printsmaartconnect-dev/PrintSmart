@@ -18,6 +18,7 @@ import StatsRow from "./_components/StatsRow";
 import RecentOrders from "./_components/RecentOrders";
 import BottomDock from "./_components/BottomDock";
 import { bottomDockItems, dashboardStats, recentOrders } from "./_components/mockData";
+import CustomBillModal from "./_components/CustomBillModal";
 
 export default function ShopkeeperDashboard() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function ShopkeeperDashboard() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [ordersList, setOrdersList] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [showCustomBillModal, setShowCustomBillModal] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -206,13 +208,6 @@ export default function ShopkeeperDashboard() {
 
   const displayedOrders =
     (activeFilter === "All" || activeFilter === t("All"))
-<<<<<<< Updated upstream
-      ? ordersList
-      : ordersList.filter((order) => t(order.status) === activeFilter);
-
-  const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
-  const completedCount = ordersList.filter((o) => o.status === "Completed").length;
-=======
       ? ordersList.filter(o => o.status !== "Pending_payment")
       : ordersList.filter((order) => {
           if (order.status === "Pending_payment") return false;
@@ -227,7 +222,6 @@ export default function ShopkeeperDashboard() {
 
   const pendingCount = ordersList.filter((o) => ["Paid", "Processing", "Printing", "Ready_for_pickup", "Pending"].includes(o.status)).length;
   const completedCount = ordersList.filter((o) => o.status === "Completed" || o.status === "Downloaded").length;
->>>>>>> Stashed changes
   const downloadedCount = ordersList.filter((o) => o.status === "Downloaded").length;
   const cancelledCount = ordersList.filter((o) => o.status === "Cancelled").length;
 
@@ -254,6 +248,7 @@ export default function ShopkeeperDashboard() {
       { key: 'completed', label: t('Completed'), badge: String(completedCount) },
       { key: 'downloaded', label: t('Downloaded'), badge: String(downloadedCount) },
       { key: 'cancelled', label: t('Cancelled'), badge: String(cancelledCount) },
+      { key: 'customBill', label: t('Custom Bill'), badge: null, onClick: () => setShowCustomBillModal(true) },
       { key: 'addOrder', label: t('Add order'), badge: null, href: `/customer/language?shopkeeperAddOrder=true&shopId=${shopkeeperIdCode}` },
       { key: 'coupon', label: t('Business network'), badge: null, href: '/shopkeeper/business-network' },
       { key: 'printsmartAi', label: t('PrintSmart AI'), badge: null, href: '/shopkeeper/printsmart-ai' },
@@ -326,6 +321,10 @@ export default function ShopkeeperDashboard() {
         items={dynamicDockItems}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
+      />
+      <CustomBillModal
+        isOpen={showCustomBillModal}
+        onClose={() => setShowCustomBillModal(false)}
       />
     </div>
   );

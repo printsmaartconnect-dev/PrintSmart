@@ -180,3 +180,268 @@ exports.getAnalytics = async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 };
+
+// Get platform settings
+exports.getSettings = async (req, res) => {
+  try {
+    const settingsList = await prisma.systemSettings.findMany();
+    const settingsMap = {};
+    settingsList.forEach(s => {
+      settingsMap[s.key] = s.value;
+    });
+
+    res.json({
+      maintenanceMode: settingsMap.maintenanceMode === 'true',
+      autoApproveShops: settingsMap.autoApproveShops !== 'false',
+      platformTaxRate: settingsMap.platformTaxRate || '5',
+      allowedFileFormats: settingsMap.allowedFileFormats || '.pdf,.png,.jpg'
+    });
+  } catch (err) {
+    console.error("Admin getSettings error:", err.message);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// Update platform settings
+exports.updateSettings = async (req, res) => {
+  try {
+    const { maintenanceMode, autoApproveShops, platformTaxRate, allowedFileFormats } = req.body;
+    const data = {
+      maintenanceMode: String(maintenanceMode),
+      autoApproveShops: String(autoApproveShops),
+      platformTaxRate: String(platformTaxRate),
+      allowedFileFormats: String(allowedFileFormats)
+    };
+
+    for (const [key, value] of Object.entries(data)) {
+      await prisma.systemSettings.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value }
+      });
+    }
+
+    res.json({ message: "Settings saved successfully" });
+  } catch (err) {
+    console.error("Admin updateSettings error:", err.message);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// Get coupons & scratch cards telemetry
+exports.getCoupons = async (req, res) => {
+  try {
+    const scratchCardsCount = await prisma.rewardLog.count();
+
+    const discountAggr = await prisma.order.aggregate({
+      _sum: {
+        discount: true
+      },
+      where: {
+        discount: { gt: 0 }
+      }
+    });
+    const rewardsDistributed = discountAggr._sum.discount || 0;
+
+    // Group by date for last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const rewardLogs = await prisma.rewardLog.findMany({
+      where: {
+        applied: true,
+        createdAt: { gte: sevenDaysAgo }
+      },
+      select: { createdAt: true }
+    });
+
+    const couponUsageTrendMap = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      couponUsageTrendMap[dateStr] = 0;
+    }
+    rewardLogs.forEach(r => {
+      const dateStr = new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (couponUsageTrendMap[dateStr] !== undefined) {
+        couponUsageTrendMap[dateStr] += 1;
+      }
+    });
+    const couponUsageTrend = Object.entries(couponUsageTrendMap).map(([date, usage]) => ({ date, usage }));
+
+    // Shopwise coupons used
+    const appliedRewardsWithShops = await prisma.rewardLog.findMany({
+      where: { applied: true },
+      include: {
+        order: {
+          include: {
+            shopkeeper: {
+              select: { shopName: true }
+            }
+          }
+        }
+      }
+    });
+
+    const shopMap = {};
+    appliedRewardsWithShops.forEach(r => {
+      const shopName = r.order?.shopkeeper?.shopName || 'Unknown Shop';
+      const discount = r.order?.discount || 0;
+      if (!shopMap[shopName]) {
+        shopMap[shopName] = { shopName, couponsUsed: 0, discountAmount: 0 };
+      }
+      shopMap[shopName].couponsUsed += 1;
+      shopMap[shopName].discountAmount += discount;
+    });
+    const shopWiseCoupons = Object.values(shopMap)
+      .sort((a, b) => b.discountAmount - a.discountAmount)
+      .slice(0, 5);
+
+    res.json({
+      scratchCardsCount,
+      rewardsDistributed,
+      couponUsageTrend,
+      shopWiseCoupons
+    });
+  } catch (err) {
+    console.error("Admin getCoupons error:", err.message);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// Get feedback / support tickets
+exports.getTickets = async (req, res) => {
+  try {
+    const ticketsList = await prisma.feedback.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: { name: true }
+        }
+      }
+    });
+
+    const openTickets = await prisma.feedback.count({
+      where: { status: { in: ['OPEN', 'IN_PROGRESS'] } }
+    });
+    const closedTickets = await prisma.feedback.count({
+      where: { status: 'RESOLVED' }
+    });
+
+    const tickets = ticketsList.map(t => {
+      const diffMs = Date.now() - new Date(t.createdAt).getTime();
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      let timeStr = `${diffHrs} hours ago`;
+      if (diffHrs === 0) {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        timeStr = `${diffMins} mins ago`;
+      } else if (diffHrs >= 24) {
+        const diffDays = Math.floor(diffHrs / 24);
+        timeStr = `${diffDays} days ago`;
+      }
+
+      return {
+        id: `TKT-${t.id.slice(0, 4).toUpperCase()}`,
+        realId: t.id,
+        customer: t.user?.name || 'Anonymous User',
+        subject: t.subject || 'Platform Feedback',
+        message: t.message,
+        shop: 'Platform General',
+        priority: t.rating && t.rating <= 2 ? 'High' : (t.rating === 3 ? 'Medium' : 'Low'),
+        status: t.status === 'RESOLVED' ? 'Closed' : 'Open',
+        time: timeStr
+      };
+    });
+
+    res.json({
+      openTickets,
+      closedTickets,
+      tickets
+    });
+  } catch (err) {
+    console.error("Admin getTickets error:", err.message);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// Toggle ticket status
+exports.updateTicketStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const dbStatus = status === 'Closed' ? 'RESOLVED' : 'OPEN';
+    const ticket = await prisma.feedback.update({
+      where: { id },
+      data: { status: dbStatus }
+    });
+    res.json({ message: "Ticket status updated successfully", ticket });
+  } catch (err) {
+    console.error("Admin updateTicketStatus error:", err.message);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// Get AI usage logs telemetry
+exports.getAIUsage = async (req, res) => {
+  try {
+    const postersAggr = await prisma.aIUsage.aggregate({
+      _sum: { generationCount: true },
+      where: { featureType: { in: ['POSTER', 'GENERATE'] } }
+    });
+    const suggestAggr = await prisma.aIUsage.aggregate({
+      _sum: { generationCount: true },
+      where: { featureType: 'SUGGEST_PROMPT' }
+    });
+    const regenAggr = await prisma.aIUsage.aggregate({
+      _sum: { generationCount: true },
+      where: { featureType: 'REGENERATE' }
+    });
+
+    const posterMaker = postersAggr._sum.generationCount || 0;
+    const bgRemover = suggestAggr._sum.generationCount || 0;
+    const bannerMaker = regenAggr._sum.generationCount || 0;
+    const failedJobs = 0;
+
+    const recentAssets = await prisma.aIAsset.findMany({
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        shopkeeper: {
+          select: { shopName: true }
+        }
+      }
+    });
+
+    const recentGenerations = recentAssets.map(asset => {
+      const diffMs = Date.now() - new Date(asset.createdAt).getTime();
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      let timeStr = `${diffHrs} hours ago`;
+      if (diffHrs === 0) {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        timeStr = `${diffMins} mins ago`;
+      } else if (diffHrs >= 24) {
+        const diffDays = Math.floor(diffHrs / 24);
+        timeStr = `${diffDays} days ago`;
+      }
+
+      return {
+        id: `GEN-${asset.id.slice(0, 3).toUpperCase()}`,
+        tool: asset.type || 'AI Poster Maker',
+        shop: asset.shopkeeper?.shopName || 'Unknown Shop',
+        time: timeStr,
+        status: 'Success'
+      };
+    });
+
+    res.json({
+      posterMaker,
+      bgRemover,
+      bannerMaker,
+      failedJobs,
+      recentGenerations
+    });
+  } catch (err) {
+    console.error("Admin getAIUsage error:", err.message);
+    res.status(500).json({ message: "Server Error" });
+  }
+};

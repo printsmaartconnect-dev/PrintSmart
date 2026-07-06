@@ -13,15 +13,12 @@ enum OrderStatus {
   PRINTING
   COMPLETED
   CANCELLED
-<<<<<<< Updated upstream
-=======
   DOWNLOADED
   CREATED
   PENDING_PAYMENT
   PAID
   PROCESSING
   READY_FOR_PICKUP
->>>>>>> Stashed changes
 }
 
 enum QueueStatus {
@@ -127,6 +124,12 @@ model Shopkeeper {
   orders          Order[]
   statistics      ShopkeeperStatistics?
   aiAssets        AIAsset[]
+  inventoryItems         InventoryItem[]
+  printerStatistics      PrinterStatistics[]
+  businessMetrics        BusinessMetrics[]
+  aiLogs                 AILog[]
+  aiRecommendations      AIRecommendation[]
+  recommendationHistory  RecommendationHistory[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -365,8 +368,6 @@ model PaymentLog {
   updatedAt      DateTime    @updatedAt
 
   @@index([transactionRef])
-<<<<<<< Updated upstream
-=======
 }
 
 model SystemSettings {
@@ -485,5 +486,4 @@ model Payment {
 
   @@index([orderId])
   @@index([razorpayOrderId])
->>>>>>> Stashed changes
 }

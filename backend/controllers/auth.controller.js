@@ -474,15 +474,26 @@ exports.getMeQr = async (req, res) => {
       return res.status(404).json({ message: "Shopkeeper not found" });
     }
 
-    // Auto-generate if missing
-    if (!shopkeeper.qrCodeUrl || !shopkeeper.qrValue) {
+    const fs = require("fs");
+    const path = require("path");
+    const localUploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
+    
+    let fileExists = false;
+    if (shopkeeper.qrCodeUrl) {
+      const relativePath = shopkeeper.qrCodeUrl.replace(/^\/uploads\//, "");
+      const absolutePath = path.join(localUploadDir, relativePath);
+      fileExists = fs.existsSync(absolutePath);
+    }
+
+    // Auto-generate if missing or file not found on local disk
+    if (!shopkeeper.qrCodeUrl || !shopkeeper.qrValue || !fileExists) {
       try {
-        const qrResult = await qrService.generateShopQr(shopkeeper.id);
+        const qrResult = await qrcodeService.generateShopkeeperQRCode(shopkeeper.id, shopkeeper.shopSlug);
         const updated = await prisma.shopkeeper.update({
           where: { id: shopkeeper.id },
           data: {
             qrCodeUrl: qrResult.qrCodeUrl,
-            qrValue: qrResult.qrValue,
+            qrValue: qrResult.qrData,
             qrGeneratedAt: new Date(),
           },
           select: {
@@ -521,13 +532,13 @@ exports.regenerateQr = async (req, res) => {
       return res.status(404).json({ message: "Shopkeeper not found" });
     }
 
-    const qrResult = await qrService.generateShopQr(shopkeeper.id);
+    const qrResult = await qrcodeService.generateShopkeeperQRCode(shopkeeper.id, shopkeeper.shopSlug);
 
     const updated = await prisma.shopkeeper.update({
       where: { id: shopkeeper.id },
       data: {
         qrCodeUrl: qrResult.qrCodeUrl,
-        qrValue: qrResult.qrValue,
+        qrValue: qrResult.qrData,
         qrGeneratedAt: new Date(),
       },
       select: {

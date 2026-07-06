@@ -2939,8 +2939,6 @@
   - Mock data only
   - localStorage limited to browser
 
-<<<<<<< Updated upstream
-=======
   ## [4.1.0] - 2026-07-06
 
   ### Added
@@ -2968,7 +2966,6 @@
   - Core system workflows explaining payment verification, AI Marketing Studio (Gemini 3.5 Flash / custom keys), scratch card rewards, and 2-PC concurrent session limits.
   - Complete API reference tables for the Payment Log & Verification API, conversational AI design generation (`/api/ai/chat-generate`), and platform settings/diagnostics endpoints.
 
->>>>>>> Stashed changes
   ## [3.2.1] - 2026-06-07
 
   ### Fixed
@@ -3614,8 +3611,6 @@
   - `lastUpdated` / `updatedAt` (DateTime)
   - *Indexes*: `@@index([shopkeeperId])`
 
-<<<<<<< Updated upstream
-=======
   #### 11. AIAsset
   Holds details of generated designs for shopkeepers in the AI Poster Studio.
   - `id` (String - UUID, Primary Key)
@@ -3696,8 +3691,6 @@
   - `SUCCESS`: Signature verified or webhook payment captured event successfully received.
   - `FAILED`: Signature verification or webhook payment failed event received.
   - `REFUNDED`: Refund processed via Razorpay dashboard/API.
-
->>>>>>> Stashed changes
   ---
 
   ## Core System Workflows
@@ -3761,8 +3754,6 @@
     - Weekly chart metrics over the past 7 days, calculating growth rate percentages compared to the prior week's volume.
     - Monthly aggregates detailing average order value, top paper sizes, and color-to-B&W ratios.
 
-<<<<<<< Updated upstream
-=======
   ### 6. Payment Verification Flow (UPI & Cash)
   To process digital payments directly to the shopkeeper without high transaction gateway fees:
   1. **Option Selection**: In `/customer/orders`, the customer sees the shopkeeper's verified UPI details and custom Payment QR Code (if uploaded).
@@ -3795,6 +3786,49 @@
 
   ### 8. Scratch Card Loyalty Rewards Flow
   Encourages customer retention via instant post-order scratch-off coupons:
+  1. **Pre-creation**: Upon order placement (while still `PENDING`), a corresponding scratch card is pre-created in the database `RewardLog` model.
+  2. **Eligibility & Odds**:
+     - If the order matches monetary eligibility criteria, it enters a randomized roll.
+     - Black & White prints have a 1.0% chance of a `FREE_PRINT` reward. Color prints have a 0.5% chance of a `HALF_PRICE_COLOR` reward.
+     - Winning rolls automatically adjust and apply the discount to the order subtotal instantly at checkout.
+  3. **Non-Monetary Rewards**:
+     - Losing rolls or non-eligible orders default to a non-monetary card containing fun facts (`DID_YOU_KNOW`) or celestial insights (`ASTROLOGY`).
+     - Content is parsed and cached in memory from local sheets (`csv.service.js`) on startup.
+  4. **Scratching and Verification**:
+     - The customer can access and scratch cards instantly from `/customer/orders` using an interactive HTML5 canvas.
+     - Revealing 30% of the silver layer calls `POST /api/rewards/:id/scratch`, marking the card as scratched and logging details. Clicking citations redirects to references.
+
+  ### 9. 2-PC Concurrent Session Limit
+  Protects shopkeeper portal subscriptions and details from unauthorized sharing:
+  1. **Token Tracking**: On login, a record is added to the `UserSession` model for the shopkeeper.
+  2. **Session Eviction**:
+     - If a shopkeeper attempts to log in on a 3rd active device, the database checks active sessions.
+     - The server performs a rolling logout: it evicts/invalidates the oldest session token in `UserSession`.
+  3. **Verification**: Subsequent requests using the evicted token fail with a `401 Unauthorized` response indicating the session limit has been exceeded.
+
+  ### 10. Razorpay Online Payment Flow
+  Provides automated, real-time online payment capturing, verification, and order processing via Razorpay:
+  1. **Order Initialization**:
+     - When a customer triggers online payment, the client calls `POST /api/payments/create-order` with the `orderId`.
+     - The service (`payment.service.ts`) fetches the order and computes the amount in Paise (amount * 100).
+     - It checks for existing pending transactions to reuse, or initiates a new order via the Razorpay SDK: `razorpayClient.orders.create(options)`.
+     - A corresponding `Payment` record is created in the database with status `PENDING`, and the Order's status transitions to `PENDING_PAYMENT`.
+     - The backend returns the `razorpayOrderId`, total amount, and the configuration API Key (`RAZORPAY_KEY_ID`).
+  2. **Signature Verification (Client-Side Callback)**:
+     - The client receives the order ID, opens the Razorpay checkout overlay, and processes the transaction.
+     - On success, the callback receives `razorpay_order_id`, `razorpay_payment_id`, and `razorpay_signature`.
+     - The client sends this metadata to `POST /api/payments/verify`.
+     - The backend calculates the expected signature: `HMAC_SHA256(razorpayOrderId + "|" + razorpayPaymentId, RAZORPAY_KEY_SECRET)`.
+     - If the signature is valid, the payment record status is updated to `SUCCESS`, the order is marked as `PAID`, and its queue status is updated to `WAITING` (ready for processing).
+     - Socket.IO broadcasts `order-updated` and payment notifications instantly to the shopkeeper's dashboard, admin panel, and customer tracking view.
+  3. **Automated Webhooks (Asynchronous Fail-safe)**:
+     - For instances where the user closes the checkout tab before signature verification completes, Razorpay webhooks post status notifications to `POST /api/payments/webhook`.
+     - The webhook route is protected by `verifyWebhookSignature` middleware which parses and verifies the `x-razorpay-signature` header using the configured webhook secret.
+     - Upon capturing `payment.captured` or `payment.authorized` events, the system updates the payment status to `SUCCESS` and order to `PAID` (with queue updates and socket broadcasts) in an idempotent manner.
+     - If `payment.failed` is received, the database status updates to `FAILED`.
+     - If `refund.processed` is received, the payment record is updated to `REFUNDED` and the associated print order is marked as `CANCELLED`.
+  4. **Refund Processing**:
+     - Payments can be refunded through the `refundPayment(paymentId, amount)` service, which hits Razorpay's API and updates the local status to `REFUNDED`, cancelling the order.n via instant post-order scratch-off coupons:
   1. **Pre-creation**: Upon order placement (while still `PENDING`), a corresponding scratch card is pre-created in the database `RewardLog` model.
   2. **Eligibility & Odds**:
      - If the order matches monetary eligibility criteria, it enters a randomized roll.
@@ -3944,8 +3978,6 @@
   | `/api/rewards/shopkeeper/stats` | `GET` | JWT token | None | `{ rewardsGeneratedToday, freePrintRewardsUsed, discountRewardsUsed, customerEngagementLevel, totalScratched, totalGenerated }` |
   | `/api/rewards/admin/stats` | `GET` | None | None | `{ totalScratches, monetaryRewardsUsed, nonMonetaryRewardsViewed, scratchRate, totalCardsGenerated }` |
 
-<<<<<<< Updated upstream
-=======
   ### 11. Payment & Verification API
   Enables automated online payments via Razorpay as well as manual UPI/Cash transaction reference logging and verification.
 
@@ -3967,8 +3999,6 @@
   | `/api/settings` | `GET` | None | None | `{ [key]: value }` (A map of platform configuration variables) |
   | `/api/health` | `GET` | None | None | `{ status: "healthy", timestamp, storage: "s3/local" }` |
   | `/debug/s3` | `GET` | None | None | `{ currentRegion, bucket, sdkVersion, credentialSource, canConnect, bucketAccessible, errorDetails }` |
-
->>>>>>> Stashed changes
   ---
 
   ## Frontend-Backend Integration Walkthrough
@@ -4025,22 +4055,22 @@
       - **Non-Monetary Content Sourcing**: Non-eligible or losing rolls trigger a non-monetary card (`DID_YOU_KNOW` or `ASTROLOGY` on a 50/50 split). Card details are dynamically cached from local Excel/CSV worksheets (`Do You Know,Astrology.xlsx` converted to assets on startup).
       - **Immediate Customer Scratch Access**: Customers can view and scratch cards immediately from the orders queue page (`/customer/orders`) even while the order is pending or accepted. The scratch card modal dynamically parses JSON entries case-insensitively (supporting columns like `scratch_text`, `category`, `sub_category`, and `reference_link`) and renders clickable source references for facts.
       - **Real-Time Reward Metrics**: The Shopkeeper Statistics panel displays dynamic grids summarizing active scratch rate progress bars, total card distributions, and customer engagement tiers.
+  9. **Walk-in Customer Custom Bill Generator**:
+      - **Prefilled Business Details**: Automatically extracts logo base64, shop name, address, phone number, and GST info from local onboarding storage on launch, keeping fields editable.
+      - **Product Tabular Inputs**: Supports add row, delete row, and duplication of previous item parameters. Calculates row-wise amounts on change.
+      - **Auto-Summaries & Grand Total**: Real-time script aggregates subtotal, itemized discounts, tax/GST values, round off adjustments, paid amounts, and due balances.
+      - **Rupee Conversion**: Translates numeric Grand Totals into readable English/Rupee wording (e.g. `Three Thousand One Hundred Rupees Only`).
+      - **Design Templates**: Supports Classic (solid monochrome borders), Modern (rounded cards and soft gray segments), and Thermal (compact dashed borders simulating 58mm/80mm rolls) live previews.
+      - **Key shortcuts & Caches**: Listens to `Ctrl + P` to trigger printing and `Ctrl + S` to save as PDF. Auto-saves draft contents to `localStorage` to avoid data loss on refresh.
 
   ---
   
   ## Document Version
   
-<<<<<<< Updated upstream
-  - **Version:** 3.2.1
-  - **Last Updated:** June 07, 2026
+  - **Version:** 4.2.1
+  - **Last Updated:** July 7, 2026
   - **Author:** Antigravity AI
-  - **Status:** Complete (Fully synchronized with backend models, API routes, S3 storage with local fallback, custom sequential file IDs, premium invoices, global dashboard translations, and 2-PC concurrent session rolling logout. Enhanced with a full-screen blurred loading overlay on uploads, UPI & Payment QR code setups on shopkeeper and customer flows, dynamic scratch card loyalty rewards, Gemini 3.5 custom API key overrides, and fixes for order placement server errors and success redirection).
-=======
-  - **Version:** 4.1.0
-  - **Last Updated:** July 6, 2026
-  - **Author:** Antigravity AI
-  - **Status:** Complete (Fully updated with backend TypeScript compilation startup hooks, Supabase database schema push, rule-based JSON knowledge rules, modular context aggregations, Next.js TSX Copilot dashboard components, Socket.IO real-time notification/order streams, fluid SWR latency-free cache restoration page traversals, and Razorpay Online Payment System integration).
->>>>>>> Stashed changes
+  - **Status:** Complete (Fully updated with backend TypeScript compilation startup hooks, Supabase database schema push, rule-based JSON knowledge rules, modular context aggregations, Next.js TSX Copilot dashboard components, Socket.IO real-time notification/order streams, fluid SWR latency-free cache restoration page traversals, A4 full-page standee scaling, nodemon loop prevention configuration, slug-based QR code generation fixes, and Custom Bill Generator walk-in module).
   
   ---
   
