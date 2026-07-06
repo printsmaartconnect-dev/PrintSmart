@@ -20,6 +20,8 @@ function TakeAPrintPageContent() {
   const [error, setError] = useState(null)
   const [manualShopId, setManualShopId] = useState('')
   const [showScanner, setShowScanner] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   // Fetch shopkeeper details by slug
   const fetchShopDetails = async (slug) => {
@@ -54,6 +56,29 @@ function TakeAPrintPageContent() {
       fetchShopDetails(shopId)
     }
   }, [shopId])
+
+  // Autocomplete suggestions fetch
+  useEffect(() => {
+    if (!manualShopId.trim()) {
+      setSuggestions([])
+      return
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      try {
+         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
+         const res = await fetch(`${apiUrl}/api/shopkeeper/search?query=${encodeURIComponent(manualShopId)}`)
+         if (res.ok) {
+           const data = await res.json()
+           setSuggestions(data.shops || [])
+         }
+      } catch (err) {
+        console.error('Error fetching suggestions:', err)
+      }
+    }, 250)
+
+    return () => clearTimeout(delayDebounce)
+  }, [manualShopId])
 
   const handleContinue = () => {
     if (shopDetails) {
@@ -165,18 +190,50 @@ function TakeAPrintPageContent() {
               </div>
 
               <form onSubmit={handleManualEntry} className="space-y-4">
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {t('Shop ID or Code')}
                   </label>
                   <input
                     type="text"
                     value={manualShopId}
-                    onChange={(e) => setManualShopId(e.target.value)}
+                    onChange={(e) => {
+                      setManualShopId(e.target.value)
+                      setShowSuggestions(true)
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                     placeholder={t('Enter shop ID (e.g., abc-shop-123)')}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-400 font-semibold"
                     required
                   />
+
+                  {showSuggestions && suggestions.length > 0 && (
+                    <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-xl max-h-60 overflow-y-auto divide-y divide-gray-100">
+                      {suggestions.map((shop) => {
+                        const displayCode = shop.shopkeeperIdCode || shop.shopSlug
+                        return (
+                          <li
+                            key={shop.id}
+                            onMouseDown={() => {
+                              setManualShopId(displayCode)
+                              setShowSuggestions(false)
+                              fetchShopDetails(displayCode)
+                            }}
+                            className="px-4 py-3 hover:bg-indigo-50 cursor-pointer text-left transition-colors"
+                          >
+                            <div className="text-lg font-black text-indigo-700 tracking-wide">
+                              {displayCode}
+                            </div>
+                            <div className="text-xs text-gray-500 font-semibold flex flex-col gap-0.5 mt-1 leading-normal">
+                              <span className="text-gray-800">🏢 {shop.shopName}</span>
+                              {shop.address && <span>📍 {shop.address}</span>}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
                 </div>
 
                 <button

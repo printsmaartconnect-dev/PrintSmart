@@ -405,7 +405,7 @@ function CustomerLanguagePageContent() {
       'text/plain': ['.txt'],
       'text/csv': ['.csv'],
     },
-    maxSize: 104857600,
+    maxSize: 1073741824,
   })
 
   // Cleanup object URLs on unmount
@@ -601,7 +601,9 @@ function CustomerLanguagePageContent() {
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
 
-      const uploadPromises = files.map(async (item, i) => {
+      const uploadedFilesData = []
+      for (let i = 0; i < files.length; i++) {
+        const item = files[i]
         const originalName = item.file.name
         const fileExt = getFileExtension(originalName)
 
@@ -626,7 +628,7 @@ function CustomerLanguagePageContent() {
 
         const result = await uploadRes.json()
 
-        return {
+        uploadedFilesData.push({
           originalFileName: originalName,
           customFileName: customName,
           fileExtension: fileExt,
@@ -634,11 +636,9 @@ function CustomerLanguagePageContent() {
           fileSize: item.file.size,
           thumbnailUrl: item.thumbnailUrl || item.previewUrl || result.fileUrl || null,
           uploadTimestamp: new Date().toISOString()
-        }
-      })
+        })
+      }
 
-      const uploadedFilesData = await Promise.all(uploadPromises)
-      
       if (uploadTimer) {
         clearTimeout(uploadTimer)
       }
@@ -795,35 +795,6 @@ function CustomerLanguagePageContent() {
                       required
                     />
                   </div>
-
-                  {/* Phone (Optional) */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      {t('Phone Number')} <span className="text-gray-400">({t('optional')})</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder={t('10-digit mobile number')}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
-                    />
-                  </div>
-
-                  {/* Email (Optional) */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      {t('Email')} <span className="text-gray-400">({t('optional')})</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder={t('your@email.com')}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
-                    />
-                  </div>
-
 
 
                   {/* 3. Document Upload Section */}

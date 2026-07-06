@@ -4,11 +4,11 @@ const multer = require("multer");
 const fileController = require("../controllers/file.controller");
 const authMiddleware = require("../middleware/auth.middleware");
 
-// Set up Multer memory storage with 100MB limit
+// Set up Multer memory storage with 1GB limit
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB limit
+    fileSize: 1024 * 1024 * 1024, // 1GB limit
   },
 });
 
@@ -20,7 +20,7 @@ router.post(
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
           return res.status(400).json({
-            message: "File size exceeds the allowed limit of 100MB."
+            message: "File size exceeds the allowed limit of 1GB."
           });
         }
         return res.status(400).json({ message: `Upload configuration error: ${err.message}` });

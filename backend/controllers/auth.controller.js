@@ -558,4 +558,39 @@ exports.regenerateQr = async (req, res) => {
   return res.status(410).json({ message: "Regenerate QR feature has been disabled." });
 };
 
+// Search shopkeepers (Public Customer Flow)
+exports.searchShops = async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query || typeof query !== 'string' || query.trim() === '') {
+      return res.json({ shops: [] });
+    }
+
+    const shops = await prisma.shopkeeper.findMany({
+      where: {
+        OR: [
+          { shopName: { contains: query, mode: 'insensitive' } },
+          { shopSlug: { contains: query, mode: 'insensitive' } },
+          { shopkeeperIdCode: { contains: query, mode: 'insensitive' } },
+          { address: { contains: query, mode: 'insensitive' } }
+        ]
+      },
+      select: {
+        id: true,
+        shopName: true,
+        address: true,
+        shopSlug: true,
+        shopkeeperIdCode: true,
+      },
+      take: 10,
+    });
+
+    res.json({ shops });
+  } catch (err) {
+    console.error("Error searching shops:", err);
+    res.status(500).json({ message: "Server error searching shops" });
+  }
+};
+
+
 
