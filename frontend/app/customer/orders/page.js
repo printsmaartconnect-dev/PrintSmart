@@ -361,95 +361,29 @@ function OrdersPageContent() {
         {/* Payment Box Section */}
         {orders.length > 0 && orders.some(o => o.status === 'PENDING') && (
             (() => {
-            const handleUpiPayClick = () => {
-              if (platform === 'desktop') {
-                setDesktopError(true)
-                return
-              }
-              // Redirect to generic upi://pay to invoke OS app chooser
-              window.location.href = 'upi://pay'
-              setPaymentInitiated(true)
-            }
-
             return (
-              <div className="mb-8 p-5 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl space-y-4 shadow-sm animate-fade-in flex flex-col">
-                <div className="space-y-1 text-center">
-                  <h3 className="font-bold text-slate-800 text-sm">{t('Payment Options for Order')} <span className="text-indigo-600 font-mono">({latestPendingOrder.orderId})</span></h3>
-                  <p className="text-xs text-gray-500 font-semibold">
-                    {t('Pay online via UPI or pay cash at the counter to start printing.')}
+              <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 border border-indigo-150 rounded-2xl space-y-4 shadow-sm animate-fade-in flex flex-col items-center text-center">
+                <div className="space-y-1">
+                  <h3 className="font-bold text-slate-800 text-base">{t('Complete Your Payment')}</h3>
+                  <p className="text-xs text-gray-500 font-semibold max-w-md">
+                    {t('Pay online via QR code at the shop, or pay cash to the shopkeeper. Once done, click the button below to confirm.')}
                   </p>
                 </div>
-                
-                <div className="flex flex-col md:flex-row gap-4 items-stretch">
-                  {/* Pay Online column */}
-                  <div className="flex-1 flex flex-col items-center gap-3 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm justify-between">
-                    <div className="w-full flex flex-col items-center gap-3 text-center">
-                      <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">{t('Option A: Pay Online')}</p>
 
-                      {desktopError && (
-                        <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 text-left">
-                          <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
-                            <AlertCircle size={12} className="text-amber-600" />
-                            {t('Desktop Limitation')}
-                          </p>
-                          <p className="text-xs text-amber-700 font-semibold mt-1">
-                            {t('UPI app launching is only available on mobile devices.')}
-                          </p>
-                        </div>
-                      )}
-
-                      {!paymentInitiated ? (
-                        <button
-                          type="button"
-                          onClick={handleUpiPayClick}
-                          className="w-full inline-flex items-center justify-center gap-2 text-center py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition duration-200 shadow-sm"
-                        >
-                          ⚡ {t('Pay with UPI')}
-                        </button>
-                      ) : (
-                        <div className="w-full space-y-3">
-                          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-left">
-                            <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
-                              ⏳ {t('Payment Pending Verification')}
-                            </p>
-                            <p className="text-[10px] text-amber-600 mt-1 font-semibold leading-normal">
-                              {t('UPI payment has been launched. Once you complete the payment in your UPI app, click the button below.')}
-                            </p>
-                          </div>
-                          
-                          <button
-                            type="button"
-                            disabled={submittingRef}
-                            onClick={async () => {
-                              setSubmittingRef(true)
-                              const generatedRef = `UPI-AUTO-${latestPendingOrder.id.substring(0, 8)}-${Date.now()}`
-                              await handleVerifyPayment(latestPendingOrder.id, generatedRef, 'UPI')
-                              setPaymentInitiated(false)
-                              setSubmittingRef(false)
-                            }}
-                            className="w-full inline-flex items-center justify-center gap-2 text-center py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 transition duration-200 shadow-sm"
-                          >
-                            {submittingRef ? t('Wait...') : `✅ ${t('I Have Paid')}`}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Pay Offline column */}
-                  <div className="flex-grow flex-shrink-0 md:w-1/2 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm flex flex-col justify-between items-center text-center">
-                    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">{t('Option B: Pay Cash')}</p>
-                    <div className="text-[11px] text-gray-500 font-medium px-2 mb-4">
-                      {t('Pay cash directly at the counter. Click below to notify the shopkeeper of cash payment.')}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePayCash(latestPendingOrder.id)}
-                      className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 transition shadow-sm h-[42px] flex items-center justify-center mt-auto"
-                    >
-                      🏪 {t('Pay Cash at Counter')}
-                    </button>
-                  </div>
+                <div className="w-full max-w-sm">
+                  <button
+                    type="button"
+                    disabled={submittingRef}
+                    onClick={async () => {
+                      setSubmittingRef(true)
+                      const generatedRef = `AUTO-${latestPendingOrder.id.substring(0, 8)}-${Date.now()}`
+                      await handleVerifyPayment(latestPendingOrder.id, generatedRef, 'CASH')
+                      setSubmittingRef(false)
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition duration-200 shadow-md animate-pulse"
+                  >
+                    {submittingRef ? t('Registering...') : `✅ ${t('I Have Paid (Payment Done)')}`}
+                  </button>
                 </div>
               </div>
             )

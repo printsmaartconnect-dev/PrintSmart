@@ -648,51 +648,7 @@ export default function ShopkeeperProfileViewPage() {
                       <ReadOnlyIconBox icon={Mail} value={contact.emailAddress} placeholder="—" />
                     </Field>
 
-                    <Field label={t('UPI ID')} required>
-                      {!editingUpi ? (
-                        <div className="flex gap-2 items-center">
-                          <div className="flex-1">
-                            <ReadOnlyBox value={profile.upiId || '—'} />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setUpiValue(profile.upiId || '')
-                              setEditingUpi(true)
-                            }}
-                            className="px-3 py-2 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-xl transition"
-                          >
-                            {t('Edit')}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-2">
-                          <TextInput
-                            value={upiValue}
-                            onChange={(e) => setUpiValue(e.target.value)}
-                            placeholder="e.g. shopname@upi"
-                          />
-                          <div className="flex gap-2 mt-1">
-                            <button
-                              type="button"
-                              onClick={handleUpdateUpi}
-                              disabled={savingUpi}
-                              className="flex-1 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-xl transition disabled:opacity-50"
-                            >
-                              {savingUpi ? t('Saving...') : t('Save')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingUpi(false)}
-                              disabled={savingUpi}
-                              className="flex-1 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition disabled:opacity-50"
-                            >
-                              {t('Cancel')}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </Field>
+
 
 
 

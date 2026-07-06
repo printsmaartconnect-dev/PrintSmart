@@ -520,6 +520,7 @@ exports.updateOrderStatus = async (req, res) => {
         queue: true,
         invoice: true,
         paymentLog: true,
+        rewardLog: true,
       },
     });
 
@@ -793,6 +794,7 @@ exports.updateOrderStatusByCustomer = async (req, res) => {
         queue: true,
         invoice: true,
         paymentLog: true,
+        rewardLog: true,
       },
     });
 
