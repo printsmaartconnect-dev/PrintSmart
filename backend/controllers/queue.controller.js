@@ -13,6 +13,9 @@ exports.getActiveQueue = async (req, res) => {
       where: {
         order: {
           shopkeeperId,
+          status: {
+            notIn: ["PENDING_PAYMENT", "CREATED", "PENDING"]
+          }
         },
         status: {
           not: "Done",

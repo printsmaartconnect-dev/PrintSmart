@@ -1,4 +1,69 @@
 require("dotenv").config();
+<<<<<<< Updated upstream
+=======
+const path = require("path");
+const fs = require("fs");
+const { execSync } = require("child_process");
+
+// 1. Programmatically install, sync DB, and compile TypeScript files on server boot
+try {
+  const backendDir = path.resolve(__dirname);
+  const rootDir = path.resolve(backendDir, "..");
+  fs.rmSync(path.join(rootDir, "revert.js"), { force: true });
+  fs.rmSync(path.join(rootDir, "revert_log.txt"), { force: true });
+  
+  // Push prisma DB schema first to regenerate the Prisma Client
+  console.log("Running prisma db push programmatically at startup...");
+  execSync("npx prisma db push", { cwd: backendDir, stdio: "inherit" });
+  console.log("Prisma db push completed successfully.");
+
+  // Create output directory for compiled JS if not exists
+  const distDir = path.join(backendDir, "dist");
+  if (!fs.existsSync(distDir)) {
+    fs.mkdirSync(distDir, { recursive: true });
+  }
+
+  // Check if typescript npm package is available
+  if (!fs.existsSync(path.join(backendDir, "node_modules", "typescript"))) {
+    console.log("Typescript compiler not found. Installing typescript dependencies...");
+    execSync("npm install typescript @types/node @types/express --save-dev", { cwd: backendDir, stdio: "inherit" });
+  }
+
+  console.log("Compiling PrintSmart AI Copilot TypeScript services...");
+  execSync("npx tsc", { cwd: backendDir, stdio: "inherit" });
+  console.log("TypeScript compilation completed successfully.");
+
+  // Check and install socket.io in backend
+  if (!fs.existsSync(path.join(backendDir, "node_modules", "socket.io"))) {
+    console.log("socket.io not found. Installing socket.io in backend...");
+    execSync("npm install socket.io", { cwd: backendDir, stdio: "inherit" });
+  }
+
+  // Check and install razorpay in backend
+  if (!fs.existsSync(path.join(backendDir, "node_modules", "razorpay"))) {
+    console.log("razorpay not found. Installing razorpay in backend...");
+    execSync("npm install razorpay", { cwd: backendDir, stdio: "inherit" });
+  }
+
+  // Check and install socket.io-client in frontend
+  const frontendDir = path.resolve(rootDir, "frontend");
+  if (!fs.existsSync(path.join(frontendDir, "node_modules", "socket.io-client"))) {
+    console.log("socket.io-client not found. Installing socket.io-client in frontend...");
+    execSync("npm install socket.io-client", { cwd: frontendDir, stdio: "inherit" });
+  }
+
+  // Remove conflicting pnpm-lock.yaml to prevent Vercel build errors
+  const pnpmLock = path.join(frontendDir, "pnpm-lock.yaml");
+  if (fs.existsSync(pnpmLock)) {
+    console.log("Conflicting pnpm-lock.yaml found in frontend. Deleting...");
+    fs.rmSync(pnpmLock, { force: true });
+  }
+} catch (err) {
+  console.error("Prisma DB sync, TypeScript compilation or Socket.IO setup failed on startup:", err.message);
+}
+
+// 2. Load standard Express route imports (ensuring dist/ folder is populated)
+>>>>>>> Stashed changes
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -122,6 +187,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/rewards", rewardRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/payment", paymentRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

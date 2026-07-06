@@ -26,7 +26,11 @@ function TopBorder({ type }) {
 function StatusPill({ status }) {
   const map = {
     Pending: 'bg-amber-50 text-amber-700 border-amber-200/60',
-    Completed: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+    Paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    Processing: 'bg-indigo-50 text-indigo-750 border-indigo-200',
+    Printing: 'bg-purple-100 text-purple-800 border-purple-200',
+    Ready_for_pickup: 'bg-blue-100 text-blue-800 border-blue-200',
+    Completed: 'bg-teal-50 text-teal-800 border-teal-200/60',
     Downloaded: 'bg-indigo-50 text-indigo-700 border-indigo-200/60',
     Cancelled: 'bg-rose-50 text-rose-700 border-rose-200/60',
   }
@@ -168,6 +172,15 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify }) {
       </div>
 
       {order.variant === 'talk' ? <CustomerWantsToTalk /> : <DetailGrid order={order} />}
+
+      {["Paid", "Processing", "Printing", "Ready_for_pickup"].includes(order.status) && (
+        <div className="mt-4 p-3 bg-emerald-50/70 rounded-xl border border-emerald-100 text-left text-xs">
+          <div className="flex justify-between items-center text-emerald-800 font-extrabold">
+            <span>Payment Method:</span>
+            <span>⚡ Paid Online (Razorpay)</span>
+          </div>
+        </div>
+      )}
 
       {order.paymentLog && (
         <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-left space-y-2 text-xs">

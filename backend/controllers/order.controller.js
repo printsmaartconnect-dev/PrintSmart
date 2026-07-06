@@ -226,7 +226,7 @@ exports.createOrder = async (req, res) => {
         tax: taxAmt,
         discount: discountAmt,
         totalAmount: orderTotal,
-        status: "PENDING",
+        status: "PENDING_PAYMENT",
         estimatedTime,
       },
     });
@@ -423,6 +423,10 @@ exports.getShopkeeperOrders = async (req, res) => {
 
     if (status && status !== "All") {
       whereCondition.status = status;
+    } else {
+      whereCondition.status = {
+        notIn: ["PENDING_PAYMENT", "CREATED"]
+      };
     }
 
     const orders = await prisma.order.findMany({
@@ -458,10 +462,26 @@ exports.updateOrderStatus = async (req, res) => {
 
     // Map string status to Enum OrderStatus
     let statusEnum = status.toUpperCase();
+<<<<<<< Updated upstream
     if (statusEnum === "DOWNLOADED") {
       statusEnum = "COMPLETED";
     }
     if (!["PENDING", "ACCEPTED", "PRINTING", "COMPLETED", "CANCELLED"].includes(statusEnum)) {
+=======
+    if (![
+      "CREATED",
+      "PENDING_PAYMENT",
+      "PAID",
+      "PROCESSING",
+      "PRINTING",
+      "READY_FOR_PICKUP",
+      "COMPLETED",
+      "CANCELLED",
+      "DOWNLOADED",
+      "PENDING",
+      "ACCEPTED"
+    ].includes(statusEnum)) {
+>>>>>>> Stashed changes
       return res.status(400).json({ message: "Invalid order status value" });
     }
 

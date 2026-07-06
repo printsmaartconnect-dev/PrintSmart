@@ -203,7 +203,7 @@ export default function CustomerReviewContent() {
       if (isShopkeeper) {
         router.push('/shopkeeper/dashboard')
       } else {
-        router.push(`/customer/order-placed?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
+        router.push(`/customer/orders?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
       }
     } catch (err) {
       console.error('Order creation error:', err)

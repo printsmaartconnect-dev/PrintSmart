@@ -206,11 +206,28 @@ export default function ShopkeeperDashboard() {
 
   const displayedOrders =
     (activeFilter === "All" || activeFilter === t("All"))
+<<<<<<< Updated upstream
       ? ordersList
       : ordersList.filter((order) => t(order.status) === activeFilter);
 
   const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
   const completedCount = ordersList.filter((o) => o.status === "Completed").length;
+=======
+      ? ordersList.filter(o => o.status !== "Pending_payment")
+      : ordersList.filter((order) => {
+          if (order.status === "Pending_payment") return false;
+          if (activeFilter === "Completed" || activeFilter === t("Completed")) {
+            return order.status === "Completed" || order.status === "Downloaded";
+          }
+          if (activeFilter === "Pending" || activeFilter === t("Pending")) {
+            return ["Paid", "Processing", "Printing", "Ready_for_pickup", "Pending"].includes(order.status);
+          }
+          return t(order.status) === activeFilter;
+        });
+
+  const pendingCount = ordersList.filter((o) => ["Paid", "Processing", "Printing", "Ready_for_pickup", "Pending"].includes(o.status)).length;
+  const completedCount = ordersList.filter((o) => o.status === "Completed" || o.status === "Downloaded").length;
+>>>>>>> Stashed changes
   const downloadedCount = ordersList.filter((o) => o.status === "Downloaded").length;
   const cancelledCount = ordersList.filter((o) => o.status === "Cancelled").length;
 
@@ -231,6 +248,7 @@ export default function ShopkeeperDashboard() {
       { key: 'profile', label: t('Profile'), badge: null, href: '/shopkeeper/profile' },
       { key: 'settings', label: t('Settings'), badge: null, href: '/shopkeeper/settings' },
       { key: 'subscription', label: t('Subscription'), badge: null, href: '/shopkeeper/subscription' },
+      { key: 'payments', label: t('Payments History'), badge: null, href: '/shopkeeper/payment-history' },
       { key: 'allOrders', label: t('Statistics & Analysis'), badge: null, href: '/shopkeeper/statistics-and-analysis' },
       { key: 'pending', label: t('Pending'), badge: String(pendingCount) },
       { key: 'completed', label: t('Completed'), badge: String(completedCount) },
