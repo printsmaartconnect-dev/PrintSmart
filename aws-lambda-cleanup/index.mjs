@@ -186,6 +186,7 @@ export const handler = async (event) => {
     let totalFilesScanned = 0;
     let totalFilesDeleted = 0;
     const deletedFolders = [];
+    const cleanedOrderIds = [];
 
     try {
         for (const item of foldersToDelete) {
@@ -202,8 +203,29 @@ export const handler = async (event) => {
             totalFilesScanned += result.filesScanned;
             totalFilesDeleted += result.filesDeleted;
             deletedFolders.push(folderPrefix);
+            if (item.orderId) {
+                cleanedOrderIds.push(item.orderId);
+            }
             
             console.log(`[INFO] Completed folder ${folderPrefix}. Scanned: ${result.filesScanned}, Deleted: ${result.filesDeleted}`);
+        }
+
+        // Notify backend about successfully cleaned order IDs to update database status
+        if (cleanedOrderIds.length > 0) {
+            try {
+                const notifyResponse = await fetch(`${backendApiUrl.replace(/\/$/, "")}/api/storage/cleanup`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orderIds: cleanedOrderIds }),
+                });
+                if (!notifyResponse.ok) {
+                    console.error(`[ERROR] Failed to notify backend: ${await notifyResponse.text()}`);
+                } else {
+                    console.log(`[INFO] Successfully notified backend of ${cleanedOrderIds.length} cleaned order(s).`);
+                }
+            } catch (notifyErr) {
+                console.error("[ERROR] Failed to connect to backend for cleanup notification:", notifyErr.message);
+            }
         }
 
         const executionTime = Date.now() - startTime;

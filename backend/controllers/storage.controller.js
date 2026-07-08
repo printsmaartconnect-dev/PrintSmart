@@ -45,3 +45,81 @@ exports.getCleanupFolders = async (req, res) => {
     return res.status(500).json({ error: "Failed to fetch cleanup folders" });
   }
 };
+
+/**
+ * Marks specified orders as cleaned in S3, setting storageStatus = "CLEANED"
+ * and filesDeleted = true. Broadcasts changes via Socket.IO.
+ */
+exports.markCleaned = async (req, res) => {
+  try {
+    const { orderIds } = req.body;
+    if (!orderIds || !Array.isArray(orderIds)) {
+      return res.status(400).json({ error: "orderIds array is required" });
+    }
+
+    const updatedOrders = [];
+    for (const id of orderIds) {
+      try {
+        const orderExists = await prisma.order.findUnique({ where: { id } });
+        if (!orderExists) continue;
+
+        const updatedOrder = await prisma.order.update({
+          where: { id },
+          data: {
+            storageStatus: "CLEANED",
+            filesDeleted: true,
+            cleanedAt: new Date(),
+          },
+          include: {
+            printConfiguration: true,
+            orderFiles: true,
+            queue: true,
+            invoice: true,
+            paymentLog: true,
+            rewardLog: true,
+          },
+        });
+
+        updatedOrders.push(updatedOrder);
+
+        // Broadcast to clients via Socket.IO
+        const orderController = require("./order.controller");
+        const formattedOrder = orderController.formatOrderResponse(updatedOrder);
+
+        const socketService = require("../services/socket.service");
+        // Shopkeeper room notification
+        socketService.emitToRoom(`shop:${updatedOrder.shopkeeperId}`, "storage_cleaned", {
+          orderId: updatedOrder.id,
+          orderIdCode: updatedOrder.orderId,
+          order: formattedOrder,
+        });
+
+        // Customer room notification
+        if (updatedOrder.userId) {
+          socketService.emitToRoom(`customer:${updatedOrder.userId}`, "storage_cleaned", {
+            orderId: updatedOrder.id,
+            orderIdCode: updatedOrder.orderId,
+            order: formattedOrder,
+          });
+        }
+
+        // Admin room notification
+        socketService.emitToRoom("admin", "storage_cleaned", {
+          orderId: updatedOrder.id,
+          orderIdCode: updatedOrder.orderId,
+          order: formattedOrder,
+        });
+      } catch (err) {
+        console.error(`[Cleanup API] Failed to mark order ${id} as cleaned:`, err.message);
+      }
+    }
+
+    return res.status(200).json({
+      message: "Successfully marked orders as cleaned",
+      count: updatedOrders.length,
+    });
+  } catch (error) {
+    console.error("[Cleanup API] Error updating cleanup status:", error);
+    return res.status(500).json({ error: "Failed to update cleanup status" });
+  }
+};

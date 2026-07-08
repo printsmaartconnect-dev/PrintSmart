@@ -155,6 +155,8 @@ export default function ShopkeeperDashboard() {
       price: `₹${(o.price || 0.0).toFixed(2)}`,
       orderId: o.orderId,
     }],
+    filesDeleted: o.filesDeleted,
+    storageStatus: o.storageStatus,
   });
 
   const splitAndMapRawOrders = (rawOrders) => {
@@ -232,6 +234,23 @@ export default function ShopkeeperDashboard() {
       const copy = [...filtered];
       copy.splice(index, 0, ...split);
       return copy;
+    });
+  });
+
+  // Handle automatic storage cleanup in real-time
+  useSocket("storage_cleaned", (data) => {
+    console.log("[Socket] Dashboard received storage cleanup:", data);
+    setOrdersList((prev) => {
+      return prev.map((o) => {
+        if (o.dbId === data.orderId) {
+          return {
+            ...o,
+            filesDeleted: true,
+            storageStatus: "CLEANED",
+          };
+        }
+        return o;
+      });
     });
   });
 

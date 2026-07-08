@@ -195,8 +195,22 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
       <TopBorder type={order.type} />
 
       <div className="flex items-start justify-between gap-3">
-        <div className="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
-          #{order.id}
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
+            #{order.id}
+          </div>
+          {order.filesDeleted && (
+            <span 
+              className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200/60 px-2 py-0.5 text-[10px] font-bold text-slate-500 relative group cursor-help shrink-0"
+              title="The uploaded files have been automatically removed after 6 hours to save storage."
+            >
+              Storage Cleaned
+              {/* Tooltip */}
+              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-slate-800 p-2 text-center text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 z-10 shadow-lg">
+                The uploaded files have been automatically removed after 6 hours to save storage.
+              </span>
+            </span>
+          )}
         </div>
         <StatusPill status={order.status} />
       </div>
@@ -236,8 +250,9 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
                   )}
                 </div>
                 {/* File-specific Action Icons */}
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
+                {!order.filesDeleted && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
                     type="button"
                     onClick={async (e) => {
                       e.stopPropagation();
@@ -296,7 +311,8 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
                     <Download size={12} />
                   </button>
                 </div>
-              </div>
+              )}
+            </div>
               {/* File details breakdown if not Wants to Talk */}
               {order.variant !== 'talk' && (
                 <div className="flex flex-wrap gap-1 text-[10px] text-slate-500 font-bold pl-9">
@@ -386,12 +402,18 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
         {order.timestamp}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-50 pt-3">
-        <ActionButton tone="purple" icon={Eye} label="Preview" onClick={handlePreview} />
-        <ActionButton tone="purple" icon={Printer} label="Print" onClick={handlePrint} />
-        <ActionButton tone="blue" icon={Download} label="Download" onClick={handleDownload} />
-        <ActionButton tone="red" icon={X} label="Cancel" onClick={handleCancel} />
-      </div>
+      {order.filesDeleted ? (
+        <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs font-bold text-slate-500">
+          ⚠️ Storage Cleaned — Files Automatically Removed
+        </div>
+      ) : (
+        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-50 pt-3">
+          <ActionButton tone="purple" icon={Eye} label="Preview" onClick={handlePreview} />
+          <ActionButton tone="purple" icon={Printer} label="Print" onClick={handlePrint} />
+          <ActionButton tone="blue" icon={Download} label="Download" onClick={handleDownload} />
+          <ActionButton tone="red" icon={X} label="Cancel" onClick={handleCancel} />
+        </div>
+      )}
     </div>
   )
 }

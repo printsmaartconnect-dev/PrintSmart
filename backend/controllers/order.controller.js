@@ -873,3 +873,5 @@ exports.updateOrderStatusByCustomer = async (req, res) => {
   }
 };
 
+exports.formatOrderResponse = formatOrderResponse;
+

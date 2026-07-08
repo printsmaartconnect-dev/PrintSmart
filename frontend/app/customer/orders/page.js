@@ -66,6 +66,22 @@ function OrdersPageContent() {
       prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
     );
   });
+
+  useSocket("storage_cleaned", (data) => {
+    console.log("[Socket] Customer received storage cleanup:", data);
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === data.orderId) {
+          return {
+            ...o,
+            filesDeleted: true,
+            storageStatus: "CLEANED",
+          };
+        }
+        return o;
+      })
+    );
+  });
   const [submittingRef, setSubmittingRef] = useState(false)
   
   // Delete Confirmation Modal State
@@ -436,6 +452,18 @@ function OrdersPageContent() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-indigo-700 text-base">{order.orderId}</span>
+                      {order.filesDeleted && (
+                        <span 
+                          className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200/60 px-2 py-0.5 text-[10px] font-bold text-slate-500 relative group cursor-help shrink-0"
+                          title="The uploaded files have been automatically removed after 6 hours to save storage."
+                        >
+                          {t("Storage Cleaned")}
+                          {/* Tooltip */}
+                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-slate-800 p-2 text-center text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 z-10 shadow-lg">
+                            {t("The uploaded files have been automatically removed after 6 hours to save storage.")}
+                          </span>
+                        </span>
+                      )}
                       {order.paymentLog && (
                         <>
                           {order.paymentLog.paymentStatus === 'PENDING' && (
@@ -516,6 +544,11 @@ function OrdersPageContent() {
                       </div>
                     );
                   })}
+                  {order.filesDeleted && (
+                    <div className="p-3 bg-slate-50 text-slate-500 rounded-xl border border-slate-200 text-center text-xs font-bold font-sans">
+                      🔒 {t('Storage Cleaned — Files Automatically Removed')}
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer details & Action buttons */}

@@ -212,7 +212,21 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                       >
                         {/* Order ID */}
                         <td className="py-3.5 px-4 font-bold text-slate-900">
-                          #{order.id}
+                          <div className="flex items-center gap-1.5">
+                            #{order.id}
+                            {order.filesDeleted && (
+                              <span 
+                                className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200/60 px-2 py-0.5 text-[10px] font-bold text-slate-500 relative group cursor-help shrink-0"
+                                title={t("The uploaded files have been automatically removed after 6 hours to save storage.")}
+                              >
+                                {t("Storage Cleaned")}
+                                {/* Tooltip */}
+                                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-slate-800 p-2 text-center text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 z-10 shadow-lg">
+                                  {t("The uploaded files have been automatically removed after 6 hours to save storage.")}
+                                </span>
+                              </span>
+                            )}
+                          </div>
                         </td>
                         
                         {/* Customer */}
@@ -248,7 +262,8 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                                   )}
                                 </div>
                                 {/* Mini File Specific Action Icons */}
-                                <div className="flex items-center gap-0.5 opacity-0 group-hover/file:opacity-100 transition-opacity flex-shrink-0">
+                                {!order.filesDeleted && (
+                                  <div className="flex items-center gap-0.5 opacity-0 group-hover/file:opacity-100 transition-opacity flex-shrink-0">
                                   <button
                                     onClick={async (e) => {
                                       e.stopPropagation();
@@ -305,7 +320,8 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                                     <Download size={10} />
                                   </button>
                                 </div>
-                              </div>
+                              )}
+                            </div>
                             ))}
                           </div>
                         </td>
@@ -404,43 +420,49 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                         
                         {/* Actions */}
                         <td className="py-3.5 px-4">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {/* Preview */}
-                            <button
-                              onClick={() => handlePreview(order)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600"
-                              title={t('Preview Document')}
-                            >
-                              <Eye size={14} />
-                            </button>
-                            
-                            {/* Print */}
-                            <button
-                              onClick={() => handlePrint(order)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600"
-                              title={t('Print File')}
-                            >
-                              <Printer size={14} />
-                            </button>
-                            
-                            {/* Download */}
-                            <button
-                              onClick={() => handleDownload(order)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-600"
-                              title={t('Download File')}
-                            >
-                              <Download size={14} />
-                            </button>
-                            
-                            {/* Cancel */}
-                            <button
-                              onClick={() => handleCancel(order)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
-                              title={t('Cancel Order')}
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
+                          {order.filesDeleted ? (
+                            <span className="text-[10px] text-slate-400 font-extrabold bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg block text-center uppercase tracking-wider">
+                              ⚠️ {t('Storage Cleaned')}
+                            </span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* Preview */}
+                              <button
+                                onClick={() => handlePreview(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600"
+                                title={t('Preview Document')}
+                              >
+                                <Eye size={14} />
+                              </button>
+                              
+                              {/* Print */}
+                              <button
+                                onClick={() => handlePrint(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600"
+                                title={t('Print File')}
+                              >
+                                <Printer size={14} />
+                              </button>
+                              
+                              {/* Download */}
+                              <button
+                                onClick={() => handleDownload(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-600"
+                                title={t('Download File')}
+                              >
+                                <Download size={14} />
+                              </button>
+                              
+                              {/* Cancel */}
+                              <button
+                                onClick={() => handleCancel(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+                                title={t('Cancel Order')}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )
