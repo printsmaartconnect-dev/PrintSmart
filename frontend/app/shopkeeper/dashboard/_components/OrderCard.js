@@ -134,7 +134,7 @@ const getPrintableUrl = async (fileUrl) => {
   return fileUrl;
 };
 
-export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPrint, onDownload }) {
+export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPrint, onDownload, onEditBill }) {
   const [showCleanedModal, setShowCleanedModal] = useState(false);
   const handlePreview = async () => {
     const filesList = order.files && order.files.length > 0 ? order.files : [order];
@@ -438,15 +438,22 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
         {order.timestamp}
       </div>
 
+      <button
+        onClick={() => onEditBill?.(order)}
+        className="mt-4 w-full bg-indigo-50 hover:bg-indigo-100 text-[#5D3EBC] text-xs font-bold py-2.5 px-4 rounded-xl border border-indigo-200/50 transition flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+      >
+        <FileText size={14} /> Edit Bill
+      </button>
+
       {order.filesDeleted ? (
         <div
           onClick={() => setShowCleanedModal(true)}
-          className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs font-bold text-slate-500 hover:bg-slate-100 hover:border-slate-300 transition cursor-pointer select-none"
+          className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs font-bold text-slate-500 hover:bg-slate-100 hover:border-slate-300 transition cursor-pointer select-none"
         >
           ⚠️ Storage Cleaned — Files Automatically Removed (Click for Info)
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-50 pt-3">
+        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-50 pt-3">
           <ActionButton tone="purple" icon={Eye} label="Preview" onClick={handlePreview} />
           <ActionButton tone="purple" icon={Printer} label="Print" onClick={handlePrint} />
           <ActionButton tone="blue" icon={Download} label="Download" onClick={handleDownload} />

@@ -58,6 +58,7 @@ const DEFAULT_STATE: BillFormState = {
 interface CustomBillModalProps {
   isOpen: boolean
   onClose: () => void
+  prefillData?: any
 }
 
 // Indian Rupee number to words conversion helper
@@ -107,7 +108,7 @@ function numberToWords(num: number): string {
   return result.replace(/\s+/g, ' ')
 }
 
-export default function CustomBillModal({ isOpen, onClose }: CustomBillModalProps) {
+export default function CustomBillModal({ isOpen, onClose, prefillData }: CustomBillModalProps) {
   const [form, setForm] = useState<BillFormState>(DEFAULT_STATE)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -132,7 +133,21 @@ export default function CustomBillModal({ isOpen, onClose }: CustomBillModalProp
     const defaultDate = now.toISOString().split('T')[0]
     const defaultTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 
-    if (draft) {
+    if (prefillData) {
+      setForm({
+        ...DEFAULT_STATE,
+        shopName: profile.shopName || shop?.shopName || 'PrintSmart Shop',
+        address: contact.shopAddress || '',
+        gstNumber: profile.gstNumber || '',
+        phone: contact.phoneNumber || shop?.phone || '',
+        email: contact.emailAddress || shop?.email || '',
+        logo: profile.logoDataUrl || '',
+        date: defaultDate,
+        time: defaultTime,
+        template: savedTemplate || 'classic',
+        ...prefillData
+      })
+    } else if (draft) {
       try {
         const parsed = JSON.parse(draft) as BillFormState
         setForm({
@@ -149,7 +164,7 @@ export default function CustomBillModal({ isOpen, onClose }: CustomBillModalProp
     } else {
       initializePrefill(profile, contact, shop, defaultDate, defaultTime, savedTemplate)
     }
-  }, [isOpen])
+  }, [isOpen, prefillData])
 
   const initializePrefill = (
     profile: any,
@@ -161,7 +176,7 @@ export default function CustomBillModal({ isOpen, onClose }: CustomBillModalProp
   ) => {
     setForm({
       ...DEFAULT_STATE,
-      shopName: profile.shopName || shop?.shopName || '',
+      shopName: profile.shopName || shop?.shopName || 'PrintSmart Shop',
       address: contact.shopAddress || '',
       gstNumber: profile.gstNumber || '',
       phone: contact.phoneNumber || shop?.phone || '',
@@ -299,7 +314,9 @@ export default function CustomBillModal({ isOpen, onClose }: CustomBillModalProp
   // Form Validation
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {}
-    if (!form.shopName.trim()) newErrors.shopName = 'Shop Name is required.'
+    if (!form.shopName.trim()) {
+      form.shopName = 'PrintSmart Shop'
+    }
     if (!form.customerName.trim()) newErrors.customerName = 'Customer Name is required.'
 
     const hasItems = form.products.some(p => p.name.trim() !== '')
@@ -669,79 +686,6 @@ export default function CustomBillModal({ isOpen, onClose }: CustomBillModalProp
           {/* Left Panel: Inputs */}
           <div className="lg:col-span-7 space-y-6">
 
-            {/* Shop Details */}
-            <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 space-y-4">
-              <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Business Details</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">Shop Name <span className="text-rose-500">*</span></label>
-                  <input
-                    type="text"
-                    value={form.shopName}
-                    onChange={(e) => updateField('shopName', e.target.value)}
-                    className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${errors.shopName ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200 focus:border-violet-400 bg-white'}`}
-                  />
-                  {errors.shopName && <p className="text-[10px] text-rose-500 font-semibold mt-1">{errors.shopName}</p>}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">GST Number (Optional)</label>
-                  <input
-                    type="text"
-                    value={form.gstNumber}
-                    onChange={(e) => updateField('gstNumber', e.target.value)}
-                    placeholder="e.g. 22AAAAA0000A1Z5"
-                    className="w-full rounded-xl border border-slate-200 focus:border-violet-400 bg-white px-3 py-2 text-sm outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">Phone Number</label>
-                  <input
-                    type="text"
-                    value={form.phone}
-                    onChange={(e) => updateField('phone', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 focus:border-violet-400 bg-white px-3 py-2 text-sm outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">Email (Optional)</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => updateField('email', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 focus:border-violet-400 bg-white px-3 py-2 text-sm outline-none"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">Address</label>
-                  <textarea
-                    value={form.address}
-                    onChange={(e) => updateField('address', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 focus:border-violet-400 bg-white px-3 py-2 text-sm outline-none resize-none"
-                    rows={2}
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">Logo Upload (Optional)</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="text-xs file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-750 hover:file:bg-violet-100 file:cursor-pointer"
-                    />
-                    {form.logo && (
-                      <button
-                        onClick={() => updateField('logo', '')}
-                        className="text-xs font-semibold text-rose-600 hover:underline"
-                      >
-                        Remove Logo
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Customer Details */}
             <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 space-y-4">
               <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Customer Details</h4>
@@ -844,9 +788,17 @@ export default function CustomBillModal({ isOpen, onClose }: CustomBillModalProp
                       <label className="text-[10px] font-bold text-slate-400 block uppercase mb-1">Qty</label>
                       <input
                         type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateProduct(index, 'quantity', Math.max(1, parseInt(e.target.value, 10) || 0))}
+                        min="0"
+                        value={item.quantity === 0 ? '0' : (item.quantity || '')}
+                        onChange={(e) => {
+                          const rawVal = e.target.value;
+                          if (rawVal === '') {
+                            updateProduct(index, 'quantity', 0);
+                          } else {
+                            const val = parseInt(rawVal, 10);
+                            updateProduct(index, 'quantity', isNaN(val) ? 0 : Math.max(0, val));
+                          }
+                        }}
                         className="w-full border-b border-slate-200 focus:border-violet-400 pb-1 text-xs outline-none font-bold text-slate-700 text-center"
                       />
                     </div>
@@ -977,26 +929,6 @@ export default function CustomBillModal({ isOpen, onClose }: CustomBillModalProp
           {/* Right Panel: Live Preview */}
           <div className="lg:col-span-5 flex flex-col h-full lg:sticky lg:top-0">
             <div className="bg-slate-100 rounded-3xl p-4 border border-slate-200/60 flex-1 flex flex-col min-h-[480px]">
-
-              {/* Template Picker */}
-              <div className="mb-4">
-                <label className="text-xs font-bold text-slate-500 block uppercase mb-2 text-center">Receipt Templates</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['classic', 'modern', 'thermal'] as const).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => updateField('template', t)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition capitalize ${form.template === t
-                        ? 'bg-violet-600 text-white shadow-sm'
-                        : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-                        }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* Dynamic Live Preview Box */}
               <div className="flex-1 bg-white rounded-2xl border border-slate-200 p-4 pb-12 overflow-y-auto max-h-[580px] shadow-inner relative select-none">

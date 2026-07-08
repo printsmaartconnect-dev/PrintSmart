@@ -70,7 +70,7 @@ const getPrintableUrl = async (fileUrl) => {
   return fileUrl;
 };
 
-export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint, onDownload, onCustomBillClick }) {
+export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint, onDownload, onCustomBillClick, onEditBill }) {
   const { t } = useTranslation()
   const [viewMode, setViewMode] = useState('card')
   const [showCleanedModal, setShowCleanedModal] = useState(false)
@@ -201,13 +201,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onCustomBillClick}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#5D3EBC] hover:bg-[#4C30A0] transition-colors px-3.5 py-2 rounded-xl border border-transparent shadow-sm"
-          >
-            <FileText size={14} /> {t('Create Custom Bill')}
-          </button>
+
 
           <button
             type="button"
@@ -224,7 +218,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
         ) : viewMode === 'card' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {orders.map((o) => (
-              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} onPrint={onPrint} onDownload={onDownload} />
+              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} onPrint={onPrint} onDownload={onDownload} onEditBill={onEditBill} />
             ))}
           </div>
         ) : (
@@ -474,6 +468,15 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                             </span>
                           ) : (
                             <div className="flex items-center justify-center gap-1.5">
+                              {/* Edit Bill */}
+                              <button
+                                onClick={() => onEditBill?.(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                                title={t('Edit Bill')}
+                              >
+                                <FileText size={14} />
+                              </button>
+
                               {/* Preview */}
                               <button
                                 onClick={() => handlePreview(order)}

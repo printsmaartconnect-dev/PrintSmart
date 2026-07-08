@@ -456,6 +456,7 @@ export default function ShopkeeperDashboard() {
       { key: 'completed', label: t('Completed'), badge: String(completedCount) },
       { key: 'downloaded', label: t('Downloaded'), badge: String(downloadedCount) },
       { key: 'cancelled', label: t('Cancelled'), badge: String(cancelledCount) },
+      { key: 'customBill', label: t('Custom Bill'), badge: null },
       { key: 'addOrder', label: t('Add order'), badge: null, href: `/customer/language?shopkeeperAddOrder=true&shopId=${shopkeeperIdCode}` },
       { key: 'coupon', label: t('Business network'), badge: null, href: '/shopkeeper/business-network' },
       { key: 'printsmartAi', label: t('🤖 AI Copilot'), badge: null, href: '/shopkeeper/ai' },
@@ -730,6 +731,11 @@ export default function ShopkeeperDashboard() {
         items={dynamicDockItems}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
+        onCustomClick={(key) => {
+          if (key === 'customBill') {
+            setIsBillModalOpen(true);
+          }
+        }}
       />
       {/* Floating Feedback & Support Button */}
       <a
