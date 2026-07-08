@@ -70,7 +70,7 @@ const getPrintableUrl = async (fileUrl) => {
   return fileUrl;
 };
 
-export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint, onDownload }) {
+export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint, onDownload, onCustomBillClick }) {
   const { t } = useTranslation()
   const [viewMode, setViewMode] = useState('card')
   const [showCleanedModal, setShowCleanedModal] = useState(false)
@@ -203,7 +203,15 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
 
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 hover:text-violet-800 hover:underline bg-violet-50/50 px-3 py-2 rounded-xl border border-violet-100"
+            onClick={onCustomBillClick}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#5D3EBC] hover:bg-[#4C30A0] transition-colors px-3.5 py-2 rounded-xl border border-transparent shadow-sm"
+          >
+            <FileText size={14} /> {t('Create Custom Bill')}
+          </button>
+
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 transition-colors px-3 py-2 rounded-xl border border-slate-200"
           >
             {t('Statistics & Analysis')} <MoveRight size={14} />
           </button>

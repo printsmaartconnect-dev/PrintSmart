@@ -16,6 +16,7 @@ import DashboardHeader from "./_components/DashboardHeader";
 import WelcomeBar from "./_components/WelcomeBar";
 import StatsRow from "./_components/StatsRow";
 import RecentOrders from "./_components/RecentOrders";
+import CustomBillModal from "./_components/CustomBillModal";
 import BottomDock from "./_components/BottomDock";
 import { bottomDockItems, dashboardStats, recentOrders } from "./_components/mockData";
 import { useSocket } from "../../../hooks/useSocket";
@@ -96,6 +97,7 @@ export default function ShopkeeperDashboard() {
   });
 
   const [activePrintOrder, setActivePrintOrder] = useState(null);
+  const [isBillModalOpen, setIsBillModalOpen] = useState(false);
   const [shopAddress, setShopAddress] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -719,6 +721,7 @@ export default function ShopkeeperDashboard() {
               }
             }}
             onDownload={handleDirectDownload}
+            onCustomBillClick={() => setIsBillModalOpen(true)}
           />
         </div>
       </div>
@@ -739,6 +742,11 @@ export default function ShopkeeperDashboard() {
         <MessageCircle size={18} className="text-white group-hover:rotate-12 transition-transform duration-200" />
         <span>{t('Feedback & Support')}</span>
       </a>
+
+      <CustomBillModal 
+        isOpen={isBillModalOpen} 
+        onClose={() => setIsBillModalOpen(false)} 
+      />
     </div>
   );
 }
