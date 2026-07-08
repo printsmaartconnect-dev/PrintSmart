@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const fs = require("fs");
 const path = require("path");
@@ -285,6 +285,21 @@ async function getPresignedUrl(fileUrl, downloadFilename) {
     }
 
     const key = decodeURIComponent(url.pathname.substring(1));
+
+    // Verify S3 file existence first
+    try {
+      await s3Client.send(new HeadObjectCommand({
+        Bucket: bucketName,
+        Key: key
+      }));
+    } catch (headErr) {
+      if (headErr.name === 'NotFound' || headErr.$metadata?.httpStatusCode === 404) {
+        const fileErr = new Error("S3FileNotFound");
+        fileErr.code = "S3FileNotFound";
+        throw fileErr;
+      }
+    }
+
     const commandParams = {
       Bucket: bucketName,
       Key: key,
@@ -298,6 +313,9 @@ async function getPresignedUrl(fileUrl, downloadFilename) {
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
     return signedUrl;
   } catch (error) {
+    if (error.code === "S3FileNotFound") {
+      throw error;
+    }
     console.error("Error generating S3 presigned URL:", error.message);
     return fileUrl;
   }

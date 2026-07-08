@@ -49,11 +49,22 @@ const getPrintableUrl = async (fileUrl) => {
         "Authorization": `Bearer ${token}`
       }
     });
+    if (response.status === 404) {
+      const data = await response.json().catch(() => ({}));
+      if (data.code === "S3FileNotFound") {
+        const fileErr = new Error("S3FileNotFound");
+        fileErr.code = "S3FileNotFound";
+        throw fileErr;
+      }
+    }
     if (response.ok) {
       const data = await response.json();
       return data.presignedUrl;
     }
   } catch (err) {
+    if (err.code === "S3FileNotFound") {
+      throw err;
+    }
     console.error("Failed to get presigned URL:", err);
   }
   return fileUrl;
@@ -61,61 +72,86 @@ const getPrintableUrl = async (fileUrl) => {
 
 export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint, onDownload }) {
   const { t } = useTranslation()
-  const [viewMode, setViewMode] = useState('card') // default to card grid view
+  const [viewMode, setViewMode] = useState('card')
+  const [showCleanedModal, setShowCleanedModal] = useState(false)
 
   const handlePreview = async (order) => {
     const filesList = order.files && order.files.length > 0 ? order.files : [order];
     let openedCount = 0;
-    for (const file of filesList) {
-      if (file.fileUrl) {
-        const url = await getPrintableUrl(file.fileUrl);
-        window.open(url, '_blank')
-        openedCount++;
-      }
-    }
-    if (openedCount === 0) {
-      alert(t('No file URL associated with this order.'))
-    }
-  }
-
-  const handlePrint = async (order) => {
-    if (onPrint) {
-      onPrint(order);
-    } else {
-      const filesList = order.files && order.files.length > 0 ? order.files : [order];
-      let successCount = 0;
+    try {
       for (const file of filesList) {
         if (file.fileUrl) {
           const url = await getPrintableUrl(file.fileUrl);
           window.open(url, '_blank')
-          successCount++;
+          openedCount++;
         }
       }
-      if (successCount > 0 && onStatusChange && order.dbId) {
-        await onStatusChange(order.dbId, 'Completed')
-      } else if (successCount === 0) {
+      if (openedCount === 0) {
         alert(t('No file URL associated with this order.'))
+      }
+    } catch (err) {
+      if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
+        setShowCleanedModal(true);
+      } else {
+        alert(t("Error: ") + err.message);
+      }
+    }
+  }
+
+  const handlePrint = async (order) => {
+    try {
+      if (onPrint) {
+        await onPrint(order);
+      } else {
+        const filesList = order.files && order.files.length > 0 ? order.files : [order];
+        let successCount = 0;
+        for (const file of filesList) {
+          if (file.fileUrl) {
+            const url = await getPrintableUrl(file.fileUrl);
+            window.open(url, '_blank')
+            successCount++;
+          }
+        }
+        if (successCount > 0 && onStatusChange && order.dbId) {
+          await onStatusChange(order.dbId, 'Completed')
+        } else if (successCount === 0) {
+          alert(t('No file URL associated with this order.'))
+        }
+      }
+    } catch (err) {
+      if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
+        setShowCleanedModal(true);
+      } else {
+        alert(t("Error: ") + err.message);
       }
     }
   }
 
   const handleDownload = async (order) => {
-    if (onDownload) {
-      onDownload(order)
-    } else {
-      const filesList = order.files && order.files.length > 0 ? order.files : [order];
-      let successCount = 0;
-      for (const file of filesList) {
-        if (file.fileUrl) {
-          const url = await getPrintableUrl(file.fileUrl);
-          window.open(url, '_blank')
-          successCount++;
+    try {
+      if (onDownload) {
+        await onDownload(order)
+      } else {
+        const filesList = order.files && order.files.length > 0 ? order.files : [order];
+        let successCount = 0;
+        for (const file of filesList) {
+          if (file.fileUrl) {
+            const url = await getPrintableUrl(file.fileUrl);
+            window.open(url, '_blank')
+            successCount++;
+          }
+        }
+        if (successCount > 0 && onStatusChange && order.dbId) {
+          await onStatusChange(order.dbId, 'Downloaded')
+        } else if (successCount === 0) {
+          alert(t('No file URL associated with this order.'))
         }
       }
-      if (successCount > 0 && onStatusChange && order.dbId) {
-        await onStatusChange(order.dbId, 'Downloaded')
-      } else if (successCount === 0) {
-        alert(t('No file URL associated with this order.'))
+    } catch (err) {
+      if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
+        setShowCleanedModal(true);
+      } else {
+        alert(t("Error: ") + err.message);
       }
     }
   }
@@ -216,13 +252,14 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                             #{order.id}
                             {order.filesDeleted && (
                               <span 
-                                className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200/60 px-2 py-0.5 text-[10px] font-bold text-slate-500 relative group cursor-help shrink-0"
-                                title={t("The uploaded files have been automatically removed after 6 hours to save storage.")}
+                                onClick={(e) => { e.stopPropagation(); setShowCleanedModal(true); }}
+                                className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200/60 px-2 py-0.5 text-[10px] font-bold text-slate-500 relative group cursor-pointer shrink-0 hover:bg-slate-200 hover:text-slate-700 transition"
+                                title={t("The uploaded files have been automatically removed after 6 hours to save storage. Click for info.")}
                               >
                                 {t("Storage Cleaned")}
                                 {/* Tooltip */}
                                 <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-slate-800 p-2 text-center text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 z-10 shadow-lg">
-                                  {t("The uploaded files have been automatically removed after 6 hours to save storage.")}
+                                  {t("The uploaded files have been automatically removed after 6 hours to save storage. Click for details.")}
                                 </span>
                               </span>
                             )}
@@ -421,7 +458,10 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                         {/* Actions */}
                         <td className="py-3.5 px-4">
                           {order.filesDeleted ? (
-                            <span className="text-[10px] text-slate-400 font-extrabold bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg block text-center uppercase tracking-wider">
+                            <span 
+                              onClick={() => setShowCleanedModal(true)}
+                              className="text-[10px] text-slate-400 font-extrabold bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg block text-center uppercase tracking-wider cursor-pointer hover:bg-slate-100 hover:text-slate-600 transition"
+                            >
                               ⚠️ {t('Storage Cleaned')}
                             </span>
                           ) : (
@@ -473,6 +513,35 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
           </div>
         )}
       </div>
+
+      {showCleanedModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 text-center relative space-y-4">
+            <button 
+              onClick={() => setShowCleanedModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition"
+            >
+              <X size={18} />
+            </button>
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-500">
+              <FileText size={24} />
+            </div>
+            <h3 className="font-extrabold text-slate-800 text-lg">{t('Storage Cleaned')}</h3>
+            <p className="text-xs font-semibold text-slate-500 leading-relaxed">
+              {t('The uploaded print documents for this order were automatically and permanently deleted from S3 storage because the order has completed 6 hours.')}
+            </p>
+            <p className="text-[11px] text-indigo-600 font-bold bg-indigo-50/50 py-2 px-3 rounded-xl border border-indigo-100/60">
+              {t('Order history, invoices, and analytics are preserved permanently.')}
+            </p>
+            <button
+              onClick={() => setShowCleanedModal(false)}
+              className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2.5 rounded-xl transition"
+            >
+              {t('Got it')}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

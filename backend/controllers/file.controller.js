@@ -111,6 +111,12 @@ exports.getPresignedUrl = async (req, res) => {
     const presignedUrl = await storageService.generateSignedUrl(fileUrl, filename);
     return res.status(200).json({ presignedUrl });
   } catch (err) {
+    if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
+      return res.status(404).json({
+        code: "S3FileNotFound",
+        message: "This file has been automatically removed from storage after 6 hours."
+      });
+    }
     console.error("Error generating presigned URL controller:", err);
     return res.status(500).json({ message: "Error generating preview URL" });
   }
