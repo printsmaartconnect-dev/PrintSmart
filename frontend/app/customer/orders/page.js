@@ -583,8 +583,9 @@ function OrdersPageContent() {
                     )}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
