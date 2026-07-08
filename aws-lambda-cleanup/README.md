@@ -2,7 +2,7 @@
 
 This Lambda function is designed to clean up temporary customer upload directories from Amazon S3. It is structured to run under **Node.js 22** using the native **AWS SDK v3**.
 
-Instead of deleting files individually based only on S3 `LastModified` timestamps, this Lambda communicates with the backend API to determine which folders are actually eligible for deletion, and then deletes the entire folder prefixes securely.
+Instead of deleting files individually based only on S3 `LastModified` timestamps, this Lambda communicates with the Express backend API to determine which folders are actually eligible for deletion, and then deletes the entire folder prefixes securely.
 
 ---
 
@@ -13,7 +13,7 @@ Ensure the following environment variables are configured on the AWS Lambda conf
 | Variable Name | Example Value | Description |
 |---|---|---|
 | `BUCKET_NAME` | `printsmart-storage-prod` | The name of the S3 bucket. |
-| `AWS_REGION` | `eu-north-1` | The AWS region where the bucket is located. |
+| `AWS_REGION` | `eu-north-1` | The AWS region where the Lambda function and the S3 bucket are located. |
 | `BACKEND_API_URL` | `https://printsmart-api-prod.com` | Root URL of the Express backend API. |
 
 ---

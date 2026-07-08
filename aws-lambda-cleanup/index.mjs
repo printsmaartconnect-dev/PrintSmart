@@ -1,7 +1,7 @@
 import { S3Client, ListObjectsV2Command, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 
 /**
- * Initializes the AWS S3 client using the region from the environment.
+ * Initializes the AWS S3 client using the Lambda's own region.
  * @returns {S3Client}
  */
 export function createS3Client() {
@@ -9,7 +9,10 @@ export function createS3Client() {
     if (!region) {
         throw new Error("AWS_REGION environment variable is missing.");
     }
-    return new S3Client({ region });
+    return new S3Client({ 
+        region,
+        maxAttempts: 3
+    });
 }
 
 /**
@@ -91,7 +94,8 @@ export const handler = async (event) => {
     const currentTime = new Date();
 
     const bucketName = process.env.BUCKET_NAME;
-    const awsRegion = process.env.AWS_REGION;
+    const awsRegion = process.env.AWS_REGION || "unknown";
+    const s3Endpoint = `s3.${awsRegion}.amazonaws.com`;
     const backendApiUrl = process.env.BACKEND_API_URL;
 
     // Validate environment variables
@@ -104,8 +108,8 @@ export const handler = async (event) => {
             body: JSON.stringify({ error: errMsg, code: "MissingBucketName" }),
         };
     }
-    if (!awsRegion) {
-        const errMsg = "AWS_REGION environment variable is missing.";
+    if (!awsRegion || awsRegion === "unknown") {
+        const errMsg = "AWS_REGION environment variable is missing or unknown.";
         console.error(`[ERROR] ${errMsg}`);
         return {
             statusCode: 400,
@@ -123,10 +127,11 @@ export const handler = async (event) => {
         };
     }
 
-    console.log(`[INFO] S3 Folder-based Cleanup Started.`);
-    console.log(`[INFO] Bucket Name: ${bucketName}`);
+    // Initial logging
+    console.log(`[INFO] S3 Cleanup Started.`);
     console.log(`[INFO] AWS Region: ${awsRegion}`);
-    console.log(`[INFO] Backend API URL: ${backendApiUrl}`);
+    console.log(`[INFO] Bucket Name: ${bucketName}`);
+    console.log(`[INFO] S3 Endpoint: ${s3Endpoint}`);
     console.log(`[INFO] Current Time: ${currentTime.toISOString()}`);
 
     let s3Client;
@@ -141,6 +146,10 @@ export const handler = async (event) => {
             body: JSON.stringify({
                 error: `Failed to initialize S3 client: ${err.message}`,
                 code: "ClientInitializationError",
+                awsRegion,
+                bucketName,
+                s3Endpoint,
+                currentTime: currentTime.toISOString(),
                 executionTimeMs: executionTime,
             }),
         };
@@ -164,6 +173,10 @@ export const handler = async (event) => {
             body: JSON.stringify({
                 error: `Failed to fetch cleanup folders from Backend API: ${apiErr.message}`,
                 code: "BackendApiError",
+                awsRegion,
+                bucketName,
+                s3Endpoint,
+                currentTime: currentTime.toISOString(),
                 executionTimeMs: executionTime,
             }),
         };
@@ -177,6 +190,7 @@ export const handler = async (event) => {
     try {
         for (const item of foldersToDelete) {
             const folderPrefix = item.folder;
+            // Strict prefix validation: only scan and delete customer-orders prefix
             if (!folderPrefix || !folderPrefix.startsWith("uploads/customer-orders/")) {
                 console.warn(`[WARNING] Skipping unsafe prefix: "${folderPrefix}". Only paths starting with uploads/customer-orders/ are permitted.`);
                 continue;
@@ -194,8 +208,8 @@ export const handler = async (event) => {
 
         const executionTime = Date.now() - startTime;
         console.log(`[INFO] S3 Cleanup Successful.`);
-        console.log(`[INFO] Total Files Scanned: ${totalFilesScanned}`);
-        console.log(`[INFO] Total Files Deleted: ${totalFilesDeleted}`);
+        console.log(`[INFO] Files Scanned: ${totalFilesScanned}`);
+        console.log(`[INFO] Files Deleted: ${totalFilesDeleted}`);
         console.log(`[INFO] Execution Time: ${executionTime}ms`);
 
         return {
@@ -203,8 +217,9 @@ export const handler = async (event) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 message: "Folder-based S3 cleanup completed successfully.",
-                bucketName,
                 awsRegion,
+                bucketName,
+                s3Endpoint,
                 currentTime: currentTime.toISOString(),
                 deletedFolders,
                 filesScanned: totalFilesScanned,
@@ -221,18 +236,27 @@ export const handler = async (event) => {
         let statusCode = 500;
         let message = err.message || "An unexpected error occurred.";
 
+        // Handle specific AWS exceptions
         if (err.name === "PermanentRedirect") {
             errorCode = "PermanentRedirect";
             statusCode = 301;
-            message = `PermanentRedirect: The bucket must be accessed using the specified endpoint. Verify AWS_REGION. Details: ${err.message}`;
+            message = `PermanentRedirect: S3 bucket redirection occurred. The bucket is located in a different region than the Lambda function. Please deploy this Lambda in the same region as the S3 bucket (${awsRegion}). Details: ${err.message}`;
         } else if (err.name === "AccessDenied" || err.code === "AccessDenied") {
             errorCode = "AccessDenied";
             statusCode = 403;
-            message = "AccessDenied: Lambda lacks permissions (s3:ListBucket / s3:DeleteObject).";
+            message = "AccessDenied: The Lambda execution role lacks required IAM permissions (s3:ListBucket / s3:DeleteObject).";
         } else if (err.name === "NoSuchBucket") {
             errorCode = "NoSuchBucket";
             statusCode = 404;
-            message = `NoSuchBucket: S3 bucket "${bucketName}" not found.`;
+            message = `NoSuchBucket: S3 bucket "${bucketName}" not found. Please confirm the bucket name configuration.`;
+        } else if (err.name === "InvalidBucketName") {
+            errorCode = "InvalidBucketName";
+            statusCode = 400;
+            message = `InvalidBucketName: S3 bucket name "${bucketName}" is invalid.`;
+        } else if (err.code === "ENOTFOUND" || err.code === "EAI_AGAIN" || err.syscall === "getaddrinfo") {
+            errorCode = "NetworkError";
+            statusCode = 502;
+            message = "NetworkError: Failed to connect to S3 endpoint. Check region configuration and VPC internet access.";
         }
 
         return {
@@ -241,9 +265,12 @@ export const handler = async (event) => {
             body: JSON.stringify({
                 error: message,
                 code: errorCode,
-                bucketName,
                 awsRegion,
+                bucketName,
+                s3Endpoint,
                 currentTime: currentTime.toISOString(),
+                filesScanned: totalFilesScanned,
+                filesDeleted: totalFilesDeleted,
                 executionTimeMs: executionTime,
             }),
         };
