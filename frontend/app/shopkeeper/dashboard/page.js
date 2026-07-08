@@ -98,6 +98,7 @@ export default function ShopkeeperDashboard() {
 
   const [activePrintOrder, setActivePrintOrder] = useState(null);
   const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+  const [prefillData, setPrefillData] = useState(null);
   const [shopAddress, setShopAddress] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -463,6 +464,33 @@ export default function ShopkeeperDashboard() {
     ];
   })();
 
+  const handleEditBill = (cardOrder) => {
+    const matchingCards = ordersList.filter(o => o.dbId === cardOrder.dbId);
+    const products = matchingCards.map((c, index) => {
+      const cleanPrice = parseFloat(c.price.replace(/[^\d.]/g, '')) || 0;
+      return {
+        id: String(index + 1),
+        name: c.fileName || 'Print Document',
+        quantity: parseInt(c.copies, 10) || 1,
+        unitPrice: cleanPrice,
+        discount: 0,
+        taxPercent: 0
+      };
+    });
+
+    const prefill = {
+      customerName: cardOrder.customerName || '',
+      customerPhone: cardOrder.phone || '',
+      customerAddress: '',
+      invoiceNumber: 'INV-' + cardOrder.id,
+      products: products.length > 0 ? products : [{ id: '1', name: cardOrder.fileName || 'Print Document', quantity: cardOrder.copies || 1, unitPrice: parseFloat(cardOrder.price.replace(/[^\d.]/g, '')) || 0, discount: 0, taxPercent: 0 }],
+      paymentMethod: cardOrder.paymentLog?.paymentGateway || 'Cash',
+    };
+
+    setPrefillData(prefill);
+    setIsBillModalOpen(true);
+  };
+
   const handleDirectPrint = async (order) => {
     const filesList = order.files && order.files.length > 0 ? order.files : [{
       fileUrl: order.fileUrl,
@@ -722,7 +750,7 @@ export default function ShopkeeperDashboard() {
               }
             }}
             onDownload={handleDirectDownload}
-            onCustomBillClick={() => setIsBillModalOpen(true)}
+            onEditBill={handleEditBill}
           />
         </div>
       </div>
@@ -733,6 +761,7 @@ export default function ShopkeeperDashboard() {
         onFilterChange={setActiveFilter}
         onCustomClick={(key) => {
           if (key === 'customBill') {
+            setPrefillData(null);
             setIsBillModalOpen(true);
           }
         }}
@@ -752,6 +781,7 @@ export default function ShopkeeperDashboard() {
       <CustomBillModal 
         isOpen={isBillModalOpen} 
         onClose={() => setIsBillModalOpen(false)} 
+        prefillData={prefillData}
       />
     </div>
   );

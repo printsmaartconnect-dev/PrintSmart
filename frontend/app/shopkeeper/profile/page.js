@@ -227,30 +227,44 @@ export default function ShopkeeperProfileViewPage() {
     }
   }
 
-  const handleDownloadQR = () => {
-    const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl
-    if (targetUrl) {
-      const fullUrl = targetUrl.startsWith('/') 
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` 
-        : targetUrl;
-      
-      const link = document.createElement('a')
-      link.href = fullUrl
-      link.download = `shop-qr-${qrDetails.slug || profile.shopSlug || 'code'}.png`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+  const handleDownloadQR = async () => {
+    const shopId = qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || 'code';
+    const qrVal = qrDetails.qrValue || `https://print-smart-18.vercel.app/shop/${shopId}`;
+    const fallbackQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrVal)}`;
+    
+    const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl;
+    const fullUrl = targetUrl 
+      ? (targetUrl.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` : targetUrl)
+      : fallbackQrUrl;
+
+    try {
+      const res = await fetch(fullUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `shop-qr-${shopId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(fullUrl, '_blank');
     }
   }
 
   const handlePrintQR = () => {
-    const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl
-    if (targetUrl) {
-      const fullUrl = targetUrl.startsWith('/') 
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` 
-        : targetUrl;
+    const shopId = qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || 'N/A';
+    const qrVal = qrDetails.qrValue || `https://print-smart-18.vercel.app/shop/${shopId}`;
+    const fallbackQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrVal)}`;
+    
+    const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl;
+    const fullUrl = targetUrl 
+      ? (targetUrl.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` : targetUrl)
+      : fallbackQrUrl;
       
-      const printWindow = window.open('', '_blank')
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
       printWindow.document.write(`
         <html>
           <head>
@@ -268,8 +282,16 @@ export default function ShopkeeperProfileViewPage() {
           <body>
             <h1>${profile.shopName || 'Shop'}</h1>
             <p>Scan to upload print files</p>
-            <img src="${fullUrl}" onload="window.print(); window.close();" />
-            <p>Shop ID: ${qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || 'N/A'}</p>
+            <img src="${fullUrl}" />
+            <p>Shop ID: ${shopId}</p>
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  setTimeout(function() { window.close(); }, 500);
+                }, 500);
+              };
+            </script>
           </body>
         </html>
       `)
