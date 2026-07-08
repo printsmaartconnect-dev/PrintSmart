@@ -421,10 +421,13 @@ export default function ShopkeeperDashboard() {
           if (activeFilter === "Completed" || activeFilter === t("Completed")) {
             return order.status === "Completed" || order.status === "Downloaded";
           }
+          if (activeFilter === "Pending" || activeFilter === t("Pending")) {
+            return order.status !== "Completed" && order.status !== "Downloaded" && order.status !== "Cancelled";
+          }
           return t(order.status) === activeFilter;
         });
 
-  const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
+  const pendingCount = ordersList.filter((o) => o.status !== "Completed" && o.status !== "Downloaded" && o.status !== "Cancelled").length;
   const completedCount = ordersList.filter((o) => o.status === "Completed" || o.status === "Downloaded").length;
   const downloadedCount = ordersList.filter((o) => o.status === "Downloaded").length;
   const cancelledCount = ordersList.filter((o) => o.status === "Cancelled").length;
