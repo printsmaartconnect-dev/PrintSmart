@@ -333,6 +333,17 @@ export default function ShopkeeperProfileViewPage() {
     }
   }
 
+  const handlePrintPoster = async () => {
+    const id = qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || '7U-6257';
+    const name = profile.shopName || 'ABC SHOP';
+    const data = await loadPosterData({ shopName: name, shopId: id });
+    if (data) {
+      setTimeout(() => {
+        print('printsmart-qr-poster');
+      }, 300);
+    }
+  }
+
 
 
   const handleUpdateUpi = async () => {
@@ -726,7 +737,7 @@ export default function ShopkeeperProfileViewPage() {
                         <SecondaryButton
                           type="button"
                           className="gap-1 py-1.5 px-2 text-[11px] justify-center"
-                          onClick={handleDownloadQR}
+                          onClick={handleDownloadPoster}
                         >
                           <Download size={12} />
                           {t('Download')}
@@ -734,7 +745,7 @@ export default function ShopkeeperProfileViewPage() {
                         <SecondaryButton
                           type="button"
                           className="gap-1 py-1.5 px-2 text-[11px] justify-center"
-                          onClick={handlePrintQR}
+                          onClick={handlePrintPoster}
                         >
                           {t('Print QR')}
                         </SecondaryButton>
@@ -757,15 +768,6 @@ export default function ShopkeeperProfileViewPage() {
                         >
                           {t('View QR Poster')}
                         </PrimaryButton>
-                        <SecondaryButton
-                          type="button"
-                          className="w-full justify-center py-2 text-xs gap-1"
-                          onClick={handleDownloadPoster}
-                          disabled={posterLoading}
-                        >
-                          <Download size={12} />
-                          {t('Download QR Poster')}
-                        </SecondaryButton>
                       </div>
 
 
