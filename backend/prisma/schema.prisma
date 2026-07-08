@@ -187,6 +187,7 @@ model OrderFile {
   originalFileName  String
   customFileName    String?
   fileUrl           String
+  s3Key             String?
   thumbnailUrl      String?
   fileSize          Int
   

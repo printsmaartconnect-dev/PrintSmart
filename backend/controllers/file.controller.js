@@ -72,8 +72,17 @@ exports.upload = async (req, res) => {
       });
     }
 
+    const type = req.body.type || req.query.type;
+    const params = {
+      shopId: req.body.shopId || req.query.shopId,
+      userId: req.body.userId || req.query.userId,
+      orderId: req.body.orderId || req.query.orderId,
+      invoiceId: req.body.invoiceId || req.query.invoiceId,
+      campaignId: req.body.campaignId || req.query.campaignId
+    };
+
     // 4. Upload via Storage Service (automatically handles S3 upload with local fallback)
-    const uploadResult = await storageService.uploadFile(req.file);
+    const uploadResult = await storageService.upload(req.file, type, params);
 
     // 5. Build standard response payload maintaining full backward compatibility
     res.status(200).json({
@@ -99,7 +108,7 @@ exports.getPresignedUrl = async (req, res) => {
       return res.status(400).json({ message: "Missing fileUrl parameter" });
     }
 
-    const presignedUrl = await storageService.getPresignedUrl(fileUrl, filename);
+    const presignedUrl = await storageService.generateSignedUrl(fileUrl, filename);
     return res.status(200).json({ presignedUrl });
   } catch (err) {
     console.error("Error generating presigned URL controller:", err);

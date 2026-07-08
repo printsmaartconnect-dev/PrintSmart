@@ -70,6 +70,7 @@ const adminRoutes = require("./routes/admin.routes");
 const aiRoutes = require("./routes/ai.routes");
 const rewardRoutes = require("./routes/reward.routes");
 const paymentRoutes = require("./routes/payment.routes");
+const storageRoutes = require("./routes/storage.routes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -176,6 +177,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/rewards", rewardRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/storage", storageRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
