@@ -72,6 +72,7 @@ function OrdersPageContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [orderToDelete, setOrderToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [deletingIds, setDeletingIds] = useState([])
 
   // Scratch Coupon State
   const [showRewardModal, setShowRewardModal] = useState(false)
@@ -206,27 +207,39 @@ function OrdersPageContent() {
   }
 
   const handleDeleteOrder = async () => {
-    if (!orderToDelete) return
-    setDeleting(true)
+    if (!orderToDelete) return;
+    const targetOrderId = orderToDelete.id;
+    const previousOrders = [...orders];
+
+    // 1. Add to deleting list immediately (triggers transition animation)
+    setDeletingIds(prev => [...prev, targetOrderId]);
+    closeDeleteModal();
+
+    // 2. Wait for 200ms animation (fade-out/collapse) to finish
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // 3. Update React state immediately without reloading/refetching
+    setOrders(prev => prev.filter(order => order.id !== targetOrderId));
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
-      const response = await fetch(`${apiUrl}/api/orders/${orderToDelete.id}`, {
+      const response = await fetch(`${apiUrl}/api/orders/${targetOrderId}`, {
         method: 'DELETE',
-      })
+      });
 
       if (!response.ok) {
-        const errData = await response.json()
-        throw new Error(errData.message || 'Failed to delete order')
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to delete order');
       }
 
-      // Re-fetch orders after successful deletion
-      await fetchOrders()
-      closeDeleteModal()
+      // Cleanup target from deletingIds list
+      setDeletingIds(prev => prev.filter(id => id !== targetOrderId));
     } catch (err) {
-      console.error('Delete order error:', err)
-      alert(err.message || t('Could not cancel the order.'))
-    } finally {
-      setDeleting(false)
+      console.error('Delete order error:', err);
+      // 4. Restore previous state if request fails
+      setOrders(previousOrders);
+      setDeletingIds(prev => prev.filter(id => id !== targetOrderId));
+      alert(err.message || t('Could not cancel the order. Please try again.'));
     }
   }
 
@@ -402,8 +415,22 @@ function OrdersPageContent() {
           </div>
         ) : orders.length > 0 ? (
           <div className="space-y-6 mb-8">
-            {orders.map((order) => (
-              <div key={order.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4 text-left">
+            {orders.map((order) => {
+              const isDeleting = deletingIds.includes(order.id);
+              return (
+                <div 
+                  key={order.id} 
+                  className={`bg-white border border-gray-200 shadow-sm text-left transition-all duration-200 ease-out ${
+                    isDeleting 
+                      ? 'opacity-0 max-h-0 scale-95 border-0 p-0 m-0 overflow-hidden' 
+                      : 'opacity-100 max-h-[2000px] p-5 space-y-4'
+                  }`}
+                  style={{
+                    marginTop: isDeleting ? '0px' : undefined,
+                    marginBottom: isDeleting ? '0px' : undefined,
+                    borderWidth: isDeleting ? '0px' : undefined,
+                  }}
+                >
                 {/* Header Row */}
                 <div className="flex justify-between items-start flex-wrap gap-2 pb-3 border-b border-gray-150">
                   <div>
@@ -556,8 +583,8 @@ function OrdersPageContent() {
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
