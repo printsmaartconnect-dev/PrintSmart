@@ -18,7 +18,7 @@ const PosterTemplate: React.FC<PosterTemplateProps> = ({
   const brandPurple = '#5D2CA8';
 
   // Construct dynamic QR code URL fallback if not provided
-  const qrCodeUrl = qrValue || (shopId ? `https://print-smart-18.vercel.app/shop/${shopId}` : 'https://print-smart-18.vercel.app/shop/7U-6257');
+  const qrCodeUrl = qrValue || (shopId ? `https://print-smart-18.vercel.app/?shopId=${shopId}` : 'https://print-smart-18.vercel.app/?shopId=7U-6257');
 
   const steps = [
     { num: 1, title: 'SCAN', desc: 'Scan the QR code' },
@@ -351,7 +351,7 @@ const PosterTemplate: React.FC<PosterTemplateProps> = ({
         >
           <span
             style={{
-              color: '#475569',
+              color: '#1E293B',
               fontSize: '50px',
               fontWeight: 500,
             }}
@@ -359,7 +359,7 @@ const PosterTemplate: React.FC<PosterTemplateProps> = ({
             by{' '}
             <span
               style={{
-                color: brandPurple,
+                color: '#1E293B',
                 fontWeight: 800,
               }}
             >

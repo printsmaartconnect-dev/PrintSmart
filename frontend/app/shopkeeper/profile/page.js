@@ -810,12 +810,20 @@ export default function ShopkeeperProfileViewPage() {
       </div>
 
       {/* Hidden off-screen Poster container for direct PDF download capture */}
-      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', overflow: 'hidden' }}>
+      <div style={{ 
+        position: 'fixed', 
+        left: '-9999px', 
+        top: '0px', 
+        width: '2480px', 
+        height: '3508px', 
+        overflow: 'hidden',
+        zIndex: -1000 
+      }}>
         <PosterTemplate
           id="printsmart-qr-poster"
-          shopName={currentShopName}
-          shopId={currentShopId}
-          qrValue={currentQrValue}
+          shopName={posterData?.shopName || currentShopName}
+          shopId={posterData?.shopId || currentShopId}
+          qrValue={posterData?.qrValue || currentQrValue}
         />
       </div>
 
@@ -879,14 +887,14 @@ export default function ShopkeeperProfileViewPage() {
                 {t('Close')}
               </SecondaryButton>
               <SecondaryButton
-                onClick={() => print('printsmart-qr-poster-preview')}
+                onClick={() => print('printsmart-qr-poster')}
                 disabled={posterLoading}
                 className="py-2 text-xs gap-1"
               >
                 {t('Print')}
               </SecondaryButton>
               <PrimaryButton
-                onClick={() => downloadPDF('printsmart-qr-poster-preview', posterData.shopId)}
+                onClick={() => downloadPDF('printsmart-qr-poster', posterData.shopId)}
                 disabled={posterLoading}
                 className="py-2 text-xs gap-1"
               >
