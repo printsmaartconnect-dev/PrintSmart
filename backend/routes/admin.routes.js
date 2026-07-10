@@ -16,6 +16,7 @@ router.post("/settings", adminController.saveSettings);
 // @route   CRUD for shops
 router.get("/shops", adminController.getShops);
 router.post("/shops", adminController.createShop);
+router.get("/shops/:id/orders-detail", adminController.getShopOrdersDetail);
 router.put("/shops/:id", adminController.updateShop);
 router.delete("/shops/:id", adminController.deleteShop);
 router.put("/shops/:id/onboard", adminController.toggleShopOnboard);
