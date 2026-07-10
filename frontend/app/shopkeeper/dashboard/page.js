@@ -16,6 +16,7 @@ import DashboardHeader from "./_components/DashboardHeader";
 import WelcomeBar from "./_components/WelcomeBar";
 import StatsRow from "./_components/StatsRow";
 import RecentOrders from "./_components/RecentOrders";
+import CustomBillModal from "./_components/CustomBillModal";
 import BottomDock from "./_components/BottomDock";
 import { bottomDockItems, dashboardStats, recentOrders } from "./_components/mockData";
 import { useSocket } from "../../../hooks/useSocket";
@@ -96,6 +97,8 @@ export default function ShopkeeperDashboard() {
   });
 
   const [activePrintOrder, setActivePrintOrder] = useState(null);
+  const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+  const [prefillData, setPrefillData] = useState(null);
   const [shopAddress, setShopAddress] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -155,6 +158,8 @@ export default function ShopkeeperDashboard() {
       price: `₹${(o.price || 0.0).toFixed(2)}`,
       orderId: o.orderId,
     }],
+    filesDeleted: o.filesDeleted,
+    storageStatus: o.storageStatus,
   });
 
   const splitAndMapRawOrders = (rawOrders) => {
@@ -232,6 +237,23 @@ export default function ShopkeeperDashboard() {
       const copy = [...filtered];
       copy.splice(index, 0, ...split);
       return copy;
+    });
+  });
+
+  // Handle automatic storage cleanup in real-time
+  useSocket("storage_cleaned", (data) => {
+    console.log("[Socket] Dashboard received storage cleanup:", data);
+    setOrdersList((prev) => {
+      return prev.map((o) => {
+        if (o.dbId === data.orderId) {
+          return {
+            ...o,
+            filesDeleted: true,
+            storageStatus: "CLEANED",
+          };
+        }
+        return o;
+      });
     });
   });
 
@@ -402,10 +424,13 @@ export default function ShopkeeperDashboard() {
           if (activeFilter === "Completed" || activeFilter === t("Completed")) {
             return order.status === "Completed" || order.status === "Downloaded";
           }
+          if (activeFilter === "Pending" || activeFilter === t("Pending")) {
+            return order.status !== "Completed" && order.status !== "Downloaded" && order.status !== "Cancelled";
+          }
           return t(order.status) === activeFilter;
         });
 
-  const pendingCount = ordersList.filter((o) => o.status === "Pending").length;
+  const pendingCount = ordersList.filter((o) => o.status !== "Completed" && o.status !== "Downloaded" && o.status !== "Cancelled").length;
   const completedCount = ordersList.filter((o) => o.status === "Completed" || o.status === "Downloaded").length;
   const downloadedCount = ordersList.filter((o) => o.status === "Downloaded").length;
   const cancelledCount = ordersList.filter((o) => o.status === "Cancelled").length;
@@ -432,11 +457,39 @@ export default function ShopkeeperDashboard() {
       { key: 'completed', label: t('Completed'), badge: String(completedCount) },
       { key: 'downloaded', label: t('Downloaded'), badge: String(downloadedCount) },
       { key: 'cancelled', label: t('Cancelled'), badge: String(cancelledCount) },
+      { key: 'customBill', label: t('Custom Bill'), badge: null },
       { key: 'addOrder', label: t('Add order'), badge: null, href: `/customer/language?shopkeeperAddOrder=true&shopId=${shopkeeperIdCode}` },
       { key: 'coupon', label: t('Business network'), badge: null, href: '/shopkeeper/business-network' },
       { key: 'printsmartAi', label: t('🤖 AI Copilot'), badge: null, href: '/shopkeeper/ai' },
     ];
   })();
+
+  const handleEditBill = (cardOrder) => {
+    const matchingCards = ordersList.filter(o => o.dbId === cardOrder.dbId);
+    const products = matchingCards.map((c, index) => {
+      const cleanPrice = parseFloat(c.price.replace(/[^\d.]/g, '')) || 0;
+      return {
+        id: String(index + 1),
+        name: c.fileName || 'Print Document',
+        quantity: parseInt(c.copies, 10) || 1,
+        unitPrice: cleanPrice,
+        discount: 0,
+        taxPercent: 0
+      };
+    });
+
+    const prefill = {
+      customerName: cardOrder.customerName || '',
+      customerPhone: cardOrder.phone || '',
+      customerAddress: '',
+      invoiceNumber: 'INV-' + cardOrder.id,
+      products: products.length > 0 ? products : [{ id: '1', name: cardOrder.fileName || 'Print Document', quantity: cardOrder.copies || 1, unitPrice: parseFloat(cardOrder.price.replace(/[^\d.]/g, '')) || 0, discount: 0, taxPercent: 0 }],
+      paymentMethod: cardOrder.paymentLog?.paymentGateway || 'Cash',
+    };
+
+    setPrefillData(prefill);
+    setIsBillModalOpen(true);
+  };
 
   const handleDirectPrint = async (order) => {
     const filesList = order.files && order.files.length > 0 ? order.files : [{
@@ -697,6 +750,7 @@ export default function ShopkeeperDashboard() {
               }
             }}
             onDownload={handleDirectDownload}
+            onEditBill={handleEditBill}
           />
         </div>
       </div>
@@ -705,6 +759,12 @@ export default function ShopkeeperDashboard() {
         items={dynamicDockItems}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
+        onCustomClick={(key) => {
+          if (key === 'customBill') {
+            setPrefillData(null);
+            setIsBillModalOpen(true);
+          }
+        }}
       />
       {/* Floating Feedback & Support Button */}
       <a
@@ -717,6 +777,12 @@ export default function ShopkeeperDashboard() {
         <MessageCircle size={18} className="text-white group-hover:rotate-12 transition-transform duration-200" />
         <span>{t('Feedback & Support')}</span>
       </a>
+
+      <CustomBillModal 
+        isOpen={isBillModalOpen} 
+        onClose={() => setIsBillModalOpen(false)} 
+        prefillData={prefillData}
+      />
     </div>
   );
 }

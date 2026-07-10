@@ -49,73 +49,109 @@ const getPrintableUrl = async (fileUrl) => {
         "Authorization": `Bearer ${token}`
       }
     });
+    if (response.status === 404) {
+      const data = await response.json().catch(() => ({}));
+      if (data.code === "S3FileNotFound") {
+        const fileErr = new Error("S3FileNotFound");
+        fileErr.code = "S3FileNotFound";
+        throw fileErr;
+      }
+    }
     if (response.ok) {
       const data = await response.json();
       return data.presignedUrl;
     }
   } catch (err) {
+    if (err.code === "S3FileNotFound") {
+      throw err;
+    }
     console.error("Failed to get presigned URL:", err);
   }
   return fileUrl;
 };
 
-export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint, onDownload }) {
+export default function RecentOrders({ orders, activeFilter = 'All', onStatusChange, onPaymentVerify, onPrint, onDownload, onCustomBillClick, onEditBill }) {
   const { t } = useTranslation()
-  const [viewMode, setViewMode] = useState('card') // default to card grid view
+  const [viewMode, setViewMode] = useState('card')
+  const [showCleanedModal, setShowCleanedModal] = useState(false)
 
   const handlePreview = async (order) => {
     const filesList = order.files && order.files.length > 0 ? order.files : [order];
     let openedCount = 0;
-    for (const file of filesList) {
-      if (file.fileUrl) {
-        const url = await getPrintableUrl(file.fileUrl);
-        window.open(url, '_blank')
-        openedCount++;
-      }
-    }
-    if (openedCount === 0) {
-      alert(t('No file URL associated with this order.'))
-    }
-  }
-
-  const handlePrint = async (order) => {
-    if (onPrint) {
-      onPrint(order);
-    } else {
-      const filesList = order.files && order.files.length > 0 ? order.files : [order];
-      let successCount = 0;
+    try {
       for (const file of filesList) {
         if (file.fileUrl) {
           const url = await getPrintableUrl(file.fileUrl);
           window.open(url, '_blank')
-          successCount++;
+          openedCount++;
         }
       }
-      if (successCount > 0 && onStatusChange && order.dbId) {
-        await onStatusChange(order.dbId, 'Completed')
-      } else if (successCount === 0) {
+      if (openedCount === 0) {
         alert(t('No file URL associated with this order.'))
+      }
+    } catch (err) {
+      if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
+        setShowCleanedModal(true);
+      } else {
+        alert(t("Error: ") + err.message);
+      }
+    }
+  }
+
+  const handlePrint = async (order) => {
+    try {
+      if (onPrint) {
+        await onPrint(order);
+      } else {
+        const filesList = order.files && order.files.length > 0 ? order.files : [order];
+        let successCount = 0;
+        for (const file of filesList) {
+          if (file.fileUrl) {
+            const url = await getPrintableUrl(file.fileUrl);
+            window.open(url, '_blank')
+            successCount++;
+          }
+        }
+        if (successCount > 0 && onStatusChange && order.dbId) {
+          await onStatusChange(order.dbId, 'Completed')
+        } else if (successCount === 0) {
+          alert(t('No file URL associated with this order.'))
+        }
+      }
+    } catch (err) {
+      if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
+        setShowCleanedModal(true);
+      } else {
+        alert(t("Error: ") + err.message);
       }
     }
   }
 
   const handleDownload = async (order) => {
-    if (onDownload) {
-      onDownload(order)
-    } else {
-      const filesList = order.files && order.files.length > 0 ? order.files : [order];
-      let successCount = 0;
-      for (const file of filesList) {
-        if (file.fileUrl) {
-          const url = await getPrintableUrl(file.fileUrl);
-          window.open(url, '_blank')
-          successCount++;
+    try {
+      if (onDownload) {
+        await onDownload(order)
+      } else {
+        const filesList = order.files && order.files.length > 0 ? order.files : [order];
+        let successCount = 0;
+        for (const file of filesList) {
+          if (file.fileUrl) {
+            const url = await getPrintableUrl(file.fileUrl);
+            window.open(url, '_blank')
+            successCount++;
+          }
+        }
+        if (successCount > 0 && onStatusChange && order.dbId) {
+          await onStatusChange(order.dbId, 'Downloaded')
+        } else if (successCount === 0) {
+          alert(t('No file URL associated with this order.'))
         }
       }
-      if (successCount > 0 && onStatusChange && order.dbId) {
-        await onStatusChange(order.dbId, 'Downloaded')
-      } else if (successCount === 0) {
-        alert(t('No file URL associated with this order.'))
+    } catch (err) {
+      if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
+        setShowCleanedModal(true);
+      } else {
+        alert(t("Error: ") + err.message);
       }
     }
   }
@@ -165,9 +201,11 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
             </button>
           </div>
 
+
+
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 hover:text-violet-800 hover:underline bg-violet-50/50 px-3 py-2 rounded-xl border border-violet-100"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 transition-colors px-3 py-2 rounded-xl border border-slate-200"
           >
             {t('Statistics & Analysis')} <MoveRight size={14} />
           </button>
@@ -180,7 +218,7 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
         ) : viewMode === 'card' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {orders.map((o) => (
-              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} onPrint={onPrint} onDownload={onDownload} />
+              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} onPrint={onPrint} onDownload={onDownload} onEditBill={onEditBill} />
             ))}
           </div>
         ) : (
@@ -212,7 +250,22 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                       >
                         {/* Order ID */}
                         <td className="py-3.5 px-4 font-bold text-slate-900">
-                          #{order.id}
+                          <div className="flex items-center gap-1.5">
+                            #{order.id}
+                            {order.filesDeleted && (
+                              <span 
+                                onClick={(e) => { e.stopPropagation(); setShowCleanedModal(true); }}
+                                className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200/60 px-2 py-0.5 text-[10px] font-bold text-slate-500 relative group cursor-pointer shrink-0 hover:bg-slate-200 hover:text-slate-700 transition"
+                                title={t("The uploaded files have been automatically removed after 6 hours to save storage. Click for info.")}
+                              >
+                                {t("Storage Cleaned")}
+                                {/* Tooltip */}
+                                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-slate-800 p-2 text-center text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 z-10 shadow-lg">
+                                  {t("The uploaded files have been automatically removed after 6 hours to save storage. Click for details.")}
+                                </span>
+                              </span>
+                            )}
+                          </div>
                         </td>
                         
                         {/* Customer */}
@@ -248,7 +301,8 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                                   )}
                                 </div>
                                 {/* Mini File Specific Action Icons */}
-                                <div className="flex items-center gap-0.5 opacity-0 group-hover/file:opacity-100 transition-opacity flex-shrink-0">
+                                {!order.filesDeleted && (
+                                  <div className="flex items-center gap-0.5 opacity-0 group-hover/file:opacity-100 transition-opacity flex-shrink-0">
                                   <button
                                     onClick={async (e) => {
                                       e.stopPropagation();
@@ -305,7 +359,8 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                                     <Download size={10} />
                                   </button>
                                 </div>
-                              </div>
+                              )}
+                            </div>
                             ))}
                           </div>
                         </td>
@@ -404,43 +459,61 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
                         
                         {/* Actions */}
                         <td className="py-3.5 px-4">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {/* Preview */}
-                            <button
-                              onClick={() => handlePreview(order)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600"
-                              title={t('Preview Document')}
+                          {order.filesDeleted ? (
+                            <span 
+                              onClick={() => setShowCleanedModal(true)}
+                              className="text-[10px] text-slate-400 font-extrabold bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg block text-center uppercase tracking-wider cursor-pointer hover:bg-slate-100 hover:text-slate-600 transition"
                             >
-                              <Eye size={14} />
-                            </button>
-                            
-                            {/* Print */}
-                            <button
-                              onClick={() => handlePrint(order)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600"
-                              title={t('Print File')}
-                            >
-                              <Printer size={14} />
-                            </button>
-                            
-                            {/* Download */}
-                            <button
-                              onClick={() => handleDownload(order)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-600"
-                              title={t('Download File')}
-                            >
-                              <Download size={14} />
-                            </button>
-                            
-                            {/* Cancel */}
-                            <button
-                              onClick={() => handleCancel(order)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
-                              title={t('Cancel Order')}
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
+                              ⚠️ {t('Storage Cleaned')}
+                            </span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* Edit Bill */}
+                              <button
+                                onClick={() => onEditBill?.(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                                title={t('Edit Bill')}
+                              >
+                                <FileText size={14} />
+                              </button>
+
+                              {/* Preview */}
+                              <button
+                                onClick={() => handlePreview(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600"
+                                title={t('Preview Document')}
+                              >
+                                <Eye size={14} />
+                              </button>
+                              
+                              {/* Print */}
+                              <button
+                                onClick={() => handlePrint(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600"
+                                title={t('Print File')}
+                              >
+                                <Printer size={14} />
+                              </button>
+                              
+                              {/* Download */}
+                              <button
+                                onClick={() => handleDownload(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-600"
+                                title={t('Download File')}
+                              >
+                                <Download size={14} />
+                              </button>
+                              
+                              {/* Cancel */}
+                              <button
+                                onClick={() => handleCancel(order)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+                                title={t('Cancel Order')}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )
@@ -451,6 +524,35 @@ export default function RecentOrders({ orders, activeFilter = 'All', onStatusCha
           </div>
         )}
       </div>
+
+      {showCleanedModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 text-center relative space-y-4">
+            <button 
+              onClick={() => setShowCleanedModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition"
+            >
+              <X size={18} />
+            </button>
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-500">
+              <FileText size={24} />
+            </div>
+            <h3 className="font-extrabold text-slate-800 text-lg">{t('Storage Cleaned')}</h3>
+            <p className="text-xs font-semibold text-slate-500 leading-relaxed">
+              {t('The uploaded print documents for this order were automatically and permanently deleted from S3 storage because the order has completed 6 hours.')}
+            </p>
+            <p className="text-[11px] text-indigo-600 font-bold bg-indigo-50/50 py-2 px-3 rounded-xl border border-indigo-100/60">
+              {t('Order history, invoices, and analytics are preserved permanently.')}
+            </p>
+            <button
+              onClick={() => setShowCleanedModal(false)}
+              className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2.5 rounded-xl transition"
+            >
+              {t('Got it')}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

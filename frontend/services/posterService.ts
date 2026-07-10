@@ -111,7 +111,15 @@ export const printPoster = async (elementId: string): Promise<boolean> => {
           </style>
         </head>
         <body>
-          <img src="${imgData}" onload="window.print(); window.close();" />
+          <img src="${imgData}" />
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                setTimeout(function() { window.close(); }, 500);
+              }, 500);
+            };
+          </script>
         </body>
       </html>
     `);

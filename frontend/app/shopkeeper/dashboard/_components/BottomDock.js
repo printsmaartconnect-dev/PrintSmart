@@ -29,11 +29,12 @@ const iconMap = {
   coupon: Store,
   printsmartAi: Sparkles,
   addOrder: Plus,
+  customBill: FileText,
 }
 
 const filterItems = new Set(['pending', 'completed', 'downloaded', 'cancelled'])
 
-function DockItem({ item, activeFilter, onFilterChange }) {
+function DockItem({ item, activeFilter, onFilterChange, onCustomClick }) {
   const { t } = useTranslation()
   const pathname = usePathname()
   const Icon = iconMap[item.key] || User
@@ -124,13 +125,14 @@ function DockItem({ item, activeFilter, onFilterChange }) {
       type="button"
       className={className}
       aria-label={translatedLabel}
+      onClick={() => onCustomClick?.(item.key)}
     >
       {content}
     </button>
   )
 }
 
-export default function BottomDock({ items, activeFilter, onFilterChange }) {
+export default function BottomDock({ items, activeFilter, onFilterChange, onCustomClick }) {
   return (
     <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-max max-w-[95vw] overflow-x-auto no-scrollbar">
       <div className="rounded-[32px] bg-white/95 backdrop-blur-xl border-2 border-indigo-500/30 shadow-[0_15px_35px_rgba(124,58,237,0.12)] px-4 py-2 hover:border-indigo-500/50 hover:shadow-[0_20px_45px_rgba(124,58,237,0.18)] transition-all duration-300">
@@ -141,6 +143,7 @@ export default function BottomDock({ items, activeFilter, onFilterChange }) {
               item={i}
               activeFilter={activeFilter}
               onFilterChange={onFilterChange}
+              onCustomClick={onCustomClick}
             />
           ))}
         </div>

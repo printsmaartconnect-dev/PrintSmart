@@ -169,6 +169,10 @@ model Order {
   
   estimatedTime        Int      @default(5)  // in minutes
 
+  storageStatus        String?  @default("ACTIVE")
+  filesDeleted         Boolean  @default(false)
+  cleanedAt            DateTime?
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -187,6 +191,7 @@ model OrderFile {
   originalFileName  String
   customFileName    String?
   fileUrl           String
+  s3Key             String?
   thumbnailUrl      String?
   fileSize          Int
   

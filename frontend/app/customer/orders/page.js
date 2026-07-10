@@ -66,12 +66,30 @@ function OrdersPageContent() {
       prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
     );
   });
+
+  useSocket("storage_cleaned", (data) => {
+    console.log("[Socket] Customer received storage cleanup:", data);
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === data.orderId) {
+          return {
+            ...o,
+            filesDeleted: true,
+            storageStatus: "CLEANED",
+          };
+        }
+        return o;
+      })
+    );
+  });
   const [submittingRef, setSubmittingRef] = useState(false)
   
   // Delete Confirmation Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [orderToDelete, setOrderToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [deletingIds, setDeletingIds] = useState([])
+  const [showCleanedModal, setShowCleanedModal] = useState(false)
 
   // Scratch Coupon State
   const [showRewardModal, setShowRewardModal] = useState(false)
@@ -206,27 +224,39 @@ function OrdersPageContent() {
   }
 
   const handleDeleteOrder = async () => {
-    if (!orderToDelete) return
-    setDeleting(true)
+    if (!orderToDelete) return;
+    const targetOrderId = orderToDelete.id;
+    const previousOrders = [...orders];
+
+    // 1. Add to deleting list immediately (triggers transition animation)
+    setDeletingIds(prev => [...prev, targetOrderId]);
+    closeDeleteModal();
+
+    // 2. Wait for 200ms animation (fade-out/collapse) to finish
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // 3. Update React state immediately without reloading/refetching
+    setOrders(prev => prev.filter(order => order.id !== targetOrderId));
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
-      const response = await fetch(`${apiUrl}/api/orders/${orderToDelete.id}`, {
+      const response = await fetch(`${apiUrl}/api/orders/${targetOrderId}`, {
         method: 'DELETE',
-      })
+      });
 
       if (!response.ok) {
-        const errData = await response.json()
-        throw new Error(errData.message || 'Failed to delete order')
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to delete order');
       }
 
-      // Re-fetch orders after successful deletion
-      await fetchOrders()
-      closeDeleteModal()
+      // Cleanup target from deletingIds list
+      setDeletingIds(prev => prev.filter(id => id !== targetOrderId));
     } catch (err) {
-      console.error('Delete order error:', err)
-      alert(err.message || t('Could not cancel the order.'))
-    } finally {
-      setDeleting(false)
+      console.error('Delete order error:', err);
+      // 4. Restore previous state if request fails
+      setOrders(previousOrders);
+      setDeletingIds(prev => prev.filter(id => id !== targetOrderId));
+      alert(err.message || t('Could not cancel the order. Please try again.'));
     }
   }
 
@@ -402,13 +432,40 @@ function OrdersPageContent() {
           </div>
         ) : orders.length > 0 ? (
           <div className="space-y-6 mb-8">
-            {orders.map((order) => (
-              <div key={order.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4 text-left">
+            {orders.map((order) => {
+              const isDeleting = deletingIds.includes(order.id);
+              return (
+                <div 
+                  key={order.id} 
+                  className={`bg-white border border-gray-200 shadow-sm text-left transition-all duration-200 ease-out ${
+                    isDeleting 
+                      ? 'opacity-0 max-h-0 scale-95 border-0 p-0 m-0 overflow-hidden' 
+                      : 'opacity-100 max-h-[2000px] p-5 space-y-4'
+                  }`}
+                  style={{
+                    marginTop: isDeleting ? '0px' : undefined,
+                    marginBottom: isDeleting ? '0px' : undefined,
+                    borderWidth: isDeleting ? '0px' : undefined,
+                  }}
+                >
                 {/* Header Row */}
                 <div className="flex justify-between items-start flex-wrap gap-2 pb-3 border-b border-gray-150">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-indigo-700 text-base">{order.orderId}</span>
+                      {order.filesDeleted && (
+                        <span 
+                          onClick={(e) => { e.stopPropagation(); setShowCleanedModal(true); }}
+                          className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200/60 px-2 py-0.5 text-[10px] font-bold text-slate-500 relative group cursor-pointer shrink-0 hover:bg-slate-200 hover:text-slate-700 transition"
+                          title="The uploaded files have been automatically removed after 6 hours to save storage. Click for info."
+                        >
+                          {t("Storage Cleaned")}
+                          {/* Tooltip */}
+                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-slate-800 p-2 text-center text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 z-10 shadow-lg">
+                            {t("The uploaded files have been automatically removed after 6 hours to save storage. Click for details.")}
+                          </span>
+                        </span>
+                      )}
                       {order.paymentLog && (
                         <>
                           {order.paymentLog.paymentStatus === 'PENDING' && (
@@ -489,6 +546,14 @@ function OrdersPageContent() {
                       </div>
                     );
                   })}
+                  {order.filesDeleted && (
+                    <div 
+                      onClick={() => setShowCleanedModal(true)}
+                      className="p-3 bg-slate-50 text-slate-500 rounded-xl border border-slate-200 text-center text-xs font-bold font-sans cursor-pointer hover:bg-slate-100 transition select-none"
+                    >
+                      🔒 {t('Storage Cleaned — Files Automatically Removed (Click for Info)')}
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer details & Action buttons */}
@@ -557,7 +622,8 @@ function OrdersPageContent() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
@@ -620,6 +686,35 @@ function OrdersPageContent() {
             fetchOrders()
           }}
         />
+      )}
+
+      {showCleanedModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 text-center relative space-y-4">
+            <button 
+              onClick={() => setShowCleanedModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition"
+            >
+              <X size={18} />
+            </button>
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-500">
+              <FileText size={24} />
+            </div>
+            <h3 className="font-extrabold text-slate-800 text-lg">{t('Storage Cleaned')}</h3>
+            <p className="text-xs font-semibold text-slate-500 leading-relaxed">
+              {t('The uploaded print documents for this order were automatically and permanently deleted from S3 storage because the order has completed 6 hours.')}
+            </p>
+            <p className="text-[11px] text-indigo-600 font-bold bg-indigo-50/50 py-2 px-3 rounded-xl border border-indigo-100/60">
+              {t('Order history, invoices, and analytics are preserved permanently.')}
+            </p>
+            <button
+              onClick={() => setShowCleanedModal(false)}
+              className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2.5 rounded-xl transition"
+            >
+              {t('Got it')}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
