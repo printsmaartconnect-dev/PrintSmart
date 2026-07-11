@@ -52,6 +52,17 @@ import PlatformGrowthChart from './_components/PlatformGrowthChart'
 import RewardsAnalyticsChart from './_components/RewardsAnalyticsChart'
 import AIUsageOverview from './_components/AIUsageOverview'
 
+const formatRevenue = (value) => {
+  if (value === undefined || value === null) return '₹0';
+  if (value >= 100000) {
+    return `₹${(value / 100000).toFixed(2)}L`;
+  }
+  if (value >= 1000) {
+    return `₹${(value / 1000).toFixed(1)}K`;
+  }
+  return `₹${value}`;
+};
+
 export default function AdminDashboardPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -79,6 +90,8 @@ export default function AdminDashboardPage() {
   const [analyticsData, setAnalyticsData] = useState(null)
   const [couponsList, setCouponsList] = useState([])
   const [feedbackList, setFeedbackList] = useState([])
+  const [shopOrdersDetail, setShopOrdersDetail] = useState(null)
+  const [shopOrdersLoading, setShopOrdersLoading] = useState(false)
   
   // Loader States
   const [statsLoading, setStatsLoading] = useState(false)
@@ -502,6 +515,29 @@ export default function AdminDashboardPage() {
     }
   }, [activeTab])
 
+  // Fetch detailed shop orders and daily stats when a shop is selected
+  useEffect(() => {
+    if (!selectedShopId) {
+      setShopOrdersDetail(null)
+      return
+    }
+    const fetchShopOrders = async () => {
+      setShopOrdersLoading(true)
+      try {
+        const res = await fetch(`${apiUrl}/api/admin/shops/${selectedShopId}/orders-detail`)
+        if (res.ok) {
+          const data = await res.json()
+          setShopOrdersDetail(data)
+        }
+      } catch (err) {
+        console.error('Error fetching shop orders detail:', err)
+      } finally {
+        setShopOrdersLoading(false)
+      }
+    }
+    fetchShopOrders()
+  }, [selectedShopId])
+
   // Onboard status change trigger
   const toggleOnboarding = async (shopId) => {
     try {
@@ -834,10 +870,10 @@ export default function AdminDashboardPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { label: 'Active Shops', val: '842', color: 'text-emerald-600 bg-emerald-50' },
-                      { label: 'Orders', val: '1,284', color: 'text-blue-600 bg-blue-50' },
-                      { label: 'AI Jobs', val: '381', color: 'text-violet-600 bg-violet-50' },
-                      { label: 'Revenue', val: '₹42,580', color: 'text-pink-600 bg-pink-50' }
+                      { label: 'Active Shops', val: stats?.today?.activeShops !== undefined ? stats.today.activeShops.toString() : '0', color: 'text-emerald-600 bg-emerald-50' },
+                      { label: 'Orders', val: stats?.today?.orders !== undefined ? stats.today.orders.toString() : '0', color: 'text-blue-600 bg-blue-50' },
+                      { label: 'AI Jobs', val: stats?.today?.aiJobs !== undefined ? stats.today.aiJobs.toString() : '0', color: 'text-violet-600 bg-violet-50' },
+                      { label: 'Revenue', val: stats?.today?.revenue !== undefined ? `₹${stats.today.revenue.toLocaleString()}` : '₹0', color: 'text-pink-600 bg-pink-50' }
                     ].map((item, idx) => (
                       <div key={idx} className="space-y-1">
                         <span className="text-[10px] text-slate-400 font-bold block">{item.label}</span>
@@ -857,74 +893,74 @@ export default function AdminDashboardPage() {
                 {[
                   {
                     title: 'Total Shops',
-                    value: stats?.totalShopkeepers ? stats.totalShopkeepers.toString() : '1,284',
+                    value: stats?.totalShopkeepers !== undefined ? stats.totalShopkeepers.toString() : '0',
                     icon: Store,
-                    trend: '↗ 12.4%',
+                    trend: stats?.trends?.shops ?? '0.0%',
                     trendText: 'vs last month',
-                    trendUp: true,
+                    trendUp: stats?.trends?.shopsUp ?? true,
                     color: 'text-purple-600 bg-purple-50'
                   },
                   {
                     title: 'Active Shops',
-                    value: '842',
+                    value: stats?.activeShops !== undefined ? stats.activeShops.toString() : '0',
                     icon: Activity,
-                    trend: '↗ 8.7%',
+                    trend: stats?.trends?.activeShops ?? '0.0%',
                     trendText: 'vs yesterday',
-                    trendUp: true,
+                    trendUp: stats?.trends?.activeShopsUp ?? true,
                     color: 'text-emerald-600 bg-emerald-50'
                   },
                   {
                     title: 'Total Orders',
-                    value: stats?.totalOrders ? stats.totalOrders.toLocaleString() : '52,821',
+                    value: stats?.totalOrders !== undefined ? stats.totalOrders.toLocaleString() : '0',
                     icon: ShoppingCart,
-                    trend: '↗ 18.6%',
+                    trend: stats?.trends?.orders ?? '0.0%',
                     trendText: 'vs last month',
-                    trendUp: true,
+                    trendUp: stats?.trends?.ordersUp ?? true,
                     color: 'text-blue-600 bg-blue-50'
                   },
                   {
                     title: 'Monthly Rev',
-                    value: stats?.revenue ? `₹${((stats.revenue * 30) / 100000).toFixed(1)}L` : '₹4.8L',
+                    value: stats?.monthlyRevenue !== undefined ? formatRevenue(stats.monthlyRevenue) : '₹0',
                     icon: DollarSign,
-                    trend: '↗ 15.2%',
+                    trend: stats?.trends?.revenue ?? '0.0%',
                     trendText: 'vs last month',
-                    trendUp: true,
+                    trendUp: stats?.trends?.revenueUp ?? true,
                     color: 'text-pink-600 bg-pink-50'
                   },
                   {
                     title: 'Rewards Gen',
-                    value: stats?.scratchCardsGenerated ? stats.scratchCardsGenerated.toLocaleString() : '92,821',
+                    value: stats?.scratchCardsGenerated !== undefined ? stats.scratchCardsGenerated.toLocaleString() : '0',
                     icon: Gift,
-                    trend: '↗ 14.3%',
+                    trend: stats?.trends?.rewards ?? '0.0%',
                     trendText: 'vs last month',
-                    trendUp: true,
+                    trendUp: stats?.trends?.rewardsUp ?? true,
                     color: 'text-orange-600 bg-orange-50'
                   },
                   {
                     title: 'AI Gen Runs',
-                    value: '2,481',
+                    value: stats?.aiGenRuns !== undefined ? stats.aiGenRuns.toLocaleString() : '0',
                     icon: Sparkles,
-                    trend: '↗ 24.7%',
+                    trend: stats?.trends?.ai ?? '0.0%',
                     trendText: 'vs last month',
-                    trendUp: true,
+                    trendUp: stats?.trends?.aiUp ?? true,
                     color: 'text-indigo-600 bg-indigo-50'
                   },
                   {
                     title: 'Open Tickets',
-                    value: feedbackList.filter(f => f.status === 'OPEN').length.toString() || '8',
+                    value: stats?.openTickets !== undefined ? stats.openTickets.toString() : '0',
                     icon: MessageSquare,
-                    trend: '↘ 2',
-                    trendText: 'vs yesterday',
-                    trendUp: false,
+                    trend: stats?.openTickets > 0 ? 'Support' : 'Clean',
+                    trendText: 'Tickets',
+                    trendUp: stats?.openTickets === 0,
                     color: 'text-rose-600 bg-rose-50'
                   },
                   {
                     title: 'Alerts',
-                    value: '4',
+                    value: stats?.alertsCount !== undefined ? stats.alertsCount.toString() : '0',
                     icon: AlertTriangle,
-                    trend: 'Attention',
-                    trendText: 'Needs review',
-                    trendUp: false,
+                    trend: stats?.alertsCount > 0 ? 'Attention' : 'Clean',
+                    trendText: stats?.alertsCount > 0 ? 'Needs review' : 'No warnings',
+                    trendUp: stats?.alertsCount === 0,
                     color: 'text-amber-600 bg-amber-50'
                   }
                 ].map((kpi, idx) => (
@@ -941,7 +977,7 @@ export default function AdminDashboardPage() {
                     <div>
                       <h4 className="text-sm font-black text-slate-800 tracking-tight">{kpi.value}</h4>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <span className={`text-[8px] font-black ${kpi.trend === 'Attention' ? 'text-rose-600' : kpi.trendUp ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        <span className={`text-[8px] font-black ${kpi.trend === 'Attention' || kpi.trend === 'Support' ? 'text-rose-600' : kpi.trendUp ? 'text-emerald-600' : 'text-rose-500'}`}>
                           {kpi.trend}
                         </span>
                         <span className="text-[7px] text-slate-400 font-bold block truncate max-w-[50px]">{kpi.trendText}</span>
@@ -1517,25 +1553,92 @@ export default function AdminDashboardPage() {
                             </div>
                             <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
                               <span className="text-[14px] font-black text-slate-800 block leading-tight">
-                                {Math.floor(shop.totalOrders * 0.15) || 5}
+                                {shopOrdersDetail?.orders ? shopOrdersDetail.orders.filter(o => o.rewardLog).length : Math.floor(shop.totalOrders * 0.15)}
                               </span>
                               <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">Rewards Given</span>
                             </div>
                             <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
                               <span className="text-[14px] font-black text-slate-800 block leading-tight">
-                                {Math.floor(shop.totalOrders * 0.08) || 3}
+                                {shopOrdersDetail?.orders ? shopOrdersDetail.orders.filter(o => o.status === 'COMPLETED').length : shop.totalOrders}
                               </span>
-                              <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">AI runs</span>
+                              <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">Compl. Jobs</span>
                             </div>
                             <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
-                              <span className="text-[14px] font-black text-slate-800 block leading-tight">98%</span>
+                              <span className="text-[14px] font-black text-slate-800 block leading-tight">
+                                {shop.totalOrders > 0 ? `${Math.round(((shopOrdersDetail?.orders ? shopOrdersDetail.orders.filter(o => o.status === 'COMPLETED').length : shop.totalOrders) / (shop.totalOrders || 1)) * 100)}%` : '100%'}
+                              </span>
                               <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">Comp. Rate</span>
                             </div>
                             <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
-                              <span className="text-[14px] font-black text-slate-800 block leading-tight">4.8 ★</span>
+                              <span className="text-[14px] font-black text-slate-800 block leading-tight">5.0 ★</span>
                               <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 block">Rating</span>
                             </div>
                           </div>
+                        </div>
+
+                        {/* ORDERS PER DAY BREAKDOWN */}
+                        {shopOrdersDetail?.dailyStats && (
+                          <div className="space-y-3 pt-3 border-t border-slate-100">
+                            <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Orders per Day (Last 14 Days)</h4>
+                            <div className="space-y-2 text-xs font-semibold text-slate-600 max-h-[120px] overflow-y-auto pr-1 no-scrollbar">
+                              {shopOrdersDetail.dailyStats.filter(d => d.count > 0).length > 0 ? (
+                                shopOrdersDetail.dailyStats.filter(d => d.count > 0).map((day, idx) => (
+                                  <div key={idx} className="flex justify-between items-center py-1 border-b border-slate-50 text-[10px]">
+                                    <span className="text-slate-500 font-bold">{day.date}</span>
+                                    <span className="bg-violet-50 text-violet-700 font-black px-2 py-0.5 rounded text-[9px]">
+                                      {day.count} orders • ₹{day.revenue}
+                                    </span>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-[9px] text-slate-400 font-bold italic block py-1">No orders recorded in the last 14 days</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* REAL-TIME PRINT SPECIFICATIONS & TIMES */}
+                        <div className="space-y-3 pt-3 border-t border-slate-100">
+                          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Recent Print Log & Times</h4>
+                          {shopOrdersLoading ? (
+                            <p className="text-[9px] text-slate-400 font-bold animate-pulse py-2">Loading orders detail...</p>
+                          ) : shopOrdersDetail?.orders && shopOrdersDetail.orders.length > 0 ? (
+                            <div className="space-y-3.5 max-h-[200px] overflow-y-auto pr-1.5 no-scrollbar">
+                              {shopOrdersDetail.orders.map((ord, idx) => {
+                                const config = ord.printConfiguration || {};
+                                const timeStr = new Date(ord.createdAt).toLocaleTimeString('en-IN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: true
+                                });
+                                const dateStr = new Date(ord.createdAt).toLocaleDateString('en-IN', {
+                                  day: '2-digit',
+                                  month: 'short'
+                                });
+                                return (
+                                  <div key={idx} className="flex justify-between items-start text-[10px] border-b border-slate-50 pb-2.5 last:border-0 last:pb-0">
+                                    <div className="space-y-0.5 flex-1 pr-2">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-mono font-extrabold text-slate-800">{ord.orderId || ord.id.substring(0, 8)}</span>
+                                        <span className={`px-1.5 py-0.2 rounded text-[7px] font-black ${
+                                          ord.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'
+                                        }`}>{ord.status}</span>
+                                      </div>
+                                      <span className="text-slate-400 block font-bold">
+                                        {config.copies || 1} copies • {config.printType || 'BW'} • {config.paperSize || 'A4'} • {config.sides || 'SINGLE'}
+                                      </span>
+                                    </div>
+                                    <div className="text-right whitespace-nowrap">
+                                      <span className="block font-black text-slate-700 leading-none">{timeStr}</span>
+                                      <span className="text-[7px] text-slate-400 font-extrabold block mt-0.5">{dateStr}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-[9px] text-slate-400 font-bold italic py-2">No order logs found for this shop</p>
+                          )}
                         </div>
 
                       </div>
@@ -2664,6 +2767,67 @@ export default function AdminDashboardPage() {
                 <span>All changes are saved automatically</span>
               </div>
 
+            </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <div className="space-y-8 animate-fadeIn">
+              <div>
+                <h1 className="text-2xl font-black text-slate-800 tracking-tight">Analytics Dashboard</h1>
+                <p className="text-xs font-bold text-slate-400 mt-1">
+                  Detailed indices of platform growth, AI usage, and reward distributions
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-8">
+                  <PlatformGrowthChart apiUrl={apiUrl} />
+                </div>
+                <div className="lg:col-span-4">
+                  <AIUsageOverview stats={aiStats} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-6">
+                  <RewardsAnalyticsChart totalRewards={couponStats.rewardsDistributed} rewardCost={couponStats.scratchCardsCount * 15} />
+                </div>
+                <div className="lg:col-span-6 bg-white border border-slate-100 rounded-[28px] p-6 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">Print Configuration Ratio</h3>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Distribution of Black & White vs Color prints</p>
+                  </div>
+                  {analyticsData?.printTypeDistribution ? (
+                    <div className="space-y-5 my-auto">
+                      {analyticsData.printTypeDistribution.map((dist, idx) => {
+                        const totalPrints = analyticsData.printTypeDistribution.reduce((acc, curr) => acc + curr._count.id, 0) || 1;
+                        const percent = Math.round((dist._count.id / totalPrints) * 100);
+                        return (
+                          <div key={idx} className="space-y-2">
+                            <div className="flex justify-between text-xs font-bold text-slate-700">
+                              <span className="flex items-center gap-2">
+                                <span className={`w-2.5 h-2.5 rounded-full ${dist.printType === 'BW' ? 'bg-slate-700' : 'bg-violet-500'}`} />
+                                <span>{dist.printType === 'BW' ? 'Black & White' : 'Color'}</span>
+                              </span>
+                              <span>{dist._count.id} prints ({percent}%)</span>
+                            </div>
+                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full ${dist.printType === 'BW' ? 'bg-slate-700' : 'bg-violet-500'}`} 
+                                style={{ width: `${percent}%` }} 
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-12">
+                      <p className="text-xs">No print configuration data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Eye, EyeOff } from 'lucide-react'
+import { Shield, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -45,7 +45,16 @@ export default function AdminPage() {
 
   return (
     <div className="wave-bg min-h-screen flex flex-col items-center justify-center px-4 py-8">
-      <div className="glassmorphism w-full max-w-md p-8">
+      <div className="glassmorphism w-full max-w-md p-8 flex flex-col">
+        {/* Back to Home Button */}
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 font-semibold mb-6 transition w-fit"
+        >
+          <ArrowLeft size={16} />
+          <span>Back to Home</span>
+        </button>
+
         {/* Admin Branding */}
         <div className="flex justify-center mb-8">
           <div className="w-16 h-16 bg-gradient-brand rounded-2xl flex items-center justify-center">

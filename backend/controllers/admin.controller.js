@@ -1,51 +1,287 @@
 const prisma = require("../config/db");
 
+// Helper to calculate percentage growth trend
+function getTrendInfo(current, previous) {
+  if (previous === 0) {
+    return {
+      trend: current > 0 ? "↗ 100%" : "0.0%",
+      trendUp: current > 0
+    };
+  }
+  const percent = ((current - previous) / previous) * 100;
+  const trendUp = percent >= 0;
+  return {
+    trend: (trendUp ? "↗ " : "↘ ") + Math.abs(percent).toFixed(1) + "%",
+    trendUp
+  };
+}
+
 // Get dashboard aggregate statistics
 exports.getDashboardStats = async (req, res) => {
   try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(now.getDate() - 60);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
     const totalUsers = await prisma.user.count();
     const totalShopkeepers = await prisma.shopkeeper.count();
-    const totalCustomers = await prisma.user.count({
-      where: { orders: { some: {} } }
+    
+    // Active shops (onboarded)
+    const activeShops = await prisma.shopkeeper.count({
+      where: { isOnboarded: true }
     });
+
     const totalOrders = await prisma.order.count();
     
+    // Total Revenue (all completed orders)
     const revenueAggr = await prisma.order.aggregate({
-      _sum: {
-        totalAmount: true,
-      },
-      where: {
-        status: 'COMPLETED'
-      }
+      _sum: { totalAmount: true },
+      where: { status: 'COMPLETED' }
     });
     const revenue = revenueAggr._sum.totalAmount || 0;
 
-    const couponsGenerated = await prisma.rewardLog.count({
-      where: { rewardCategory: 'MONETARY' }
+    // Monthly Revenue (completed orders in the last 30 days)
+    const monthlyRevAggr = await prisma.order.aggregate({
+      _sum: { totalAmount: true },
+      where: {
+        status: 'COMPLETED',
+        createdAt: { gte: thirtyDaysAgo }
+      }
     });
-    const couponsRedeemed = await prisma.rewardLog.count({
-      where: { rewardCategory: 'MONETARY', scratched: true }
-    });
+    const monthlyRevenue = monthlyRevAggr._sum.totalAmount || 0;
+
+    // Rewards/Scratch cards generated
     const scratchCardsGenerated = await prisma.rewardLog.count();
+
+    // AI Generation Runs
+    const aiUsageSum = await prisma.aIUsage.aggregate({
+      _sum: { generationCount: true }
+    });
+    const totalAiUsage = aiUsageSum._sum.generationCount || 0;
+    const totalAiAssets = await prisma.aIAsset.count();
+    const aiGenRuns = totalAiUsage + totalAiAssets;
+
+    // Open Tickets (Support feedback)
+    const openTickets = await prisma.feedback.count({
+      where: { status: 'OPEN' }
+    });
+
+    // Alerts (Not onboarded shops + Open support tickets)
+    const pendingShops = await prisma.shopkeeper.count({
+      where: { isOnboarded: false }
+    });
+    const alertsCount = pendingShops + openTickets;
+
+    // Calculate Trends (Current 30 days vs Previous 30 days)
+    // 1. Shops Trend
+    const currentShops = await prisma.shopkeeper.count({
+      where: { createdAt: { gte: thirtyDaysAgo } }
+    });
+    const prevShops = await prisma.shopkeeper.count({
+      where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }
+    });
+    const shopsTrendInfo = getTrendInfo(currentShops, prevShops);
+
+    // 2. Orders Trend
+    const currentOrders = await prisma.order.count({
+      where: { createdAt: { gte: thirtyDaysAgo } }
+    });
+    const prevOrders = await prisma.order.count({
+      where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }
+    });
+    const ordersTrendInfo = getTrendInfo(currentOrders, prevOrders);
+
+    // 3. Revenue Trend
+    const currentRevAggr = await prisma.order.aggregate({
+      _sum: { totalAmount: true },
+      where: { status: 'COMPLETED', createdAt: { gte: thirtyDaysAgo } }
+    });
+    const prevRevAggr = await prisma.order.aggregate({
+      _sum: { totalAmount: true },
+      where: { status: 'COMPLETED', createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }
+    });
+    const currentRev = currentRevAggr._sum.totalAmount || 0;
+    const prevRev = prevRevAggr._sum.totalAmount || 0;
+    const revenueTrendInfo = getTrendInfo(currentRev, prevRev);
+
+    // 4. Rewards Trend
+    const currentRewards = await prisma.rewardLog.count({
+      where: { createdAt: { gte: thirtyDaysAgo } }
+    });
+    const prevRewards = await prisma.rewardLog.count({
+      where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }
+    });
+    const rewardsTrendInfo = getTrendInfo(currentRewards, prevRewards);
+
+    // 5. AI Trend
+    const currentAiUsage = await prisma.aIUsage.aggregate({
+      _sum: { generationCount: true },
+      where: { createdAt: { gte: thirtyDaysAgo } }
+    }).then(res => res._sum.generationCount || 0);
+    const currentAiAssets = await prisma.aIAsset.count({
+      where: { createdAt: { gte: thirtyDaysAgo } }
+    });
+    const currentAi = currentAiUsage + currentAiAssets;
+
+    const prevAiUsage = await prisma.aIUsage.aggregate({
+      _sum: { generationCount: true },
+      where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }
+    }).then(res => res._sum.generationCount || 0);
+    const prevAiAssets = await prisma.aIAsset.count({
+      where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }
+    });
+    const prevAi = prevAiUsage + prevAiAssets;
+    const aiTrendInfo = getTrendInfo(currentAi, prevAi);
+
+    // 6. Active Shops Trend (unique shops with orders in last 24h vs previous 24h)
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(now.getDate() - 1);
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(now.getDate() - 2);
+
+    const currentActiveShops = await prisma.order.groupBy({
+      by: ['shopkeeperId'],
+      where: { createdAt: { gte: oneDayAgo } }
+    }).then(res => res.length);
+
+    const prevActiveShops = await prisma.order.groupBy({
+      by: ['shopkeeperId'],
+      where: { createdAt: { gte: twoDaysAgo, lt: oneDayAgo } }
+    }).then(res => res.length);
+    const activeShopsTrendInfo = getTrendInfo(currentActiveShops, prevActiveShops);
+
+    // Calculate Today's Summary
+    const todayActiveShops = await prisma.order.groupBy({
+      by: ['shopkeeperId'],
+      where: { createdAt: { gte: startOfToday } }
+    }).then(res => res.length);
+
+    const todayOrders = await prisma.order.count({
+      where: { createdAt: { gte: startOfToday } }
+    });
+
+    const todayAiUsageSum = await prisma.aIUsage.aggregate({
+      _sum: { generationCount: true },
+      where: { createdAt: { gte: startOfToday } }
+    }).then(res => res._sum.generationCount || 0);
+    const todayAiAssets = await prisma.aIAsset.count({
+      where: { createdAt: { gte: startOfToday } }
+    });
+    const todayAiJobs = todayAiUsageSum + todayAiAssets;
+
+    const todayRevenueAggr = await prisma.order.aggregate({
+      _sum: { totalAmount: true },
+      where: { status: 'COMPLETED', createdAt: { gte: startOfToday } }
+    });
+    const todayRevenue = todayRevenueAggr._sum.totalAmount || 0;
 
     res.json({
       totalUsers,
-      totalCustomers,
       totalShopkeepers,
+      activeShops,
       totalOrders,
       revenue,
-      couponsGenerated,
-      couponsRedeemed,
+      monthlyRevenue,
       scratchCardsGenerated,
-      // Backward compatibility
-      activeShops: totalShopkeepers,
-      activeCustomers: totalUsers
+      aiGenRuns,
+      openTickets,
+      alertsCount,
+      trends: {
+        shops: shopsTrendInfo.trend,
+        shopsUp: shopsTrendInfo.trendUp,
+        activeShops: activeShopsTrendInfo.trend,
+        activeShopsUp: activeShopsTrendInfo.trendUp,
+        orders: ordersTrendInfo.trend,
+        ordersUp: ordersTrendInfo.trendUp,
+        revenue: revenueTrendInfo.trend,
+        revenueUp: revenueTrendInfo.trendUp,
+        rewards: rewardsTrendInfo.trend,
+        rewardsUp: rewardsTrendInfo.trendUp,
+        ai: aiTrendInfo.trend,
+        aiUp: aiTrendInfo.trendUp
+      },
+      today: {
+        activeShops: todayActiveShops,
+        orders: todayOrders,
+        aiJobs: todayAiJobs,
+        revenue: todayRevenue
+      }
     });
   } catch (err) {
     console.error("Admin stats error:", err.message);
     res.status(500).json({ message: "Server Error" });
   }
 };
+
+// Get detailed shop orders, timestamps, configurations, and daily stats
+exports.getShopOrdersDetail = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const shop = await prisma.shopkeeper.findUnique({
+      where: { id }
+    });
+    if (!shop) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+
+    // 1. Fetch recent 50 orders with print details and customer details
+    const orders = await prisma.order.findMany({
+      where: { shopkeeperId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        printConfiguration: true,
+        user: { select: { name: true, email: true } }
+      }
+    });
+
+    // 2. Fetch daily stats for the last 14 days
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const allShopOrders = await prisma.order.findMany({
+      where: {
+        shopkeeperId: id,
+        createdAt: { gte: fourteenDaysAgo }
+      },
+      select: {
+        createdAt: true,
+        totalAmount: true
+      }
+    });
+
+    const dailyCounts = {};
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      // Format label for UI e.g. "10 Jul"
+      const label = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      dailyCounts[dateStr] = { date: label, count: 0, revenue: 0 };
+    }
+
+    allShopOrders.forEach(o => {
+      const dateStr = o.createdAt.toISOString().split('T')[0];
+      if (dailyCounts[dateStr]) {
+        dailyCounts[dateStr].count += 1;
+        dailyCounts[dateStr].revenue += o.totalAmount;
+      }
+    });
+
+    res.json({
+      orders,
+      dailyStats: Object.values(dailyCounts)
+    });
+  } catch (err) {
+    console.error("getShopOrdersDetail error:", err.message);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
 
 // Get recent platform orders
 exports.getRecentOrders = async (req, res) => {
