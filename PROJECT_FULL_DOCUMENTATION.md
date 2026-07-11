@@ -4124,14 +4124,20 @@
        - **Frontend Context Provider & useSocket Hook**: Wraps the App Router layout with a global `<SocketProvider>` context and utilizes a reusable `useSocket` subscription hook with automatic listener cleanup on unmount.
        - **Fluid Traversal Pattern (SWR)**: Shopkeeper dashboard restores shop settings, custom codes, and order stats instantly from `localStorage` cached values on mount, rendering the dashboard in 0ms before background fetching silently updates and caches the latest queues. Dynamic Welcome Bar badge hides default mock "Premium Plan" crown pill unless a plan is resolved.
 
+   11. **Walk-in Custom Billing, S3 Cleanup Dialogs & QR Poster Printing (July 2026)**:
+       - **Custom Bill Generator**: A highly integrated, offline-capable PDF/Print invoice builder (`CustomBillModal.tsx`) placed on the Shopkeeper Dashboard's Bottom Dock between "Cancelled" and "Add Order". Removes editing fields for business information and templates picker, cleanly defaulting to classic styling and automatically prefilling shop details from profile contexts.
+       - **Order "Edit Bill" Mapping**: A one-click "Edit Bill" button on `OrderCard.js` (card view) and `RecentOrders.js` (table view) that aggregates all files/uploads of a parent order, formatting them as separate line items in the billing modal.
+       - **S3 Automatic Storage Cleanup Dialog**: A background cleanup routine deletes uploaded files after 6 hours. When a shopkeeper triggers actions (preview, print, download) on a file that has been deleted (fails with `S3FileNotFound` error code), the dashboard intercepts the failure and presents a user-friendly modal dialog explaining that the file has completed 6 hours and has been auto-cleaned, completely avoiding standard browser XML errors.
+       - **QR Poster Printing and Downloading**: Unifies poster operations by routing the generated QR code directly to the homepage query param listener `https://print-smart-18.vercel.app/?shopId={shopId}` (which correctly redirects customers to onboarding, preventing 404 router errors). Bypasses CSS canvas scaling distortions by capturing an unscaled off-screen viewport container (`position: fixed`) and uses Blob conversions to support cross-origin downloads without browser blockages.
+
   ---
 
   ## Document Version
   
-  - **Version:** 4.0.0
-  - **Last Updated:** June 28, 2026
+  - **Version:** 5.0.0
+  - **Last Updated:** July 8, 2026
   - **Author:** Antigravity AI
-  - **Status:** Complete (Fully updated with backend TypeScript compilation startup hooks, Supabase database schema push, rule-based JSON knowledge rules, modular context aggregations, Next.js TSX Copilot dashboard components, Socket.IO real-time notification/order streams, and fluid SWR latency-free cache restoration page traversals).
+  - **Status:** Complete (Fully updated with custom walk-in billing systems, S3 storage cleanup handler popup dialogs, robust QR poster routing and download services, and Next.js/Express platform documentation integrations).
   
   ---
   
