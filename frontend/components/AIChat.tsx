@@ -167,7 +167,7 @@ export const AIChat: React.FC = () => {
                 <div
                   key={idx}
                   onClick={() => handleSend(card.prompt)}
-                  className="bg-[#1e1f20] hover:bg-[#282a2c] border border-slate-850 hover:border-slate-800/80 rounded-2xl p-5 cursor-pointer transition-all duration-200 flex flex-col justify-between h-36 group shadow-sm hover:shadow-md"
+                  className="bg-[#1e1f20] hover:bg-[#282a2c] border border-slate-850 hover:border-slate-800/80 rounded-2xl p-5 cursor-pointer transition-all duration-200 flex flex-col justify-between min-h-[9rem] h-auto group shadow-sm hover:shadow-md"
                 >
                   <p className="text-sm font-semibold text-slate-200 leading-snug group-hover:text-white">
                     {card.title}

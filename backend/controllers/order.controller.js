@@ -2,6 +2,8 @@ const prisma = require("../config/db");
 const orderService = require("../services/order.service");
 const invoiceService = require("../services/invoice.service");
 const socketService = require("../services/socket.service");
+const path = require("path");
+const { v4: uuidv4 } = require("uuid");
 
 // Format orders to clean serialized configs and present them as a dynamic 'config' field
 const formatOrderResponse = (order) => {
@@ -265,6 +267,8 @@ exports.createOrder = async (req, res) => {
       },
     });
 
+const storageService = require("../services/storage.service");
+
     // 7. Create OrderFiles for each item, serializing their print configurations, sequential IDs, and individual prices inside `customFileName`
     const orderFiles = [];
     for (let i = 0; i < items.length; i++) {
@@ -277,14 +281,48 @@ exports.createOrder = async (req, res) => {
       });
       const storedCustomName = `${item.fileName || "Untitled Document"}|${serializedConfig}`;
 
+      let finalFileUrl = item.fileUrl || "";
+      let finalKey = item.fileKey || "";
+
+      // If key is not provided but fileUrl is S3 or local, we can resolve/extract it
+      if (!finalKey && finalFileUrl) {
+        try {
+          const parsedUrl = new URL(finalFileUrl);
+          if (parsedUrl.hostname.includes("s3") || parsedUrl.hostname.includes("amazonaws.com")) {
+            finalKey = decodeURIComponent(parsedUrl.pathname.substring(1));
+          } else if (parsedUrl.pathname.includes("/uploads/")) {
+            finalKey = parsedUrl.pathname.split("/uploads/")[1];
+          }
+        } catch (e) {
+          // If URL parsing fails, key is left blank
+        }
+      }
+
+      // Automatically migrate file keys from uploads/temporary/ to structured customer-orders folder
+      if (finalKey && (finalKey.startsWith("uploads/temporary/") || finalKey.startsWith("orders/temp/"))) {
+        try {
+          const safeOrderId = order.orderId.replace(/\//g, "_");
+          const fileExtension = path.extname(item.fileName || finalKey).toLowerCase();
+          const uniqueFilename = `${uuidv4()}_${item.fileName || "document"}`;
+          const destKey = `uploads/customer-orders/${safeOrderId}/${uniqueFilename}`;
+          
+          const moveResult = await storageService.moveFile(finalKey, destKey);
+          finalFileUrl = moveResult.fileUrl || moveResult.url;
+          finalKey = moveResult.key;
+        } catch (moveErr) {
+          console.error(`Failed to move file ${finalKey} to customer-orders folder:`, moveErr);
+        }
+      }
+
       const orderFile = await prisma.orderFile.create({
         data: {
           orderId: order.id,
           originalFileName: item.fileName || "Untitled Document",
           customFileName: storedCustomName,
-          fileUrl: item.fileUrl || "",
+          fileUrl: finalFileUrl,
+          s3Key: finalKey || null,
           fileSize: item.fileSize || 0,
-          thumbnailUrl: item.fileUrl || null,
+          thumbnailUrl: finalFileUrl || null,
         },
       });
       orderFiles.push(orderFile);
@@ -520,8 +558,19 @@ exports.updateOrderStatus = async (req, res) => {
         queue: true,
         invoice: true,
         paymentLog: true,
+        rewardLog: true,
       },
     });
+
+    if (statusEnum === "CANCELLED") {
+      const safeOrderId = updatedOrder.orderId.replace(/\//g, "_");
+      const folderPath = `uploads/customer-orders/${safeOrderId}/`;
+      try {
+        await storageService.deleteFolder(folderPath);
+      } catch (s3Err) {
+        console.error(`[S3 Cleanup] Failed to delete S3 folder for cancelled order ${updatedOrder.orderId}:`, s3Err.message);
+      }
+    }
 
     // Update Queue status if applicable
     if (order.queue) {
@@ -713,10 +762,20 @@ exports.deleteOrder = async (req, res) => {
       return res.status(400).json({ message: "Only pending orders can be deleted" });
     }
 
+    const safeOrderId = order.orderId.replace(/\//g, "_");
+    const folderPath = `uploads/customer-orders/${safeOrderId}/`;
+
     // Delete order (cascades to configurations, queues, invoices and order files)
     await prisma.order.delete({
       where: { id },
     });
+
+    // Delete files in S3
+    try {
+      await storageService.deleteFolder(folderPath);
+    } catch (s3Err) {
+      console.error(`[S3 Cleanup] Failed to delete S3 folder for order ${order.orderId}:`, s3Err.message);
+    }
 
     res.status(200).json({ message: "Order deleted successfully" });
   } catch (err) {
@@ -793,6 +852,7 @@ exports.updateOrderStatusByCustomer = async (req, res) => {
         queue: true,
         invoice: true,
         paymentLog: true,
+        rewardLog: true,
       },
     });
 
@@ -812,4 +872,6 @@ exports.updateOrderStatusByCustomer = async (req, res) => {
     res.status(500).json({ message: "Server error updating status" });
   }
 };
+
+exports.formatOrderResponse = formatOrderResponse;
 

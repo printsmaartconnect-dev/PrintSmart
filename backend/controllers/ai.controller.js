@@ -182,7 +182,7 @@ CTA Button: ${cta || "Order Now"}
       mimetype: 'image/jpeg'
     };
 
-    const uploadResult = await storageService.uploadFile(mockFile);
+    const uploadResult = await storageService.upload(mockFile, "ai-image", { shopId: shopkeeperId });
     const generatedImageUrl = uploadResult.fileUrl;
 
     // Step 5: Save record to AIAsset table
@@ -285,7 +285,7 @@ Do not output anything other than the raw JSON object.`;
       mimetype: 'image/jpeg'
     };
 
-    const uploadResult = await storageService.uploadFile(mockFile);
+    const uploadResult = await storageService.upload(mockFile, "ai-image", { shopId: shopkeeperId });
     const generatedImageUrl = uploadResult.fileUrl;
 
     // Step 5: Save record to AIAsset table

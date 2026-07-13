@@ -4,6 +4,7 @@ const authController = require("../controllers/auth.controller");
 const authMiddleware = require("../middleware/auth.middleware");
 
 // Public shopkeeper routes
+router.get("/search", authController.searchShops);
 router.get("/by-slug/:slug", authController.getShopkeeperBySlug);
 
 // Protected shopkeeper routes

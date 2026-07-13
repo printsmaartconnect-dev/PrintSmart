@@ -2,13 +2,23 @@ const storageService = require("../services/storage.service");
 const path = require("path");
 
 // Allowed file types configuration
-const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".webp", ".txt", ".csv"];
+const ALLOWED_EXTENSIONS = [
+  ".pdf", ".doc", ".docx", ".xls", ".xlsx", 
+  ".ppt", ".pptx", ".odt", ".odp", ".ods", ".rtf",
+  ".jpg", ".jpeg", ".png", ".webp", ".txt", ".csv"
+];
 const ALLOWED_MIMETYPES = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.oasis.opendocument.text",
+  "application/vnd.oasis.opendocument.presentation",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "application/rtf",
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -54,16 +64,25 @@ exports.upload = async (req, res) => {
       });
     }
 
-    // 3. File size safety check (50MB fallback limit in case it bypasses multer limits)
-    const sizeLimit = parseInt(process.env.FILE_SIZE_LIMIT || 50 * 1024 * 1024, 10);
+    // 3. File size safety check (1GB fallback limit in case it bypasses multer limits)
+    const sizeLimit = parseInt(process.env.FILE_SIZE_LIMIT || 1024 * 1024 * 1024, 10);
     if (req.file.size > sizeLimit) {
       return res.status(400).json({
-        message: `File size exceeds the limit of ${(sizeLimit / (1024 * 1024)).toFixed(0)}MB.`
+        message: `File size exceeds the allowed limit of ${sizeLimit / (1024 * 1024)}MB.`
       });
     }
 
+    const type = req.body.type || req.query.type;
+    const params = {
+      shopId: req.body.shopId || req.query.shopId,
+      userId: req.body.userId || req.query.userId,
+      orderId: req.body.orderId || req.query.orderId,
+      invoiceId: req.body.invoiceId || req.query.invoiceId,
+      campaignId: req.body.campaignId || req.query.campaignId
+    };
+
     // 4. Upload via Storage Service (automatically handles S3 upload with local fallback)
-    const uploadResult = await storageService.uploadFile(req.file);
+    const uploadResult = await storageService.upload(req.file, type, params);
 
     // 5. Build standard response payload maintaining full backward compatibility
     res.status(200).json({
@@ -89,9 +108,15 @@ exports.getPresignedUrl = async (req, res) => {
       return res.status(400).json({ message: "Missing fileUrl parameter" });
     }
 
-    const presignedUrl = await storageService.getPresignedUrl(fileUrl, filename);
+    const presignedUrl = await storageService.generateSignedUrl(fileUrl, filename);
     return res.status(200).json({ presignedUrl });
   } catch (err) {
+    if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
+      return res.status(404).json({
+        code: "S3FileNotFound",
+        message: "This file has been automatically removed from storage after 6 hours."
+      });
+    }
     console.error("Error generating presigned URL controller:", err);
     return res.status(500).json({ message: "Error generating preview URL" });
   }

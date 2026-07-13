@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Eye, EyeOff } from 'lucide-react'
+import { Shield, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -21,9 +21,22 @@ export default function AdminPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // Simple admin credentials
-    if (formData.email === 'admin@printsmart.com' && formData.password === 'admin123') {
+    // Admin credentials
+    const allowedAdmins = [
+      { email: 'jayantghate13@gmail.com', password: 'Founder', name: 'Jayant', role: 'Founder' },
+      { email: 'yashg19@gmail.com', password: 'Co-founder', name: 'Yash', role: 'Co-founder' },
+      { email: 'printsmaart.connect@gmail.com', password: 'Admin123', name: 'Visiting Admin', role: 'Admin' }
+    ]
+
+    const matchedAdmin = allowedAdmins.find(
+      (admin) => admin.email.toLowerCase() === formData.email.trim().toLowerCase() && admin.password === formData.password
+    )
+
+    if (matchedAdmin) {
       localStorage.setItem('adminLoggedIn', 'true')
+      localStorage.setItem('adminEmail', matchedAdmin.email)
+      localStorage.setItem('adminName', matchedAdmin.name)
+      localStorage.setItem('adminRole', matchedAdmin.role)
       router.push('/admin/dashboard')
     } else {
       alert('Invalid admin credentials!')
@@ -32,7 +45,16 @@ export default function AdminPage() {
 
   return (
     <div className="wave-bg min-h-screen flex flex-col items-center justify-center px-4 py-8">
-      <div className="glassmorphism w-full max-w-md p-8">
+      <div className="glassmorphism w-full max-w-md p-8 flex flex-col">
+        {/* Back to Home Button */}
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 font-semibold mb-6 transition w-fit"
+        >
+          <ArrowLeft size={16} />
+          <span>Back to Home</span>
+        </button>
+
         {/* Admin Branding */}
         <div className="flex justify-center mb-8">
           <div className="w-16 h-16 bg-gradient-brand rounded-2xl flex items-center justify-center">
@@ -55,7 +77,7 @@ export default function AdminPage() {
               autoCapitalize="none"
               spellCheck={false}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition"
-              placeholder="admin@printsmart.com"
+              placeholder="admin@example.com"
               required
             />
           </div>
@@ -93,9 +115,6 @@ export default function AdminPage() {
           </button>
         </form>
 
-        <p className="text-center text-gray-500 text-xs mt-6">
-          Demo credentials: admin@printsmart.com / admin123
-        </p>
       </div>
     </div>
   )

@@ -4,6 +4,7 @@
   ## how are you dev
 
   ## this is md file 
+  ## chnages in it 
   **PrintSmart** is a modern full-stack web application designed to simplify printing workflows for multiple user types (customers, shopkeepers, and administrators). Built with **Next.js 14** and **React 18** on the frontend, and a **Node.js & Express.js** server on the backend with **PostgreSQL** and **Prisma ORM**, the application provides role-based dashboards and management interfaces with a focus on user experience and accessibility. The platform enables customers to upload and manage print orders, shopkeepers to manage their operations and subscriptions, and administrators to oversee the entire ecosystem. The frontend is styled with **Tailwind CSS** and uses **Lucide React** for iconography, with file handling powered by **React Dropzone** and AWS S3 storage integration (with local fallback).
 
   ## Audience & Prerequisites
@@ -466,8 +467,8 @@
   /** @type {import('tailwindcss').Config} */
   module.exports = {
     content: [
-      './app/**/*.{js,jsx}',
-      './components/**/*.{js,jsx}',
+      './app/**/*.{js,jsx,ts,tsx}',
+      './components/**/*.{js,jsx,ts,tsx}',
     ],
     theme: {
       extend: {
@@ -1110,10 +1111,21 @@
       onDrop,
       accept: {
         'application/pdf': ['.pdf'],
-        'image/jpeg': ['.jpg', '.jpeg'],
-        'image/png': ['.png'],
         'application/msword': ['.doc'],
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+        'application/vnd.ms-excel': ['.xls'],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+        'application/vnd.ms-powerpoint': ['.ppt'],
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+        'application/vnd.oasis.opendocument.text': ['.odt'],
+        'application/vnd.oasis.opendocument.presentation': ['.odp'],
+        'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
+        'application/rtf': ['.rtf'],
+        'image/jpeg': ['.jpg', '.jpeg'],
+        'image/png': ['.png'],
+        'image/webp': ['.webp'],
+        'text/plain': ['.txt'],
+        'text/csv': ['.csv'],
       },
     })
 
@@ -2593,8 +2605,8 @@
   # 1. Check tailwind.config.js content paths
   module.exports = {
     content: [
-      './app/**/*.{js,jsx}',  // Make sure patterns match
-      './components/**/*.{js,jsx}',
+      './app/**/*.{js,jsx,ts,tsx}',  // Make sure patterns match
+      './components/**/*.{js,jsx,ts,tsx}',
     ],
   }
 
@@ -3474,7 +3486,7 @@
   - **Scalable SaaS Key Structure:** Uploaded documents are saved under a key structured as: `orders/{orderId}/{uuid_filename}.ext` (or `orders/temp/{uuid_filename}.ext` during initial upload before order placement).
   - **Graceful Local Fallback:** The backend checks for AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `AWS_S3_BUCKET`). If these keys are missing or S3 upload fails, the files are automatically written to the local fallback directory `backend/uploads/orders/` and served statically.
   - **File Type & Security Validation:** The file controller actively validates uploaded files:
-    - **Allowed Formats:** `.pdf`, `.doc`, `.docx`, `.jpg`, `.jpeg`, `.png` (mimetypes verified).
+    - **Allowed Formats:** `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`, `.odt`, `.odp`, `.ods`, `.rtf`, `.jpg`, `.jpeg`, `.png`, `.webp`, `.txt`, `.csv` (mimetypes verified).
     - **Explicit Blocklist:** Executable extensions (like `.exe`, `.bat`, `.apk`, `.sh`) are rejected with 400 Bad Request to prevent security vulnerabilities.
     - **Size Limit:** Max file upload size is capped at 50MB.
   - **S3 Connectivity Verification Script:** Developers can verify the configured S3 credentials and connectivity by executing `node test-s3.js` from the `backend/` directory. The script attempts to upload a test string to `test-folder/test.txt` and logs the resulting S3 URL.
@@ -4112,14 +4124,20 @@
        - **Frontend Context Provider & useSocket Hook**: Wraps the App Router layout with a global `<SocketProvider>` context and utilizes a reusable `useSocket` subscription hook with automatic listener cleanup on unmount.
        - **Fluid Traversal Pattern (SWR)**: Shopkeeper dashboard restores shop settings, custom codes, and order stats instantly from `localStorage` cached values on mount, rendering the dashboard in 0ms before background fetching silently updates and caches the latest queues. Dynamic Welcome Bar badge hides default mock "Premium Plan" crown pill unless a plan is resolved.
 
+   11. **Walk-in Custom Billing, S3 Cleanup Dialogs & QR Poster Printing (July 2026)**:
+       - **Custom Bill Generator**: A highly integrated, offline-capable PDF/Print invoice builder (`CustomBillModal.tsx`) placed on the Shopkeeper Dashboard's Bottom Dock between "Cancelled" and "Add Order". Removes editing fields for business information and templates picker, cleanly defaulting to classic styling and automatically prefilling shop details from profile contexts.
+       - **Order "Edit Bill" Mapping**: A one-click "Edit Bill" button on `OrderCard.js` (card view) and `RecentOrders.js` (table view) that aggregates all files/uploads of a parent order, formatting them as separate line items in the billing modal.
+       - **S3 Automatic Storage Cleanup Dialog**: A background cleanup routine deletes uploaded files after 6 hours. When a shopkeeper triggers actions (preview, print, download) on a file that has been deleted (fails with `S3FileNotFound` error code), the dashboard intercepts the failure and presents a user-friendly modal dialog explaining that the file has completed 6 hours and has been auto-cleaned, completely avoiding standard browser XML errors.
+       - **QR Poster Printing and Downloading**: Unifies poster operations by routing the generated QR code directly to the homepage query param listener `https://print-smart-18.vercel.app/?shopId={shopId}` (which correctly redirects customers to onboarding, preventing 404 router errors). Bypasses CSS canvas scaling distortions by capturing an unscaled off-screen viewport container (`position: fixed`) and uses Blob conversions to support cross-origin downloads without browser blockages.
+
   ---
 
   ## Document Version
   
-  - **Version:** 4.0.0
-  - **Last Updated:** June 28, 2026
+  - **Version:** 5.0.0
+  - **Last Updated:** July 8, 2026
   - **Author:** Antigravity AI
-  - **Status:** Complete (Fully updated with backend TypeScript compilation startup hooks, Supabase database schema push, rule-based JSON knowledge rules, modular context aggregations, Next.js TSX Copilot dashboard components, Socket.IO real-time notification/order streams, and fluid SWR latency-free cache restoration page traversals).
+  - **Status:** Complete (Fully updated with custom walk-in billing systems, S3 storage cleanup handler popup dialogs, robust QR poster routing and download services, and Next.js/Express platform documentation integrations).
   
   ---
   

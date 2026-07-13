@@ -19,11 +19,15 @@ import {
   Store,
   Tag,
   User,
+  X,
 } from 'lucide-react'
 
 import DashboardHeader from '../dashboard/_components/DashboardHeader'
 import BottomDock from '../dashboard/_components/BottomDock'
 import { bottomDockItems } from '../dashboard/_components/mockData'
+
+import { usePoster } from '../../../hooks/usePoster'
+import PosterTemplate from '../../../components/poster/PosterTemplate'
 
 import {
   getContact,
@@ -119,6 +123,18 @@ export default function ShopkeeperProfileViewPage() {
   const [upiValue, setUpiValue] = useState('')
   const [savingUpi, setSavingUpi] = useState(false)
 
+  const {
+    loading: posterLoading,
+    error: posterError,
+    posterData,
+    isPreviewOpen,
+    loadPosterData,
+    downloadPDF,
+    print,
+    openPreview,
+    closePreview,
+  } = usePoster()
+
   useEffect(() => {
     const loggedIn = getLoggedInShopkeeper()
     if (!loggedIn) {
@@ -211,30 +227,44 @@ export default function ShopkeeperProfileViewPage() {
     }
   }
 
-  const handleDownloadQR = () => {
-    const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl
-    if (targetUrl) {
-      const fullUrl = targetUrl.startsWith('/') 
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` 
-        : targetUrl;
-      
-      const link = document.createElement('a')
-      link.href = fullUrl
-      link.download = `shop-qr-${qrDetails.slug || profile.shopSlug || 'code'}.png`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+  const handleDownloadQR = async () => {
+    const shopId = qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || 'code';
+    const qrVal = qrDetails.qrValue || `https://print-smart-18.vercel.app/shop/${shopId}`;
+    const fallbackQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrVal)}`;
+    
+    const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl;
+    const fullUrl = targetUrl 
+      ? (targetUrl.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` : targetUrl)
+      : fallbackQrUrl;
+
+    try {
+      const res = await fetch(fullUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `shop-qr-${shopId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(fullUrl, '_blank');
     }
   }
 
   const handlePrintQR = () => {
-    const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl
-    if (targetUrl) {
-      const fullUrl = targetUrl.startsWith('/') 
-        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` 
-        : targetUrl;
+    const shopId = qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || 'N/A';
+    const qrVal = qrDetails.qrValue || `https://print-smart-18.vercel.app/shop/${shopId}`;
+    const fallbackQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrVal)}`;
+    
+    const targetUrl = qrDetails.qrCodeUrl || qrCodeUrl;
+    const fullUrl = targetUrl 
+      ? (targetUrl.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'}${targetUrl}` : targetUrl)
+      : fallbackQrUrl;
       
-      const printWindow = window.open('', '_blank')
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
       printWindow.document.write(`
         <html>
           <head>
@@ -252,8 +282,16 @@ export default function ShopkeeperProfileViewPage() {
           <body>
             <h1>${profile.shopName || 'Shop'}</h1>
             <p>Scan to upload print files</p>
-            <img src="${fullUrl}" onload="window.print(); window.close();" />
-            <p>Shop ID: ${qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || 'N/A'}</p>
+            <img src="${fullUrl}" />
+            <p>Shop ID: ${shopId}</p>
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  setTimeout(function() { window.close(); }, 500);
+                }, 500);
+              };
+            </script>
           </body>
         </html>
       `)
@@ -275,6 +313,34 @@ export default function ShopkeeperProfileViewPage() {
       }
     } else {
       handleCopyLink()
+    }
+  }
+
+  const handleViewPoster = async () => {
+    const id = qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || '7U-6257';
+    const name = profile.shopName || 'ABC SHOP';
+    await openPreview({ shopName: name, shopId: id });
+  }
+
+  const handleDownloadPoster = async () => {
+    const id = qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || '7U-6257';
+    const name = profile.shopName || 'ABC SHOP';
+    const data = await loadPosterData({ shopName: name, shopId: id });
+    if (data) {
+      setTimeout(() => {
+        downloadPDF('printsmart-qr-poster', id);
+      }, 300);
+    }
+  }
+
+  const handlePrintPoster = async () => {
+    const id = qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || '7U-6257';
+    const name = profile.shopName || 'ABC SHOP';
+    const data = await loadPosterData({ shopName: name, shopId: id });
+    if (data) {
+      setTimeout(() => {
+        print('printsmart-qr-poster');
+      }, 300);
     }
   }
 
@@ -452,6 +518,9 @@ export default function ShopkeeperProfileViewPage() {
   const shopName = useMemo(() => profile.shopName || 'Shree Ganesh Xerox & Prints', [profile.shopName])
 
   const isProfileActive = pathname?.includes('/shopkeeper/profile')
+  const currentShopId = qrDetails.slug || profile.shopkeeperIdCode || profile.shopSlug || '7U-6257';
+  const currentShopName = profile.shopName || 'ABC SHOP';
+  const currentQrValue = posterData?.qrValue || qrDetails.qrValue || `https://print-smart-18.vercel.app/shop/${currentShopId}`;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -612,51 +681,7 @@ export default function ShopkeeperProfileViewPage() {
                       <ReadOnlyIconBox icon={Mail} value={contact.emailAddress} placeholder="—" />
                     </Field>
 
-                    <Field label={t('UPI ID')} required>
-                      {!editingUpi ? (
-                        <div className="flex gap-2 items-center">
-                          <div className="flex-1">
-                            <ReadOnlyBox value={profile.upiId || '—'} />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setUpiValue(profile.upiId || '')
-                              setEditingUpi(true)
-                            }}
-                            className="px-3 py-2 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-xl transition"
-                          >
-                            {t('Edit')}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-2">
-                          <TextInput
-                            value={upiValue}
-                            onChange={(e) => setUpiValue(e.target.value)}
-                            placeholder="e.g. shopname@upi"
-                          />
-                          <div className="flex gap-2 mt-1">
-                            <button
-                              type="button"
-                              onClick={handleUpdateUpi}
-                              disabled={savingUpi}
-                              className="flex-1 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-xl transition disabled:opacity-50"
-                            >
-                              {savingUpi ? t('Saving...') : t('Save')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingUpi(false)}
-                              disabled={savingUpi}
-                              className="flex-1 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition disabled:opacity-50"
-                            >
-                              {t('Cancel')}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </Field>
+
 
 
 
@@ -712,7 +737,7 @@ export default function ShopkeeperProfileViewPage() {
                         <SecondaryButton
                           type="button"
                           className="gap-1 py-1.5 px-2 text-[11px] justify-center"
-                          onClick={handleDownloadQR}
+                          onClick={handleDownloadPoster}
                         >
                           <Download size={12} />
                           {t('Download')}
@@ -720,7 +745,7 @@ export default function ShopkeeperProfileViewPage() {
                         <SecondaryButton
                           type="button"
                           className="gap-1 py-1.5 px-2 text-[11px] justify-center"
-                          onClick={handlePrintQR}
+                          onClick={handlePrintPoster}
                         >
                           {t('Print QR')}
                         </SecondaryButton>
@@ -732,6 +757,17 @@ export default function ShopkeeperProfileViewPage() {
                           <Share2 size={12} />
                           {t('Share QR')}
                         </SecondaryButton>
+                      </div>
+
+                      <div className="w-full mt-4 pt-4 border-t border-slate-100 flex flex-col gap-2">
+                        <PrimaryButton
+                          type="button"
+                          className="w-full justify-center py-2 text-xs"
+                          onClick={handleViewPoster}
+                          disabled={posterLoading}
+                        >
+                          {t('View QR Poster')}
+                        </PrimaryButton>
                       </div>
 
 
@@ -774,6 +810,102 @@ export default function ShopkeeperProfileViewPage() {
           </section>
         </div>
       </div>
+
+      {/* Hidden off-screen Poster container for direct PDF download capture */}
+      <div style={{ 
+        position: 'fixed', 
+        left: '-9999px', 
+        top: '0px', 
+        width: '2480px', 
+        height: '3508px', 
+        overflow: 'hidden',
+        zIndex: -1000 
+      }}>
+        <PosterTemplate
+          id="printsmart-qr-poster"
+          shopName={posterData?.shopName || currentShopName}
+          shopId={posterData?.shopId || currentShopId}
+          qrValue={posterData?.qrValue || currentQrValue}
+        />
+      </div>
+
+      {/* Poster Preview Modal */}
+      {isPreviewOpen && posterData && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-[500px] w-full flex flex-col max-h-[95vh] overflow-hidden transform transition-all scale-in">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">{t('QR Poster Preview')}</h3>
+                <p className="text-[11px] text-slate-500">{t('Print-ready A4 format (300 DPI)')}</p>
+              </div>
+              <button
+                onClick={closePreview}
+                className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-xl transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Content - scrollable */}
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-100/50 flex justify-center items-center min-h-[350px]">
+              {/* Scaled Preview Box */}
+              <div 
+                className="shadow-lg border border-slate-200 bg-white rounded-lg overflow-hidden flex justify-center items-center"
+                style={{
+                  width: '277.9px', // Exactly 35% of 794px A4 width (fits nicer inside a max-w-[500px] modal)
+                  height: '393px', // Exactly 35% of 1123px A4 height
+                  position: 'relative'
+                }}
+              >
+                <div 
+                  style={{
+                    transform: 'scale(0.112)',
+                    transformOrigin: 'top left',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '2480px',
+                    height: '3508px'
+                  }}
+                >
+                  <PosterTemplate
+                    id="printsmart-qr-poster-preview"
+                    shopName={posterData.shopName}
+                    shopId={posterData.shopId}
+                    qrValue={posterData.qrValue}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-4 border-t border-slate-100 flex gap-2.5 justify-end bg-white">
+              <SecondaryButton
+                onClick={closePreview}
+                disabled={posterLoading}
+                className="py-2 text-xs"
+              >
+                {t('Close')}
+              </SecondaryButton>
+              <SecondaryButton
+                onClick={() => print('printsmart-qr-poster')}
+                disabled={posterLoading}
+                className="py-2 text-xs gap-1"
+              >
+                {t('Print')}
+              </SecondaryButton>
+              <PrimaryButton
+                onClick={() => downloadPDF('printsmart-qr-poster', posterData.shopId)}
+                disabled={posterLoading}
+                className="py-2 text-xs gap-1"
+              >
+                {posterLoading ? t('Generating...') : t('Download PDF')}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomDock items={bottomDockItems} />
     </div>

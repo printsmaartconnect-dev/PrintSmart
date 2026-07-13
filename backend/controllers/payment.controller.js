@@ -48,14 +48,14 @@ exports.createPaymentLog = async (req, res) => {
 
     let paymentLog;
     if (existingLog) {
-      // Update existing reference code and reset validation status to PENDING
+      // Update existing reference code and reset validation status to VERIFIED
       paymentLog = await prisma.paymentLog.update({
         where: { orderId: order.id },
         data: {
           transactionRef,
           paymentGateway: paymentGateway || "UPI",
           amount: amount !== undefined ? parseFloat(amount) : order.totalAmount,
-          paymentStatus: "PENDING"
+          paymentStatus: "VERIFIED"
         }
       });
     } else {
@@ -66,7 +66,7 @@ exports.createPaymentLog = async (req, res) => {
           transactionRef,
           paymentGateway: paymentGateway || "UPI",
           amount: amount !== undefined ? parseFloat(amount) : order.totalAmount,
-          paymentStatus: "PENDING"
+          paymentStatus: "VERIFIED"
         }
       });
     }
@@ -91,7 +91,8 @@ exports.createPaymentLog = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
-        paymentLog: true
+        paymentLog: true,
+        rewardLog: true
       }
     });
 
@@ -161,7 +162,8 @@ exports.updatePaymentStatus = async (req, res) => {
         orderFiles: true,
         queue: true,
         invoice: true,
-        paymentLog: true
+        paymentLog: true,
+        rewardLog: true
       }
     });
 

@@ -161,23 +161,25 @@ export default function AICopilotPage() {
 
       {/* Glassmorphic Sticky Header */}
       <header className="border-b border-slate-900 bg-slate-950/70 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/shopkeeper/dashboard')}
-              className="p-2.5 bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-xl transition-all text-slate-400 hover:text-white"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-tr from-violet-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-600/20">
-                <Brain className="w-5.5 h-5.5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-base font-extrabold text-white tracking-tight leading-none">PrintSmaart AI Copilot</h1>
-                <p className="text-[10px] font-bold text-violet-400 uppercase tracking-wider block mt-1">
-                  Senior Business Architect Engine
-                </p>
+        <div className="max-w-7xl mx-auto px-6 py-4 md:py-0 md:h-20 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/shopkeeper/dashboard')}
+                className="p-2.5 bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-xl transition-all text-slate-400 hover:text-white"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-tr from-violet-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-600/20">
+                  <Brain className="w-5.5 h-5.5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-base font-extrabold text-white tracking-tight leading-tight">PrintSmaart AI Copilot</h1>
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-wider block mt-1">
+                    Senior Business Architect Engine
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -253,7 +255,7 @@ export default function AICopilotPage() {
             <AIDashboard summary={copilotData.summary} healthScore={copilotData.healthScore} />
 
             {/* Navigation Tabs (pill styling) */}
-            <div className="flex border-b border-slate-900 gap-6">
+            <div className="flex flex-wrap border-b border-slate-900 gap-4 sm:gap-6">
               <button
                 onClick={() => setActiveTab('dashboard')}
                 className={`pb-4 text-sm font-bold flex items-center gap-2 border-b-2 transition-all duration-200 ${activeTab === 'dashboard' ? 'border-violet-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'

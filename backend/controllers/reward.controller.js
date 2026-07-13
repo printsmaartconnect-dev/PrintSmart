@@ -97,7 +97,7 @@ exports.resolveOrCreateReward = async (order) => {
     where: { orderId: order.id }
   });
 
-  if (!reward && (order.status === "COMPLETED" || order.status === "DOWNLOADED")) {
+  if (!reward) {
     reward = await generateReward(order.id, order.shopkeeperId);
   }
 

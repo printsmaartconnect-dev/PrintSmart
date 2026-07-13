@@ -66,12 +66,30 @@ function OrdersPageContent() {
       prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
     );
   });
+
+  useSocket("storage_cleaned", (data) => {
+    console.log("[Socket] Customer received storage cleanup:", data);
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === data.orderId) {
+          return {
+            ...o,
+            filesDeleted: true,
+            storageStatus: "CLEANED",
+          };
+        }
+        return o;
+      })
+    );
+  });
   const [submittingRef, setSubmittingRef] = useState(false)
   
   // Delete Confirmation Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [orderToDelete, setOrderToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [deletingIds, setDeletingIds] = useState([])
+  const [showCleanedModal, setShowCleanedModal] = useState(false)
 
   // Scratch Coupon State
   const [showRewardModal, setShowRewardModal] = useState(false)
@@ -206,27 +224,39 @@ function OrdersPageContent() {
   }
 
   const handleDeleteOrder = async () => {
-    if (!orderToDelete) return
-    setDeleting(true)
+    if (!orderToDelete) return;
+    const targetOrderId = orderToDelete.id;
+    const previousOrders = [...orders];
+
+    // 1. Add to deleting list immediately (triggers transition animation)
+    setDeletingIds(prev => [...prev, targetOrderId]);
+    closeDeleteModal();
+
+    // 2. Wait for 200ms animation (fade-out/collapse) to finish
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // 3. Update React state immediately without reloading/refetching
+    setOrders(prev => prev.filter(order => order.id !== targetOrderId));
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
-      const response = await fetch(`${apiUrl}/api/orders/${orderToDelete.id}`, {
+      const response = await fetch(`${apiUrl}/api/orders/${targetOrderId}`, {
         method: 'DELETE',
-      })
+      });
 
       if (!response.ok) {
-        const errData = await response.json()
-        throw new Error(errData.message || 'Failed to delete order')
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to delete order');
       }
 
-      // Re-fetch orders after successful deletion
-      await fetchOrders()
-      closeDeleteModal()
+      // Cleanup target from deletingIds list
+      setDeletingIds(prev => prev.filter(id => id !== targetOrderId));
     } catch (err) {
-      console.error('Delete order error:', err)
-      alert(err.message || t('Could not cancel the order.'))
-    } finally {
-      setDeleting(false)
+      console.error('Delete order error:', err);
+      // 4. Restore previous state if request fails
+      setOrders(previousOrders);
+      setDeletingIds(prev => prev.filter(id => id !== targetOrderId));
+      alert(err.message || t('Could not cancel the order. Please try again.'));
     }
   }
 
@@ -361,95 +391,29 @@ function OrdersPageContent() {
         {/* Payment Box Section */}
         {orders.length > 0 && orders.some(o => o.status === 'PENDING') && (
             (() => {
-            const handleUpiPayClick = () => {
-              if (platform === 'desktop') {
-                setDesktopError(true)
-                return
-              }
-              // Redirect to generic upi://pay to invoke OS app chooser
-              window.location.href = 'upi://pay'
-              setPaymentInitiated(true)
-            }
-
             return (
-              <div className="mb-8 p-5 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl space-y-4 shadow-sm animate-fade-in flex flex-col">
-                <div className="space-y-1 text-center">
-                  <h3 className="font-bold text-slate-800 text-sm">{t('Payment Options for Order')} <span className="text-indigo-600 font-mono">({latestPendingOrder.orderId})</span></h3>
-                  <p className="text-xs text-gray-500 font-semibold">
-                    {t('Pay online via UPI or pay cash at the counter to start printing.')}
+              <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 border border-indigo-150 rounded-2xl space-y-4 shadow-sm animate-fade-in flex flex-col items-center text-center">
+                <div className="space-y-1">
+                  <h3 className="font-bold text-slate-800 text-base">{t('Complete Your Payment')}</h3>
+                  <p className="text-xs text-gray-500 font-semibold max-w-md">
+                    {t('Pay online via QR code at the shop, or pay cash to the shopkeeper. Once done, click the button below to confirm.')}
                   </p>
                 </div>
-                
-                <div className="flex flex-col md:flex-row gap-4 items-stretch">
-                  {/* Pay Online column */}
-                  <div className="flex-1 flex flex-col items-center gap-3 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm justify-between">
-                    <div className="w-full flex flex-col items-center gap-3 text-center">
-                      <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">{t('Option A: Pay Online')}</p>
 
-                      {desktopError && (
-                        <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 text-left">
-                          <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
-                            <AlertCircle size={12} className="text-amber-600" />
-                            {t('Desktop Limitation')}
-                          </p>
-                          <p className="text-xs text-amber-700 font-semibold mt-1">
-                            {t('UPI app launching is only available on mobile devices.')}
-                          </p>
-                        </div>
-                      )}
-
-                      {!paymentInitiated ? (
-                        <button
-                          type="button"
-                          onClick={handleUpiPayClick}
-                          className="w-full inline-flex items-center justify-center gap-2 text-center py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition duration-200 shadow-sm"
-                        >
-                          ⚡ {t('Pay with UPI')}
-                        </button>
-                      ) : (
-                        <div className="w-full space-y-3">
-                          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-left">
-                            <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
-                              ⏳ {t('Payment Pending Verification')}
-                            </p>
-                            <p className="text-[10px] text-amber-600 mt-1 font-semibold leading-normal">
-                              {t('UPI payment has been launched. Once you complete the payment in your UPI app, click the button below.')}
-                            </p>
-                          </div>
-                          
-                          <button
-                            type="button"
-                            disabled={submittingRef}
-                            onClick={async () => {
-                              setSubmittingRef(true)
-                              const generatedRef = `UPI-AUTO-${latestPendingOrder.id.substring(0, 8)}-${Date.now()}`
-                              await handleVerifyPayment(latestPendingOrder.id, generatedRef, 'UPI')
-                              setPaymentInitiated(false)
-                              setSubmittingRef(false)
-                            }}
-                            className="w-full inline-flex items-center justify-center gap-2 text-center py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.01] active:scale-95 transition duration-200 shadow-sm"
-                          >
-                            {submittingRef ? t('Wait...') : `✅ ${t('I Have Paid')}`}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Pay Offline column */}
-                  <div className="flex-grow flex-shrink-0 md:w-1/2 w-full bg-white p-4 rounded-xl border border-indigo-100/50 shadow-sm flex flex-col justify-between items-center text-center">
-                    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">{t('Option B: Pay Cash')}</p>
-                    <div className="text-[11px] text-gray-500 font-medium px-2 mb-4">
-                      {t('Pay cash directly at the counter. Click below to notify the shopkeeper of cash payment.')}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePayCash(latestPendingOrder.id)}
-                      className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 transition shadow-sm h-[42px] flex items-center justify-center mt-auto"
-                    >
-                      🏪 {t('Pay Cash at Counter')}
-                    </button>
-                  </div>
+                <div className="w-full max-w-sm">
+                  <button
+                    type="button"
+                    disabled={submittingRef}
+                    onClick={async () => {
+                      setSubmittingRef(true)
+                      const generatedRef = `AUTO-${latestPendingOrder.id.substring(0, 8)}-${Date.now()}`
+                      await handleVerifyPayment(latestPendingOrder.id, generatedRef, 'CASH')
+                      setSubmittingRef(false)
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition duration-200 shadow-md animate-pulse"
+                  >
+                    {submittingRef ? t('Registering...') : `✅ ${t('I Have Paid (Payment Done)')}`}
+                  </button>
                 </div>
               </div>
             )
@@ -468,13 +432,40 @@ function OrdersPageContent() {
           </div>
         ) : orders.length > 0 ? (
           <div className="space-y-6 mb-8">
-            {orders.map((order) => (
-              <div key={order.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4 text-left">
+            {orders.map((order) => {
+              const isDeleting = deletingIds.includes(order.id);
+              return (
+                <div 
+                  key={order.id} 
+                  className={`bg-white border border-gray-200 shadow-sm text-left transition-all duration-200 ease-out ${
+                    isDeleting 
+                      ? 'opacity-0 max-h-0 scale-95 border-0 p-0 m-0 overflow-hidden' 
+                      : 'opacity-100 max-h-[2000px] p-5 space-y-4'
+                  }`}
+                  style={{
+                    marginTop: isDeleting ? '0px' : undefined,
+                    marginBottom: isDeleting ? '0px' : undefined,
+                    borderWidth: isDeleting ? '0px' : undefined,
+                  }}
+                >
                 {/* Header Row */}
                 <div className="flex justify-between items-start flex-wrap gap-2 pb-3 border-b border-gray-150">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-indigo-700 text-base">{order.orderId}</span>
+                      {order.filesDeleted && (
+                        <span 
+                          onClick={(e) => { e.stopPropagation(); setShowCleanedModal(true); }}
+                          className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200/60 px-2 py-0.5 text-[10px] font-bold text-slate-500 relative group cursor-pointer shrink-0 hover:bg-slate-200 hover:text-slate-700 transition"
+                          title="The uploaded files have been automatically removed after 6 hours to save storage. Click for info."
+                        >
+                          {t("Storage Cleaned")}
+                          {/* Tooltip */}
+                          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded bg-slate-800 p-2 text-center text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 z-10 shadow-lg">
+                            {t("The uploaded files have been automatically removed after 6 hours to save storage. Click for details.")}
+                          </span>
+                        </span>
+                      )}
                       {order.paymentLog && (
                         <>
                           {order.paymentLog.paymentStatus === 'PENDING' && (
@@ -555,6 +546,14 @@ function OrdersPageContent() {
                       </div>
                     );
                   })}
+                  {order.filesDeleted && (
+                    <div 
+                      onClick={() => setShowCleanedModal(true)}
+                      className="p-3 bg-slate-50 text-slate-500 rounded-xl border border-slate-200 text-center text-xs font-bold font-sans cursor-pointer hover:bg-slate-100 transition select-none"
+                    >
+                      🔒 {t('Storage Cleaned — Files Automatically Removed (Click for Info)')}
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer details & Action buttons */}
@@ -567,7 +566,7 @@ function OrdersPageContent() {
                     </span>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {/* Scratch Card / Claim Reward (Available for any order with a reward log) */}
                     {order.rewardLog && (
                       <button
@@ -623,7 +622,8 @@ function OrdersPageContent() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
@@ -686,6 +686,35 @@ function OrdersPageContent() {
             fetchOrders()
           }}
         />
+      )}
+
+      {showCleanedModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 text-center relative space-y-4">
+            <button 
+              onClick={() => setShowCleanedModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition"
+            >
+              <X size={18} />
+            </button>
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-500">
+              <FileText size={24} />
+            </div>
+            <h3 className="font-extrabold text-slate-800 text-lg">{t('Storage Cleaned')}</h3>
+            <p className="text-xs font-semibold text-slate-500 leading-relaxed">
+              {t('The uploaded print documents for this order were automatically and permanently deleted from S3 storage because the order has completed 6 hours.')}
+            </p>
+            <p className="text-[11px] text-indigo-600 font-bold bg-indigo-50/50 py-2 px-3 rounded-xl border border-indigo-100/60">
+              {t('Order history, invoices, and analytics are preserved permanently.')}
+            </p>
+            <button
+              onClick={() => setShowCleanedModal(false)}
+              className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2.5 rounded-xl transition"
+            >
+              {t('Got it')}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

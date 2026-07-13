@@ -603,14 +603,6 @@ export default function ProfileSetupPage() {
                 />
               </Field>
 
-              <Field label="UPI ID (for payments)" required>
-                <TextInput
-                  value={form.upiId || ''}
-                  onChange={onFormChange('upiId')}
-                  placeholder="e.g. shopname@upi"
-                />
-              </Field>
-
 
 
               <Field label="Website (Optional)">

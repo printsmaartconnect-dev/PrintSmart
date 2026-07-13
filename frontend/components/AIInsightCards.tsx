@@ -39,7 +39,7 @@ export const AIInsightCards: React.FC<AIInsightCardsProps> = ({ summary, invento
         <div className="space-y-4">
           {printers.map((printer, index) => (
             <div key={index} className="flex flex-col p-4 bg-slate-950/80 border border-slate-900 rounded-xl space-y-3 hover:border-slate-800 transition-all">
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start gap-4">
                 <div>
                   <h4 className="font-semibold text-white text-sm tracking-tight">{printer.printerName}</h4>
                   <p className="text-xs text-slate-300 mt-0.5 font-medium">{printer.pagesPrinted.toLocaleString()} lifetime pages</p>

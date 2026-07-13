@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
-import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText, AlertCircle } from 'lucide-react'
+import { Plus, Minus, Maximize2, Rotate3d, Layout, Check, Settings, FileText, AlertCircle, Loader } from 'lucide-react'
 import useTranslation from '../../../src/hooks/useTranslation'
 import BackButton from '../../components/BackButton'
 import FeedbackButton from '../../components/FeedbackButton'
@@ -23,6 +23,7 @@ function ConfigurationPageContent() {
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [configs, setConfigs] = useState([])
   const [loading, setLoading] = useState(false)
+  const [orderSlowWarning, setOrderSlowWarning] = useState(false)
   const [showConfig, setShowConfig] = useState(isShopkeeper)
   const [customerComment, setCustomerComment] = useState('')
   const [shopDetails, setShopDetails] = useState(null)
@@ -172,6 +173,9 @@ function ConfigurationPageContent() {
 
     setLoading(true)
     setError(null)
+    setOrderSlowWarning(false)
+    let orderTimer = null
+
     try {
       // Save customer comment
       if (customerComment.trim()) {
@@ -208,6 +212,11 @@ function ConfigurationPageContent() {
         resolvedShopkeeperId = null
       }
 
+      // Start timer for slow order processing warning (9 seconds)
+      orderTimer = setTimeout(() => {
+        setOrderSlowWarning(true)
+      }, 9000)
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
       const response = await fetch(`${apiUrl}/api/orders/create`, {
         method: 'POST',
@@ -229,6 +238,11 @@ function ConfigurationPageContent() {
 
       const result = await response.json()
       
+      if (orderTimer) {
+        clearTimeout(orderTimer)
+      }
+      setOrderSlowWarning(false)
+      
       // Store currentOrder
       localStorage.setItem('currentOrder', JSON.stringify(result.order || result))
 
@@ -238,9 +252,16 @@ function ConfigurationPageContent() {
         router.push(`/customer/orders?shopId=${shopId || ''}&userId=${resolvedUserId || ''}`)
       }
     } catch (err) {
+      if (orderTimer) {
+        clearTimeout(orderTimer)
+      }
+      setOrderSlowWarning(false)
       console.error('Order creation error:', err)
       setError(err.message || t('Error occurred while submitting order details.'))
     } finally {
+      if (orderTimer) {
+        clearTimeout(orderTimer)
+      }
       setLoading(false)
     }
   }
@@ -604,12 +625,30 @@ function ConfigurationPageContent() {
 
                   {/* Action Buttons */}
                   <div className="max-w-md mx-auto space-y-3 pt-4">
+                    {orderSlowWarning && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 mb-2">
+                        <AlertCircle className="text-amber-500 w-5 h-5 flex-shrink-0 mt-0.5 animate-pulse" />
+                        <div>
+                          <h4 className="text-xs font-bold text-amber-800">{t('Processing taking longer than expected')}</h4>
+                          <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
+                            {t('This might be due to a slow network connection or large files. Please do not close or refresh this page.')}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <button
                       onClick={handleContinue}
                       disabled={loading}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl transition shadow-md text-base"
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl transition shadow-md text-base flex items-center justify-center gap-2"
                     >
-                      {loading ? t('Placing Order...') : t('Confirm Order & Print →')}
+                      {loading ? (
+                        <>
+                          <Loader size={18} className="animate-spin" />
+                          {t('Placing Order...')}
+                        </>
+                      ) : (
+                        t('Confirm Order & Print →')
+                      )}
                     </button>
                     <button
                       type="button"

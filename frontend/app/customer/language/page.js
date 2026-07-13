@@ -131,6 +131,62 @@ const buildPlaceholderThumbnail = (file) => {
   return `data:image/svg+xml;base64,${btoa(svg)}`
 }
 
+const compressImage = (file, maxWidth = 1920, maxHeight = 1920, quality = 0.8) => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      resolve(file)
+      return
+    }
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target.result
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width)
+            width = maxWidth
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height)
+            height = maxHeight
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file)
+              return
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: file.type,
+              lastModified: Date.now(),
+            })
+            resolve(compressedFile)
+          },
+          file.type,
+          quality
+        )
+      }
+      img.onerror = () => resolve(file)
+    }
+    reader.onerror = () => resolve(file)
+  })
+}
+
 const isVisualFile = (file) => file.type.startsWith('image/') || file.type === 'application/pdf' || getFileExtension(file.name) === '.pdf'
 
 const generateThumbnail = async (file) => {
@@ -266,8 +322,9 @@ function CustomerLanguagePageContent() {
   }, [])
   const [renames, setRenames] = useState({})
   const [uploading, setUploading] = useState(false)
+  const [uploadSlowWarning, setUploadSlowWarning] = useState(false)
 
-  const onDrop = useCallback((acceptedFiles) => {
+  const onDrop = useCallback(async (acceptedFiles) => {
     let filteredFiles = acceptedFiles
     if (allowedExts) {
       filteredFiles = acceptedFiles.filter(file => {
@@ -279,7 +336,22 @@ function CustomerLanguagePageContent() {
       }
     }
 
-    const newFiles = filteredFiles.map(file => ({
+    // Process and compress image files concurrently
+    const processedFiles = await Promise.all(
+      filteredFiles.map(async (file) => {
+        if (file.type.startsWith('image/')) {
+          try {
+            return await compressImage(file)
+          } catch (e) {
+            console.error('Image compression failed, using original:', e)
+            return file
+          }
+        }
+        return file
+      })
+    )
+
+    const newFiles = processedFiles.map(file => ({
       file,
       previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       thumbnailUrl: null,
@@ -311,7 +383,7 @@ function CustomerLanguagePageContent() {
 
       return updated
     })
-  }, [])
+  }, [allowedExts, t])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -321,13 +393,19 @@ function CustomerLanguagePageContent() {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/vnd.ms-excel': ['.xls'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-powerpoint': ['.ppt'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+      'application/vnd.oasis.opendocument.text': ['.odt'],
+      'application/vnd.oasis.opendocument.presentation': ['.odp'],
+      'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
+      'application/rtf': ['.rtf'],
       'image/jpeg': ['.jpg', '.jpeg'],
       'image/png': ['.png'],
       'image/webp': ['.webp'],
       'text/plain': ['.txt'],
       'text/csv': ['.csv'],
     },
-    maxSize: 52428800,
+    maxSize: 1073741824,
   })
 
   // Cleanup object URLs on unmount
@@ -478,6 +556,8 @@ function CustomerLanguagePageContent() {
 
     setLoading(true)
     setError(null)
+    setUploadSlowWarning(false)
+    let uploadTimer = null
 
     try {
       const finalLanguage = selectedOther || selectedLanguage || 'en'
@@ -511,11 +591,17 @@ function CustomerLanguagePageContent() {
         language: finalLanguage
       }))
 
-      // Start file uploads
+      // Start file uploads in parallel
       setUploading(true)
-      const uploadedFilesData = []
+      
+      // Show warning popup after 9 seconds if not completed
+      uploadTimer = setTimeout(() => {
+        setUploadSlowWarning(true)
+      }, 9000)
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
 
+      const uploadedFilesData = []
       for (let i = 0; i < files.length; i++) {
         const item = files[i]
         const originalName = item.file.name
@@ -553,6 +639,11 @@ function CustomerLanguagePageContent() {
         })
       }
 
+      if (uploadTimer) {
+        clearTimeout(uploadTimer)
+      }
+      setUploadSlowWarning(false)
+
       // Store complete file metadata in localStorage
       localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
       localStorage.setItem('uploadCart', JSON.stringify(uploadedFilesData))
@@ -570,9 +661,16 @@ function CustomerLanguagePageContent() {
 
       router.push(nextUrl)
     } catch (err) {
+      if (uploadTimer) {
+        clearTimeout(uploadTimer)
+      }
+      setUploadSlowWarning(false)
       setError(err.message || t('Failed to proceed'))
       setUploading(false)
     } finally {
+      if (uploadTimer) {
+        clearTimeout(uploadTimer)
+      }
       setLoading(false)
     }
   }
@@ -698,33 +796,6 @@ function CustomerLanguagePageContent() {
                     />
                   </div>
 
-                  {/* Phone (Optional) */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      {t('Phone Number')} <span className="text-gray-400 font-normal">({t('optional')})</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder={t('10-digit mobile number')}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
-                    />
-                  </div>
-
-                  {/* Email (Optional) */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      {t('Email')} <span className="text-gray-400 font-normal">({t('optional')})</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder={t('your@email.com')}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
-                    />
-                  </div>
 
                   {/* 3. Document Upload Section */}
                   <div className="pt-4 border-t border-gray-100 space-y-4">
@@ -829,6 +900,19 @@ function CustomerLanguagePageContent() {
                       {t('Your files are encrypted and automatically deleted.')}
                     </p>
                   </div>
+
+                  {/* Network slow warning popup */}
+                  {uploadSlowWarning && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 mt-4">
+                      <AlertCircle className="text-amber-500 w-5 h-5 flex-shrink-0 mt-0.5 animate-pulse" />
+                      <div>
+                        <h4 className="text-xs font-bold text-amber-800">{t('Uploading taking longer than expected')}</h4>
+                        <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
+                          {t('This might be due to a slow network connection or large file size. Please do not close or refresh this page.')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Submit Button */}
                   <button
