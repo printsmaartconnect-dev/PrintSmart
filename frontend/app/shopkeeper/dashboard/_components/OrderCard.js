@@ -8,6 +8,7 @@ import {
   Printer,
   X,
 } from 'lucide-react'
+import DocumentPreview from '../../../components/customer/DocumentPreview'
 
 function TopBorder({ type }) {
   const isColor = type === 'Color'
@@ -39,42 +40,23 @@ function StatusPill({ status }) {
   )
 }
 
-function DetailGrid({ order }) {
-  const cells = [
-    { label: 'Pages', value: String(order.pages) },
-    { label: 'Copies', value: String(order.copies) },
-    { label: 'Type', value: order.type },
-    { label: 'Size', value: order.size },
-    { label: 'Side', value: order.side },
-    { label: 'Price', value: order.price },
-  ]
+function CardPreviewSection({ order }) {
+  const filesList = order.files && order.files.length > 0 ? order.files : [{
+    fileName: order.fileName || "Untitled Document",
+    fileUrl: order.fileUrl,
+    thumbnailUrl: order.thumbnailUrl
+  }]
+
+  const file = filesList[0]
 
   return (
-    <div className="mt-4 grid grid-cols-2 gap-y-2.5 gap-x-4 text-xs">
-      {cells.map((c) => (
-        <div key={c.label} className="flex items-center justify-between border-b border-slate-50 pb-1.5">
-          <span className="text-slate-400 font-medium">{c.label}</span>
-          <span className="text-slate-800 font-bold">{c.value}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function CustomerWantsToTalk() {
-  return (
-    <div className="mt-4 rounded-xl bg-violet-50/50 border border-violet-100/60 p-4">
-      <div className="flex items-center justify-center">
-        <svg width="140" height="70" viewBox="0 0 170 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M48 62c10 0 18-8 18-18S58 26 48 26 30 34 30 44s8 18 18 18Z" stroke="#4f46e5" strokeWidth="2.5" />
-          <path d="M36 44c0-8 6-14 14-14" stroke="#4f46e5" strokeWidth="2.5" strokeLinecap="round" />
-          <path d="M48 62c-16 0-28 10-28 22" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="130" cy="44" r="18" fill="#4f46e5" />
-          <path d="M130 62c16 0 28 10 28 22" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      </div>
-      <div className="mt-2 text-center text-indigo-700 font-bold text-xs uppercase tracking-wider">
-        Customer Wants to Talk
+    <div className="mt-4 rounded-xl border border-slate-200/60 bg-slate-50/50 p-3 flex justify-center items-center h-[160px] w-full relative overflow-hidden">
+      <div className="w-[100px] aspect-[1/1.414] bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden flex items-center justify-center relative">
+        <DocumentPreview
+          file={file}
+          thumbnailUrl={file.thumbnailUrl || null}
+          isBW={file.type === 'B&W' || order.type === 'B&W'}
+        />
       </div>
     </div>
   )
@@ -376,7 +358,7 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
         })}
       </div>
 
-      {order.variant === 'talk' ? <CustomerWantsToTalk /> : <DetailGrid order={order} />}
+      <CardPreviewSection order={order} />
 
       {order.paymentLog && (
         <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-left space-y-2 text-xs">
@@ -438,12 +420,50 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
         {order.timestamp}
       </div>
 
-      <button
-        onClick={() => onEditBill?.(order)}
-        className="mt-4 w-full bg-indigo-50 hover:bg-indigo-100 text-[#5D3EBC] text-xs font-bold py-2.5 px-4 rounded-xl border border-indigo-200/50 transition flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
-      >
-        <FileText size={14} /> Edit Bill
-      </button>
+      {order.billStatus === 'REQUESTED' && (
+        <div className="mt-3 p-2 bg-amber-50 border border-amber-250 rounded-xl text-center text-xs font-bold text-amber-700 animate-pulse">
+          🔔 Customer has requested the bill!
+        </div>
+      )}
+
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={() => onEditBill?.(order)}
+          className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-[#5D3EBC] text-xs font-bold py-2.5 px-4 rounded-xl border border-indigo-200/50 transition flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+        >
+          <FileText size={14} /> Edit Bill
+        </button>
+
+        {order.billStatus === 'REQUESTED' && (
+          <button
+            onClick={async () => {
+              try {
+                const token = localStorage.getItem("authToken");
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com';
+                const response = await fetch(`${apiUrl}/api/orders/${order.dbId || order.id}/send-bill`, {
+                  method: 'PUT',
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                  }
+                });
+                if (response.ok) {
+                  alert("Invoice sent successfully to customer My Orders page!");
+                  window.location.reload();
+                } else {
+                  alert("Failed to send bill/invoice.");
+                }
+              } catch (err) {
+                console.error("Error sending bill:", err);
+                alert("Error sending bill/invoice.");
+              }
+            }}
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
+          >
+            Send Bill/Invoice
+          </button>
+        )}
+      </div>
 
       {order.filesDeleted ? (
         <div

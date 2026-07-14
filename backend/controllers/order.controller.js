@@ -875,3 +875,71 @@ exports.updateOrderStatusByCustomer = async (req, res) => {
 
 exports.formatOrderResponse = formatOrderResponse;
 
+exports.requestBill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: { billStatus: "REQUESTED" },
+      include: {
+        printConfiguration: true,
+        orderFiles: true,
+        queue: true,
+        invoice: true,
+        paymentLog: true,
+        rewardLog: true,
+      }
+    });
+
+    const formattedOrder = formatOrderResponse(updatedOrder);
+    socketService.emitToRoom(`shop:${order.shopkeeperId}`, "order-updated", formattedOrder);
+    if (order.userId) {
+      socketService.emitToRoom(`customer:${order.userId}`, "order-updated", formattedOrder);
+    }
+    socketService.emitToRoom("admin", "order-updated", formattedOrder);
+
+    res.json({ message: "Bill requested successfully", order: formattedOrder });
+  } catch (err) {
+    console.error("Request bill error:", err);
+    res.status(500).json({ message: "Server error requesting bill" });
+  }
+};
+
+exports.sendBill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: { billStatus: "SENT" },
+      include: {
+        printConfiguration: true,
+        orderFiles: true,
+        queue: true,
+        invoice: true,
+        paymentLog: true,
+        rewardLog: true,
+      }
+    });
+
+    const formattedOrder = formatOrderResponse(updatedOrder);
+    socketService.emitToRoom(`shop:${order.shopkeeperId}`, "order-updated", formattedOrder);
+    if (order.userId) {
+      socketService.emitToRoom(`customer:${order.userId}`, "order-updated", formattedOrder);
+    }
+    socketService.emitToRoom("admin", "order-updated", formattedOrder);
+
+    res.json({ message: "Bill sent successfully", order: formattedOrder });
+  } catch (err) {
+    console.error("Send bill error:", err);
+    res.status(500).json({ message: "Server error sending bill" });
+  }
+};
+

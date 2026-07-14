@@ -286,6 +286,8 @@ function CustomerLanguagePageContent() {
   const [error, setError] = useState(null)
   const [validatingShop, setValidatingShop] = useState(false)
   const [shopError, setShopError] = useState(null)
+  const [shopDetails, setShopDetails] = useState(null)
+  const [customerComment, setCustomerComment] = useState('')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -488,6 +490,7 @@ function CustomerLanguagePageContent() {
           setShopError(t('No printing shop selected. Please scan a QR code or enter a shop ID.'))
         } else {
           setShopError(null)
+          setShopDetails(activeShop)
         }
         return
       }
@@ -510,6 +513,7 @@ function CustomerLanguagePageContent() {
 
         // Save using helper
         setCurrentShop(data.shopkeeper)
+        setShopDetails(data.shopkeeper)
       } catch (err) {
         console.error('Error validating shop:', err)
         setShopError(t('Invalid Shop ID. Please check the URL or scan the QR code again.'))
@@ -644,22 +648,96 @@ function CustomerLanguagePageContent() {
       }
       setUploadSlowWarning(false)
 
-      // Store complete file metadata in localStorage
-      localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
-      localStorage.setItem('uploadCart', JSON.stringify(uploadedFilesData))
-
-      // Redirect to configuration page
-      const isShopkeeper = searchParams.get('shopkeeperAddOrder') === 'true'
-      const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
-      let nextUrl = resolvedShopId
-        ? `/customer/configuration?shopId=${resolvedShopId}&userId=${userId}`
-        : `/customer/configuration?userId=${userId}`
-
-      if (isShopkeeper) {
-        nextUrl += `&shopkeeperAddOrder=true`
+      const calculateItemPrice = (item, shop) => {
+        if (!item) return 0
+        if (item.variant === 'talk') return 0
+        const config = item.config || {
+          printType: 'BW',
+          copies: 1,
+          paperSize: 'A4',
+          sides: 'SINGLE'
+        }
+        const copies = Number(config.copies || 1)
+        let pageRate = 2.0
+        if (shop && shop.pricing) {
+          const pricing = shop.pricing
+          const isColor = config.printType === 'COLOR'
+          const isA3 = config.paperSize === 'A3'
+          const isDouble = config.sides === 'DOUBLE'
+          if (isColor) {
+            pageRate = isA3 ? parseFloat(pricing.colorA3 || 8.0) : parseFloat(pricing.colorA4 || 5.0)
+            if (isDouble) pageRate += parseFloat(pricing.colorDoubleSide || 3.0)
+          } else {
+            pageRate = isA3 ? parseFloat(pricing.bwA3 || 2.0) : parseFloat(pricing.bwA4 || 1.0)
+            if (isDouble) pageRate += parseFloat(pricing.bwDoubleSide || 1.0)
+          }
+        } else {
+          if (config.printType === 'COLOR') {
+            pageRate = config.paperSize === 'A3' ? 8.0 : 5.0
+            if (config.sides === 'DOUBLE') pageRate += 3.0
+          } else {
+            pageRate = config.paperSize === 'A3' ? 2.0 : 1.0
+            if (config.sides === 'DOUBLE') pageRate += 1.0
+          }
+        }
+        return pageRate * copies
       }
 
-      router.push(nextUrl)
+      // Calculate order items using standard configuration defaults
+      const defaultConfig = {
+        printType: 'BW',
+        copies: 1,
+        paperSize: 'A4',
+        sides: 'SINGLE',
+        orientation: 'PORTRAIT',
+        pageRange: 'all'
+      }
+
+      const items = uploadedFilesData.map((item) => {
+        const itemConfig = { ...defaultConfig }
+        return {
+          fileName: item.customFileName || item.originalFileName,
+          fileUrl: item.fileUrl,
+          fileSize: item.fileSize || 0,
+          price: calculateItemPrice({ config: itemConfig }, shopDetails),
+          variant: 'standard',
+          config: itemConfig
+        }
+      })
+
+      const resolvedShopkeeperId = shopDetails?.id || localStorage.getItem('activeShopId') || null
+
+      const orderResponse = await fetch(`${apiUrl}/api/orders/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          shopkeeperId: resolvedShopkeeperId,
+          customerName: formData.name,
+          phone: formData.phone || '',
+          customerComment: customerComment.trim() || null,
+          items,
+        }),
+      })
+
+      if (!orderResponse.ok) {
+        const errData = await orderResponse.json()
+        throw new Error(errData.message || t('Failed to place print order'))
+      }
+
+      const orderResult = await orderResponse.json()
+
+      // Store complete file metadata and currentOrder in localStorage
+      localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
+      localStorage.setItem('uploadCart', JSON.stringify(uploadedFilesData))
+      localStorage.setItem('currentOrder', JSON.stringify(orderResult.order || orderResult))
+
+      const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
+      if (isShopkeeper) {
+        router.push('/shopkeeper/dashboard')
+      } else {
+        router.push(`/customer/orders?shopId=${resolvedShopId || ''}&userId=${userId || ''}`)
+      }
     } catch (err) {
       if (uploadTimer) {
         clearTimeout(uploadTimer)
@@ -680,7 +758,7 @@ function CustomerLanguagePageContent() {
   return (
     <div className="wave-bg min-h-screen flex flex-col">
       {/* Header */}
-      <CustomerHeader stepText={t('Step 1 of 3')} />
+      <CustomerHeader stepText={t('Step 1 of 2')} shopDetails={shopDetails} />
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-8">
@@ -756,28 +834,7 @@ function CustomerLanguagePageContent() {
                   </div>
                 )}
 
-                {/* 1. Language Selection (One Line Dropdown) */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    {t('Select Language')}
-                  </label>
-                  <select
-                    value={selectedOther || selectedLanguage || 'en'}
-                    onChange={(e) => handleLanguageChange(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 cursor-pointer"
-                  >
-                    {LANGUAGES.map((lang) => (
-                      <option key={lang.code} value={lang.code}>
-                        {lang.flag} {lang.name} {lang.native ? `(${lang.native})` : ''}
-                      </option>
-                    ))}
-                    {OTHER_LANGUAGES.map((lang) => (
-                      <option key={lang.code} value={lang.code}>
-                        🇮🇳 {lang.name} {lang.native ? `(${lang.native})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Language dropdown is now integrated in CustomerHeader */}
 
                 {/* 2. Details Form */}
                 <form onSubmit={handleDetailsSubmit} className="space-y-4 pt-2">
@@ -901,6 +958,29 @@ function CustomerLanguagePageContent() {
                     </p>
                   </div>
 
+                  {/* Customer Comment (Optional) */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="block text-sm font-semibold text-gray-700">
+                        {t('Customer Comment (Optional)')}
+                      </label>
+                      <span className="text-[10px] text-gray-400 font-bold">
+                        {customerComment.length}/500
+                      </span>
+                    </div>
+                    <textarea
+                      value={customerComment}
+                      onChange={(e) => {
+                        if (e.target.value.length <= 500) {
+                          setCustomerComment(e.target.value)
+                        }
+                      }}
+                      placeholder={t('Add any special instructions or comments for the shopkeeper...')}
+                      rows={3}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-gray-800 placeholder-gray-400"
+                    />
+                  </div>
+
                   {/* Network slow warning popup */}
                   {uploadSlowWarning && (
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 mt-4">
@@ -918,7 +998,7 @@ function CustomerLanguagePageContent() {
                   <button
                     type="submit"
                     disabled={loading || uploading}
-                    className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 shadow-sm"
+                    className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 shadow-sm animate-pulse-subtle"
                   >
                     {loading || uploading ? (
                       <>
@@ -926,7 +1006,7 @@ function CustomerLanguagePageContent() {
                         {uploading ? t('Uploading Files...') : t('Processing...')}
                       </>
                     ) : (
-                      t('Continue to Print Settings →')
+                      t('Submit Order →')
                     )}
                   </button>
                 </form>

@@ -141,12 +141,14 @@ export default function ShopkeeperDashboard() {
       new Date(o.createdAt).toLocaleDateString([], { month: "short", day: "numeric" }),
     variant: o.variant || (o.orderFiles && o.orderFiles.length > 0 && (o.orderFiles[0].customFileName === "Customer wants to talk" || o.orderFiles[0].originalFileName === "Customer wants to talk" || o.price === 0) ? "talk" : "standard"),
     paymentLog: o.paymentLog,
+    billStatus: o.billStatus || "NOT_REQUESTED",
     files: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles.map(f => {
       const fConfig = f.config || {};
       return {
         id: f.id,
         fileName: f.customFileName || f.originalFileName || "Untitled Document",
         fileUrl: f.fileUrl,
+        thumbnailUrl: f.thumbnailUrl || null,
         copies: fConfig.copies || o.printConfiguration?.copies || 1,
         type: fConfig.printType === "COLOR" ? "Color" : (fConfig.printType === "BW" ? "B&W" : (o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W")),
         size: fConfig.paperSize || o.printConfiguration?.paperSize || "A4",
@@ -158,6 +160,7 @@ export default function ShopkeeperDashboard() {
       id: o.orderId,
       fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
       fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
+      thumbnailUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].thumbnailUrl : null,
       copies: o.printConfiguration?.copies || 1,
       type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
       size: o.printConfiguration?.paperSize || "A4",
