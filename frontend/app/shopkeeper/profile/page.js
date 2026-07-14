@@ -907,7 +907,7 @@ export default function ShopkeeperProfileViewPage() {
         </div>
       )}
 
-      <BottomDock items={bottomDockItems} />
+      {/* BottomDock is rendered globally in shopkeeper/layout.js */}
     </div>
   )
 }

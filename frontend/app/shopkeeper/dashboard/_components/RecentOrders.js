@@ -180,8 +180,8 @@ export default function RecentOrders({
           <EmptyState activeFilter={activeFilter} />
         ) : viewMode === 'card' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {orders.map((o) => (
-              <OrderCard key={o.id} order={o} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} onPrint={onPrint} onDownload={onDownload} onEditBill={onEditBill} />
+            {orders.map((o, idx) => (
+              <OrderCard key={o.id} order={o} sequenceNumber={idx + 1} onStatusChange={onStatusChange} onPaymentVerify={onPaymentVerify} onPrint={onPrint} onDownload={onDownload} onEditBill={onEditBill} />
             ))}
           </div>
         ) : (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Download,
   Eye,
@@ -40,7 +40,10 @@ function StatusPill({ status }) {
   )
 }
 
-function CardPreviewSection({ order }) {
+function CardPreviewSection({ order, onPreviewClick }) {
+  const [resolvedThumbnail, setResolvedThumbnail] = useState(null);
+  const [resolvedFileUrl, setResolvedFileUrl] = useState(null);
+
   const filesList = order.files && order.files.length > 0 ? order.files : [{
     fileName: order.fileName || "Untitled Document",
     fileUrl: order.fileUrl,
@@ -49,15 +52,44 @@ function CardPreviewSection({ order }) {
 
   const file = filesList[0]
 
+  useEffect(() => {
+    let active = true;
+    const resolveUrls = async () => {
+      try {
+        if (file.thumbnailUrl) {
+          const url = await getPrintableUrl(file.thumbnailUrl);
+          if (active) setResolvedThumbnail(url);
+        }
+        if (file.fileUrl) {
+          const url = await getPrintableUrl(file.fileUrl);
+          if (active) setResolvedFileUrl(url);
+        }
+      } catch (err) {
+        console.warn("Failed to resolve S3 URLs for preview:", err);
+      }
+    };
+    resolveUrls();
+    return () => { active = false; };
+  }, [file.thumbnailUrl, file.fileUrl]);
+
   return (
-    <div className="mt-4 rounded-xl border border-slate-200/60 bg-slate-50/50 p-3 flex justify-center items-center h-[160px] w-full relative overflow-hidden">
-      <div className="w-[100px] aspect-[1/1.414] bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden flex items-center justify-center relative">
+    <div 
+      onClick={onPreviewClick}
+      className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 flex flex-col justify-center items-center w-full relative overflow-hidden cursor-pointer hover:border-indigo-300 hover:bg-slate-100/50 transition duration-300 group"
+    >
+      <div className="text-[10px] uppercase tracking-wider text-indigo-600 font-extrabold mb-3">
+        Document Preview
+      </div>
+      <div className="w-[110px] aspect-[1/1.414] bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden flex items-center justify-center relative transition-transform group-hover:scale-105 duration-300">
         <DocumentPreview
-          file={file}
-          thumbnailUrl={file.thumbnailUrl || null}
+          file={{ ...file, fileUrl: resolvedFileUrl || file.fileUrl }}
+          thumbnailUrl={resolvedThumbnail || file.thumbnailUrl || null}
           isBW={file.type === 'B&W' || order.type === 'B&W'}
         />
       </div>
+      <p className="text-[10px] text-slate-500 font-bold mt-3 text-center bg-indigo-50/60 text-indigo-650 px-3 py-1.5 rounded-xl border border-indigo-100/50 max-w-[90%] pointer-events-none">
+        🔒 Secure and high quality documents print as it is
+      </p>
     </div>
   )
 }
@@ -116,28 +148,31 @@ const getPrintableUrl = async (fileUrl) => {
   return fileUrl;
 };
 
-export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPrint, onDownload, onEditBill }) {
+export default function OrderCard({ order, sequenceNumber, onStatusChange, onPaymentVerify, onPrint, onDownload, onEditBill }) {
   const [showCleanedModal, setShowCleanedModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewFileType, setPreviewFileType] = useState('');
+
   const handlePreview = async () => {
     const filesList = order.files && order.files.length > 0 ? order.files : [order];
-    let openedCount = 0;
-    try {
-      for (const file of filesList) {
-        if (file.fileUrl) {
-          const url = await getPrintableUrl(file.fileUrl);
-          window.open(url, '_blank')
-          openedCount++;
+    const file = filesList[0];
+    if (file && file.fileUrl) {
+      try {
+        const url = await getPrintableUrl(file.fileUrl);
+        setPreviewUrl(url);
+        const ext = (file.fileName || '').split('.').pop().toLowerCase();
+        setPreviewFileType(ext);
+        setShowPreviewModal(true);
+      } catch (err) {
+        if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
+          setShowCleanedModal(true);
+        } else {
+          alert("Error: " + err.message);
         }
       }
-      if (openedCount === 0) {
-        alert('No file URL associated with this order.')
-      }
-    } catch (err) {
-      if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
-        setShowCleanedModal(true);
-      } else {
-        alert("Error: " + err.message);
-      }
+    } else {
+      alert('No file URL associated with this order.');
     }
   }
 
@@ -212,10 +247,20 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
       <TopBorder type={order.type} />
 
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {sequenceNumber && (
+            <div className="text-xs font-black bg-indigo-600 text-white px-2 py-0.5 rounded-md shadow-sm">
+              No. {sequenceNumber}
+            </div>
+          )}
           <div className="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
             #{order.id}
           </div>
+          {order.price && (
+            <div className="text-xs font-extrabold bg-violet-100 text-violet-750 px-2 py-0.5 rounded-md">
+              {order.price}
+            </div>
+          )}
           {order.filesDeleted && (
             <span
               onClick={(e) => { e.stopPropagation(); setShowCleanedModal(true); }}
@@ -331,34 +376,13 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
                   </div>
                 )}
               </div>
-              {/* File details breakdown if not Wants to Talk */}
-              {order.variant !== 'talk' && (
-                <div className="flex flex-wrap gap-1 text-[10px] text-slate-500 font-bold pl-9">
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded">
-                    {file.type || order.type}
-                  </span>
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded">
-                    {(file.copies !== undefined ? file.copies : order.copies)}x
-                  </span>
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded">
-                    {file.size || order.size}
-                  </span>
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded">
-                    {file.side || order.side}
-                  </span>
-                  {file.price && (
-                    <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded">
-                      {file.price}
-                    </span>
-                  )}
-                </div>
-              )}
+              {/* File details breakdown removed per user request to remove configuration of cards */}
             </div>
           );
         })}
       </div>
 
-      <CardPreviewSection order={order} />
+      <CardPreviewSection order={order} onPreviewClick={handlePreview} />
 
       {order.paymentLog && (
         <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-left space-y-2 text-xs">
@@ -478,6 +502,64 @@ export default function OrderCard({ order, onStatusChange, onPaymentVerify, onPr
           <ActionButton tone="purple" icon={Printer} label="Print" onClick={handlePrint} />
           <ActionButton tone="blue" icon={Download} label="Download" onClick={handleDownload} />
           <ActionButton tone="red" icon={X} label="Cancel" onClick={handleCancel} />
+        </div>
+      )}
+
+      {showPreviewModal && previewUrl && (
+        <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md animate-fadeIn" onClick={(e) => { e.stopPropagation(); setShowPreviewModal(false); setPreviewUrl(''); }}>
+          <div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl relative overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm">
+                  Document Preview
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate max-w-md">
+                  {order.files?.[0]?.fileName || order.fileName || "Document"}
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowPreviewModal(false); setPreviewUrl(''); }}
+                className="p-1.5 text-slate-400 hover:text-slate-655 hover:bg-slate-100 rounded-full transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="flex-1 bg-slate-100 p-4 flex items-center justify-center overflow-auto">
+              {['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(previewFileType) ? (
+                <img 
+                  src={previewUrl} 
+                  alt="Preview" 
+                  className="max-w-full max-h-full object-contain rounded-lg shadow"
+                />
+              ) : previewFileType === 'pdf' ? (
+                <iframe 
+                  src={`${previewUrl}#toolbar=0`} 
+                  className="w-full h-full rounded-lg border border-slate-200 bg-white" 
+                  title="PDF Preview"
+                />
+              ) : (
+                <div className="text-center space-y-3 p-8">
+                  <div className="w-16 h-16 bg-indigo-50 text-indigo-650 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                    <FileText size={32} />
+                  </div>
+                  <h4 className="font-extrabold text-slate-800">Preview not supported in-browser</h4>
+                  <p className="text-xs text-slate-500 max-w-xs font-semibold">
+                    This file format ({previewFileType.toUpperCase()}) cannot be rendered directly inside the browser. Please download it to view.
+                  </p>
+                  <a 
+                    href={previewUrl} 
+                    download 
+                    className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition"
+                  >
+                    <Download size={14} /> Download to View
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
