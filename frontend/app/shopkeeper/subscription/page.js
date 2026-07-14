@@ -90,10 +90,11 @@ export default function SubscriptionPage() {
               <button
                 type="button"
                 onClick={() => window.history.back()}
-                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition mr-1"
+                className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl border border-slate-250 bg-white text-slate-700 hover:bg-slate-50 transition mr-1 font-black text-xs shadow-sm hover:text-slate-900 hover:border-slate-350 active:scale-95 cursor-pointer"
                 aria-label="Back"
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={14} />
+                <span>Back</span>
               </button>
               <LogoMark />
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
   isOnboardingComplete,
@@ -23,8 +23,9 @@ import { useSocket } from "../../../hooks/useSocket";
 import { useSocketContext } from "../../../contexts/SocketProvider";
 import { MessageCircle } from "lucide-react";
 
-export default function ShopkeeperDashboard() {
+function ShopkeeperDashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [shopName, setShopName] = useState(() => {
@@ -123,6 +124,7 @@ export default function ShopkeeperDashboard() {
   const mapRawOrderToFrontend = (o) => ({
     id: o.orderId,
     dbId: o.id,
+    createdAt: o.createdAt,
     status: o.status ? (o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()) : "Pending",
     customerName: o.customerName || "Anonymous Customer",
     phone: o.phone || "",
@@ -202,7 +204,12 @@ export default function ShopkeeperDashboard() {
       }
     }
     
-    return result;
+    // Sort final list by date ascending (older first)
+    return result.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+      return dateA - dateB;
+    });
   };
 
   // Join shop room on mount/auth load
@@ -229,7 +236,12 @@ export default function ShopkeeperDashboard() {
     setOrdersList((prev) => {
       if (prev.some((o) => o.dbId === newOrder.id)) return prev;
       const split = splitAndMapRawOrders([newOrder]);
-      return [...split, ...prev];
+      const combined = [...prev, ...split];
+      return combined.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return dateA - dateB;
+      });
     });
   });
 
@@ -240,13 +252,21 @@ export default function ShopkeeperDashboard() {
       const index = prev.findIndex((o) => o.dbId === updatedOrder.id);
       if (index === -1) {
         const split = splitAndMapRawOrders([updatedOrder]);
-        return [...split, ...prev];
+        const combined = [...prev, ...split];
+        return combined.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+          const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+          return dateA - dateB;
+        });
       }
       const filtered = prev.filter((o) => o.dbId !== updatedOrder.id);
       const split = splitAndMapRawOrders([updatedOrder]);
-      const copy = [...filtered];
-      copy.splice(index, 0, ...split);
-      return copy;
+      const combined = [...filtered, ...split];
+      return combined.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return dateA - dateB;
+      });
     });
   });
 
@@ -380,6 +400,28 @@ export default function ShopkeeperDashboard() {
   };
 
   useEffect(() => {
+    const filterParam = searchParams.get("filter");
+    if (filterParam) {
+      if (filterParam === "pending") setActiveFilter(t("Pending"));
+      else if (filterParam === "completed") setActiveFilter(t("Completed"));
+      else if (filterParam === "downloaded") setActiveFilter(t("Downloaded"));
+      else if (filterParam === "cancelled") setActiveFilter(t("Cancelled"));
+      else if (filterParam === "all") setActiveFilter(t("All"));
+    }
+
+    if (searchParams.get("openCustomBill") === "true") {
+      setPrefillData(null);
+      setIsBillModalOpen(true);
+      
+      // Clean query parameter to prevent reopening on reload
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.delete("openCustomBill");
+      const search = newParams.toString();
+      router.replace(window.location.pathname + (search ? `?${search}` : ""));
+    }
+  }, [searchParams, router, t]);
+
+  useEffect(() => {
     const token = localStorage.getItem("authToken");
     const loggedIn = localStorage.getItem("loggedInShopkeeper");
     if (!token || !loggedIn) {
@@ -447,7 +489,7 @@ export default function ShopkeeperDashboard() {
     checkOnboardingStatus();
   }, [router]);
 
-  const displayedOrders =
+  const rawFilteredOrders =
     (activeFilter === "All" || activeFilter === t("All"))
       ? ordersList
       : ordersList.filter((order) => {
@@ -459,6 +501,17 @@ export default function ShopkeeperDashboard() {
           }
           return t(order.status) === activeFilter;
         });
+
+  const displayedOrders = (() => {
+    if (activeFilter === "Completed" || activeFilter === t("Completed")) {
+      return [...rawFilteredOrders].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return dateB - dateA; // Newest first
+      });
+    }
+    return rawFilteredOrders; // Default: older first (ascending)
+  })();
 
   const pendingCount = ordersList.filter((o) => o.status !== "Completed" && o.status !== "Downloaded" && o.status !== "Cancelled").length;
   const completedCount = ordersList.filter((o) => o.status === "Completed" || o.status === "Downloaded").length;
@@ -807,17 +860,7 @@ export default function ShopkeeperDashboard() {
         </div>
       </div>
 
-      <BottomDock
-        items={dynamicDockItems}
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-        onCustomClick={(key) => {
-          if (key === 'customBill') {
-            setPrefillData(null);
-            setIsBillModalOpen(true);
-          }
-        }}
-      />
+      {/* BottomDock is rendered globally in shopkeeper/layout.js */}
       {/* Floating Feedback & Support Button */}
       <a
         href="https://forms.gle/VBK48SwGSWm7prgUA"
@@ -836,5 +879,17 @@ export default function ShopkeeperDashboard() {
         prefillData={prefillData}
       />
     </div>
+  );
+}
+
+export default function ShopkeeperDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <ShopkeeperDashboardContent />
+    </Suspense>
   );
 }

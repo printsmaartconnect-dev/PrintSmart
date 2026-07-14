@@ -41,6 +41,7 @@ export const recentOrders = [
     side: 'Double',
     price: '₹24.00',
     timestamp: 'Today, 10:30 AM',
+    createdAt: '2026-07-14T10:30:00.000Z',
     variant: 'standard',
   },
   {
@@ -56,6 +57,7 @@ export const recentOrders = [
     side: 'Single',
     price: '₹12.00',
     timestamp: 'Today, 10:28 AM',
+    createdAt: '2026-07-14T10:28:00.000Z',
     variant: 'standard',
   },
   {
@@ -71,6 +73,7 @@ export const recentOrders = [
     side: 'Single',
     price: '₹5.00',
     timestamp: 'Today, 10:20 AM',
+    createdAt: '2026-07-14T10:20:00.000Z',
     variant: 'standard',
   },
   {
@@ -86,6 +89,7 @@ export const recentOrders = [
     side: 'Single',
     price: '₹6.00',
     timestamp: 'Today, 10:15 AM',
+    createdAt: '2026-07-14T10:15:00.000Z',
     variant: 'talk',
   },
   {
@@ -101,6 +105,7 @@ export const recentOrders = [
     side: 'Single',
     price: '₹3.00',
     timestamp: 'Today, 10:05 AM',
+    createdAt: '2026-07-14T10:05:00.000Z',
     variant: 'standard',
   },
 ]
