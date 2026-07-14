@@ -14,7 +14,7 @@ import {
 } from "../onboarding/_components/onboardingStorage";
 import DashboardHeader from "./_components/DashboardHeader";
 import WelcomeBar from "./_components/WelcomeBar";
-import StatsRow from "./_components/StatsRow";
+import ShopQRCard from "./_components/ShopQRCard";
 import RecentOrders from "./_components/RecentOrders";
 import CustomBillModal from "./_components/CustomBillModal";
 import BottomDock from "./_components/BottomDock";
@@ -76,6 +76,13 @@ export default function ShopkeeperDashboard() {
   });
 
   const [activeFilter, setActiveFilter] = useState("All");
+  const [viewMode, setViewMode] = useState("card");
+  const [qrDetails, setQrDetails] = useState({
+    shopId: '',
+    slug: '',
+    qrCodeUrl: '',
+    qrValue: ''
+  });
   
   const [ordersList, setOrdersList] = useState(() => {
     if (typeof window !== "undefined") {
@@ -134,12 +141,14 @@ export default function ShopkeeperDashboard() {
       new Date(o.createdAt).toLocaleDateString([], { month: "short", day: "numeric" }),
     variant: o.variant || (o.orderFiles && o.orderFiles.length > 0 && (o.orderFiles[0].customFileName === "Customer wants to talk" || o.orderFiles[0].originalFileName === "Customer wants to talk" || o.price === 0) ? "talk" : "standard"),
     paymentLog: o.paymentLog,
+    billStatus: o.billStatus || "NOT_REQUESTED",
     files: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles.map(f => {
       const fConfig = f.config || {};
       return {
         id: f.id,
         fileName: f.customFileName || f.originalFileName || "Untitled Document",
         fileUrl: f.fileUrl,
+        thumbnailUrl: f.thumbnailUrl || null,
         copies: fConfig.copies || o.printConfiguration?.copies || 1,
         type: fConfig.printType === "COLOR" ? "Color" : (fConfig.printType === "BW" ? "B&W" : (o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W")),
         size: fConfig.paperSize || o.printConfiguration?.paperSize || "A4",
@@ -151,6 +160,7 @@ export default function ShopkeeperDashboard() {
       id: o.orderId,
       fileName: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].customFileName : "Untitled Document",
       fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
+      thumbnailUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].thumbnailUrl : null,
       copies: o.printConfiguration?.copies || 1,
       type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
       size: o.printConfiguration?.paperSize || "A4",
@@ -294,6 +304,24 @@ export default function ShopkeeperDashboard() {
     }
   };
 
+  const fetchQrDetails = async () => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+    try {
+      const response = await fetch(`${apiUrl}/api/shopkeeper/me/qr`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setQrDetails(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch QR details:", err);
+    }
+  };
+
   const handleStatusChange = async (dbId, nextStatus) => {
     const token = localStorage.getItem("authToken");
     if (!token) {
@@ -383,6 +411,7 @@ export default function ShopkeeperDashboard() {
             setMemberSince(shopkeeper.createdAt);
           }
           fetchOrders();
+          fetchQrDetails();
         } else {
           // If profile fetch fails (e.g. invalid token), redirect to login
           router.replace("/shopkeeper/login");
@@ -411,6 +440,7 @@ export default function ShopkeeperDashboard() {
           setMemberSince(account.createdAt);
         }
         fetchOrders();
+        fetchQrDetails();
       }
     };
 
@@ -736,22 +766,44 @@ export default function ShopkeeperDashboard() {
 
       <div className="px-4 sm:px-6 lg:px-8 pb-28">
         <div className="mx-auto max-w-7xl space-y-6">
-          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} memberSince={memberSince} subscriptionPlan={subscriptionPlan} />
-          <StatsRow stats={dynamicStats} />
-          <RecentOrders 
-            orders={displayedOrders} 
-            activeFilter={activeFilter} 
-            onStatusChange={handleStatusChange} 
-            onPaymentVerify={handlePaymentVerify}
-            onPrint={async (order) => {
-              await handleDirectPrint(order);
-              if (handleStatusChange && (order.dbId || order.id)) {
-                await handleStatusChange(order.dbId || order.id, 'Completed');
-              }
-            }}
-            onDownload={handleDirectDownload}
-            onEditBill={handleEditBill}
+          <WelcomeBar 
+            shopName={shopName} 
+            shopkeeperIdCode={shopkeeperIdCode} 
+            memberSince={memberSince} 
+            subscriptionPlan={subscriptionPlan} 
+            pendingCount={pendingCount}
+            completedCount={completedCount}
+            downloadedCount={downloadedCount}
+            cancelledCount={cancelledCount}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-4 xl:col-span-3">
+              <ShopQRCard 
+                shopName={shopName}
+                shopkeeperIdCode={shopkeeperIdCode}
+                qrDetails={qrDetails}
+              />
+            </div>
+            <div className="lg:col-span-8 xl:col-span-9">
+              <RecentOrders 
+                orders={displayedOrders} 
+                activeFilter={activeFilter} 
+                onStatusChange={handleStatusChange} 
+                onPaymentVerify={handlePaymentVerify}
+                onPrint={async (order) => {
+                  await handleDirectPrint(order);
+                  if (handleStatusChange && (order.dbId || order.id)) {
+                    await handleStatusChange(order.dbId || order.id, 'Completed');
+                  }
+                }}
+                onDownload={handleDirectDownload}
+                onEditBill={handleEditBill}
+                viewMode={viewMode}
+              />
+            </div>
+          </div>
         </div>
       </div>
 

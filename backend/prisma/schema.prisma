@@ -172,6 +172,7 @@ model Order {
   storageStatus        String?  @default("ACTIVE")
   filesDeleted         Boolean  @default(false)
   cleanedAt            DateTime?
+  billStatus           String   @default("NOT_REQUESTED") // NOT_REQUESTED, REQUESTED, SENT
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

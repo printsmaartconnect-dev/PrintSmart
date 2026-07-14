@@ -130,6 +130,24 @@ function OrdersPageContent() {
     detectPlatform()
   }, [])
 
+  const handleRequestBill = async (orderId) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
+      const response = await fetch(`${apiUrl}/api/orders/${orderId}/request-bill`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      if (response.ok) {
+        await fetchOrders()
+      } else {
+        alert(t('Failed to request bill/invoice.'))
+      }
+    } catch (err) {
+      console.error('Request bill error:', err)
+      alert(t('Error requesting bill/invoice.'))
+    }
+  }
+
   const fetchOrders = async () => {
     setLoading(true)
     setError(null)
@@ -358,32 +376,47 @@ function OrdersPageContent() {
             </div>
           </div>
 
-        {/* Premium Scratch & Win Section */}
+        {/* Google Pay-style Premium Scratch & Win Section */}
         {activeRewardOrder && (
-          <div className="mb-8 p-5 bg-white border border-violet-100 rounded-2xl shadow-[0_4px_20px_rgba(139,92,246,0.05)]">
-            <h3 className="font-bold text-slate-800 text-sm mb-1 flex items-center gap-1.5">
-              <Gift size={16} className="text-violet-600" />
-              {t('Scratch & Win')}
-            </h3>
-            <p className="text-xs text-slate-500 font-medium mb-4">
-              {activeRewardOrder.rewardLog?.scratched 
-                ? t('You have scratched the card for order ') + activeRewardOrder.orderId
-                : t('You have an unscratched reward card from your print order!')}
-            </p>
+          <div className="mb-8">
             <button
               type="button"
               onClick={() => {
                 setSelectedOrderId(activeRewardOrder.id)
                 setShowRewardModal(true)
               }}
-              className="w-full h-32 rounded-xl border-2 border-violet-300 border-dashed bg-violet-50/50 hover:bg-violet-50 hover:border-violet-400 transition flex flex-col items-center justify-center gap-2 group cursor-pointer"
+              className="relative w-full h-36 rounded-2xl overflow-hidden border border-violet-200/50 bg-gradient-to-r from-violet-600 via-indigo-650 to-purple-600 text-white shadow-lg transition-all duration-300 hover:shadow-violet-500/20 hover:scale-[1.02] active:scale-98 flex items-center justify-between px-6 group cursor-pointer"
             >
-              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center border border-violet-100 shadow-sm transition group-hover:scale-110">
-                <Gift size={20} className="text-violet-600 animate-pulse" />
+              <div className="absolute inset-0 opacity-15 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.4),transparent_50%)] animate-pulse" />
+              <div className="absolute -top-12 -right-12 w-32 h-32 bg-yellow-300/20 rounded-full blur-2xl group-hover:bg-yellow-300/30 transition-all duration-300" />
+              
+              <div className="flex items-center gap-4 relative z-10 text-left">
+                <div className="relative w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-inner group-hover:rotate-6 transition-transform duration-305">
+                  <Gift size={32} className="text-yellow-300 animate-bounce" />
+                  <span className="absolute -top-1 -right-1 text-xs animate-ping">✨</span>
+                  <span className="absolute -bottom-1 -left-1 text-[10px] animate-pulse">⭐</span>
+                </div>
+                
+                <div>
+                  <h4 className="font-extrabold text-base tracking-wide text-yellow-300 flex items-center gap-1.5 uppercase drop-shadow-sm font-brand">
+                    {activeRewardOrder.rewardLog?.scratched ? t('Reward Unlocked!') : t('Lucky Reward Awaits!')}
+                  </h4>
+                  <p className="text-xs text-violet-100 font-medium mt-1 max-w-[200px]">
+                    {activeRewardOrder.rewardLog?.scratched 
+                      ? t('View your applied offer') 
+                      : t('Tap to scratch and claim your cashback coupon!')}
+                  </p>
+                </div>
               </div>
-              <span className="text-xs font-bold text-violet-700 tracking-wide uppercase">
-                {activeRewardOrder.rewardLog?.scratched ? t('View Reward') : t('Tap to scratch')}
-              </span>
+
+              <div className="relative z-10 flex flex-col items-center gap-1 flex-shrink-0">
+                <span className="px-4 py-2 bg-yellow-300 hover:bg-yellow-400 text-violet-955 font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all duration-200 group-hover:scale-105 active:scale-95">
+                  {activeRewardOrder.rewardLog?.scratched ? t('View') : t('Scratch Now')}
+                </span>
+                <span className="text-[9px] text-yellow-200/80 font-bold tracking-widest uppercase animate-pulse mt-1">
+                  {activeRewardOrder.rewardLog?.scratched ? t('Scratched') : t('Tap Here')}
+                </span>
+              </div>
             </button>
           </div>
         )}
@@ -585,26 +618,47 @@ function OrdersPageContent() {
                         {order.rewardLog?.scratched ? t('View Reward') : t('Scratch Card')}
                       </button>
                     )}
-                    {/* View Invoice */}
-                    {order.invoice && (
+                    {/* Bill Request Workflow Buttons */}
+                    {order.billStatus === 'SENT' ? (
+                      <>
+                        {order.invoice && (
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/customer/invoice/${order.id}`)}
+                            className="px-3 py-2 rounded-lg text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition flex items-center gap-1.5"
+                          >
+                            <FileText size={14} />
+                            {t('View Invoice')}
+                          </button>
+                        )}
+                        {order.invoice && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadInvoice(order.id)}
+                            className="px-3 py-2 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition flex items-center gap-1.5"
+                          >
+                            <Download size={14} />
+                            {t('Invoice PDF')}
+                          </button>
+                        )}
+                      </>
+                    ) : order.billStatus === 'REQUESTED' ? (
                       <button
                         type="button"
-                        onClick={() => router.push(`/customer/invoice/${order.id}`)}
-                        className="px-3 py-2 rounded-lg text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition flex items-center gap-1.5"
+                        disabled
+                        className="px-3 py-2 rounded-lg text-xs font-bold text-amber-700 bg-amber-50 border border-amber-250 cursor-not-allowed flex items-center gap-1.5"
                       >
-                        <FileText size={14} />
-                        {t('View Invoice')}
+                        <Clock size={14} className="animate-spin" />
+                        {t('Bill Requested (Awaiting Shopkeeper)')}
                       </button>
-                    )}
-                    {/* Invoice Download */}
-                    {order.invoice && (
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => handleDownloadInvoice(order.id)}
-                        className="px-3 py-2 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition flex items-center gap-1.5"
+                        onClick={() => handleRequestBill(order.id)}
+                        className="px-3 py-2 rounded-lg text-xs font-bold text-violet-750 bg-violet-50 border border-violet-250 hover:bg-violet-100 transition flex items-center gap-1.5 active:scale-95 shadow-sm"
                       >
-                        <Download size={14} />
-                        {t('Invoice PDF')}
+                        <FileText size={14} className="text-violet-650" />
+                        {t('Request for Bill/Invoice')}
                       </button>
                     )}
                     
