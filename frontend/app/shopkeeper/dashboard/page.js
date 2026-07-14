@@ -14,7 +14,7 @@ import {
 } from "../onboarding/_components/onboardingStorage";
 import DashboardHeader from "./_components/DashboardHeader";
 import WelcomeBar from "./_components/WelcomeBar";
-import StatsRow from "./_components/StatsRow";
+import ShopQRCard from "./_components/ShopQRCard";
 import RecentOrders from "./_components/RecentOrders";
 import CustomBillModal from "./_components/CustomBillModal";
 import BottomDock from "./_components/BottomDock";
@@ -76,6 +76,13 @@ export default function ShopkeeperDashboard() {
   });
 
   const [activeFilter, setActiveFilter] = useState("All");
+  const [viewMode, setViewMode] = useState("card");
+  const [qrDetails, setQrDetails] = useState({
+    shopId: '',
+    slug: '',
+    qrCodeUrl: '',
+    qrValue: ''
+  });
   
   const [ordersList, setOrdersList] = useState(() => {
     if (typeof window !== "undefined") {
@@ -294,6 +301,24 @@ export default function ShopkeeperDashboard() {
     }
   };
 
+  const fetchQrDetails = async () => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+    try {
+      const response = await fetch(`${apiUrl}/api/shopkeeper/me/qr`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setQrDetails(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch QR details:", err);
+    }
+  };
+
   const handleStatusChange = async (dbId, nextStatus) => {
     const token = localStorage.getItem("authToken");
     if (!token) {
@@ -383,6 +408,7 @@ export default function ShopkeeperDashboard() {
             setMemberSince(shopkeeper.createdAt);
           }
           fetchOrders();
+          fetchQrDetails();
         } else {
           // If profile fetch fails (e.g. invalid token), redirect to login
           router.replace("/shopkeeper/login");
@@ -411,6 +437,7 @@ export default function ShopkeeperDashboard() {
           setMemberSince(account.createdAt);
         }
         fetchOrders();
+        fetchQrDetails();
       }
     };
 
@@ -736,22 +763,44 @@ export default function ShopkeeperDashboard() {
 
       <div className="px-4 sm:px-6 lg:px-8 pb-28">
         <div className="mx-auto max-w-7xl space-y-6">
-          <WelcomeBar shopName={shopName} shopkeeperIdCode={shopkeeperIdCode} memberSince={memberSince} subscriptionPlan={subscriptionPlan} />
-          <StatsRow stats={dynamicStats} />
-          <RecentOrders 
-            orders={displayedOrders} 
-            activeFilter={activeFilter} 
-            onStatusChange={handleStatusChange} 
-            onPaymentVerify={handlePaymentVerify}
-            onPrint={async (order) => {
-              await handleDirectPrint(order);
-              if (handleStatusChange && (order.dbId || order.id)) {
-                await handleStatusChange(order.dbId || order.id, 'Completed');
-              }
-            }}
-            onDownload={handleDirectDownload}
-            onEditBill={handleEditBill}
+          <WelcomeBar 
+            shopName={shopName} 
+            shopkeeperIdCode={shopkeeperIdCode} 
+            memberSince={memberSince} 
+            subscriptionPlan={subscriptionPlan} 
+            pendingCount={pendingCount}
+            completedCount={completedCount}
+            downloadedCount={downloadedCount}
+            cancelledCount={cancelledCount}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-4 xl:col-span-3">
+              <ShopQRCard 
+                shopName={shopName}
+                shopkeeperIdCode={shopkeeperIdCode}
+                qrDetails={qrDetails}
+              />
+            </div>
+            <div className="lg:col-span-8 xl:col-span-9">
+              <RecentOrders 
+                orders={displayedOrders} 
+                activeFilter={activeFilter} 
+                onStatusChange={handleStatusChange} 
+                onPaymentVerify={handlePaymentVerify}
+                onPrint={async (order) => {
+                  await handleDirectPrint(order);
+                  if (handleStatusChange && (order.dbId || order.id)) {
+                    await handleStatusChange(order.dbId || order.id, 'Completed');
+                  }
+                }}
+                onDownload={handleDirectDownload}
+                onEditBill={handleEditBill}
+                viewMode={viewMode}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
