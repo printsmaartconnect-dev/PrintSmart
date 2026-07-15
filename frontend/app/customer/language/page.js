@@ -11,6 +11,7 @@ import FeedbackLink from '../../components/FeedbackLink'
 import { setCurrentShop, getActiveShop } from '../../../lib/shop-context'
 import CustomerHeader from '../../components/customer/CustomerHeader'
 import FilePreviewSection from '../../components/customer/FilePreviewSection'
+import CustomerGuideTour from '../../components/customer/CustomerGuideTour'
 
 const LANGUAGES = [
   { code: 'en', name: 'English', native: 'English', flag: '🇮🇳' },
@@ -288,6 +289,54 @@ function CustomerLanguagePageContent() {
   const [shopError, setShopError] = useState(null)
   const [shopDetails, setShopDetails] = useState(null)
   const [customerComment, setCustomerComment] = useState('')
+  const [printTypes, setPrintTypes] = useState({})
+  const [guideStep, setGuideStep] = useState(null)
+
+  useEffect(() => {
+    const skipped = sessionStorage.getItem('customerGuideSkipped')
+    if (!skipped) {
+      setGuideStep(1)
+    }
+  }, [])
+
+  const handlePrintTypeChange = (index, value) => {
+    setPrintTypes(prev => ({
+      ...prev,
+      [index]: value
+    }))
+    if (guideStep === 3) {
+      setGuideStep(4)
+    }
+  }
+
+  const handleGuideNext = () => {
+    if (guideStep === 2 && files.length === 0) {
+      alert(t('Please upload at least one document first to proceed.'))
+      return
+    }
+    if (guideStep === 5) {
+      setGuideStep(null)
+      localStorage.setItem('customerGuideStep', '6')
+      return
+    }
+    setGuideStep(prev => prev + 1)
+  }
+
+  const guideTexts = {
+    1: t('First, enter your full name here so the shopkeeper can identify your print job.'),
+    2: t('Next, drag & drop your files here or click to choose documents for printing.'),
+    3: t('Select whether you want each page printed in Black & White or Premium Color.'),
+    4: t('Add any optional comments or custom printing instructions for the shopkeeper here.'),
+    5: t('Double check your options and click here to submit your print order instantly!')
+  }
+
+  const guideSelectors = {
+    1: '#name-input-group',
+    2: '#upload-dropzone',
+    3: '#print-type-group-0',
+    4: '#comment-input-group',
+    5: '#submit-button-group'
+  }
 
   const [formData, setFormData] = useState({
     name: '',
@@ -693,8 +742,11 @@ function CustomerLanguagePageContent() {
         pageRange: 'all'
       }
 
-      const items = uploadedFilesData.map((item) => {
-        const itemConfig = { ...defaultConfig }
+      const items = uploadedFilesData.map((item, idx) => {
+        const itemConfig = { 
+          ...defaultConfig,
+          printType: printTypes[idx] || 'BW'
+        }
         return {
           fileName: item.customFileName || item.originalFileName,
           fileUrl: item.fileUrl,
@@ -731,6 +783,7 @@ function CustomerLanguagePageContent() {
       localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
       localStorage.setItem('uploadCart', JSON.stringify(uploadedFilesData))
       localStorage.setItem('currentOrder', JSON.stringify(orderResult.order || orderResult))
+      sessionStorage.removeItem('customerGuideSkipped')
 
       const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
       if (isShopkeeper) {
@@ -839,7 +892,7 @@ function CustomerLanguagePageContent() {
                 {/* 2. Details Form */}
                 <form onSubmit={handleDetailsSubmit} className="space-y-4 pt-2">
                   {/* Name (Required) */}
-                  <div>
+                  <div id="name-input-group">
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                       {t('Full Name')} <span className="text-red-600">*</span>
                     </label>
@@ -862,6 +915,7 @@ function CustomerLanguagePageContent() {
 
                     {/* Dropzone */}
                     <div
+                      id="upload-dropzone"
                       {...getRootProps()}
                       className={`border-2 border-dashed rounded-xl p-6 text-center transition cursor-pointer ${isDragActive
                         ? 'border-indigo-500 bg-indigo-50'
@@ -934,6 +988,32 @@ function CustomerLanguagePageContent() {
                                   <span className="text-[10px] text-gray-500 mt-0.5 block truncate">
                                     {t('Original:')} {item.file.name} • {formatFileSize(item.file.size)}
                                   </span>
+
+                                  {/* Print Color Selection Toggle */}
+                                  <div id={`print-type-group-${index}`} className="flex gap-2 mt-2 w-full max-w-[200px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePrintTypeChange(index, 'BW')}
+                                      className={`flex-1 py-1 rounded text-[10px] font-bold border transition ${
+                                        (printTypes[index] || 'BW') === 'BW'
+                                          ? 'bg-slate-800 text-white border-slate-800'
+                                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      B&W
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePrintTypeChange(index, 'COLOR')}
+                                      className={`flex-1 py-1 rounded text-[10px] font-bold border transition ${
+                                        (printTypes[index] || 'BW') === 'COLOR'
+                                          ? 'bg-gradient-to-r from-indigo-500 to-purple-650 text-white border-indigo-500'
+                                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      Color
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
 
@@ -959,7 +1039,7 @@ function CustomerLanguagePageContent() {
                   </div>
 
                   {/* Customer Comment (Optional) */}
-                  <div className="pt-4 border-t border-gray-100">
+                  <div id="comment-input-group" className="pt-4 border-t border-gray-100">
                     <div className="flex justify-between items-center mb-1.5">
                       <label className="block text-sm font-semibold text-gray-700">
                         {t('Customer Comment (Optional)')}
@@ -996,6 +1076,7 @@ function CustomerLanguagePageContent() {
 
                   {/* Submit Button */}
                   <button
+                    id="submit-button-group"
                     type="submit"
                     disabled={loading || uploading}
                     className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 shadow-sm animate-pulse-subtle"
@@ -1028,6 +1109,20 @@ function CustomerLanguagePageContent() {
 
       {/* Floating Feedback Button */}
       <FeedbackButton />
+
+      {/* Guided tour overlays */}
+      {guideStep !== null && (
+        <CustomerGuideTour
+          activeStep={guideStep}
+          targetSelector={guideSelectors[guideStep]}
+          text={guideTexts[guideStep]}
+          onNext={handleGuideNext}
+          onClose={() => {
+            setGuideStep(null)
+            sessionStorage.setItem('customerGuideSkipped', 'true')
+          }}
+        />
+      )}
     </div>
   )
 }

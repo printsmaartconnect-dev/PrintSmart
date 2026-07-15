@@ -133,7 +133,17 @@ function ShopkeeperDashboardContent() {
     fileUrl: o.orderFiles && o.orderFiles.length > 0 ? o.orderFiles[0].fileUrl : "",
     pages: 1,
     copies: o.printConfiguration?.copies || 1,
-    type: o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
+    type: (o.orderFiles && o.orderFiles.some(f => {
+      let isFileColor = false;
+      if (f.customFileName && f.customFileName.includes('|')) {
+        try {
+          const parsed = JSON.parse(f.customFileName.split('|')[1]);
+          if (parsed && parsed.printType === 'COLOR') isFileColor = true;
+        } catch(e){}
+      }
+      const fConfig = f.config || {};
+      return isFileColor || fConfig.printType === "COLOR";
+    })) || o.printConfiguration?.printType === "COLOR" ? "Color" : "B&W",
     size: o.printConfiguration?.paperSize || "A4",
     side: o.printConfiguration?.sides === "DOUBLE" ? "Double" : "Single",
     price: `₹${(o.price || 0.0).toFixed(2)}`,
