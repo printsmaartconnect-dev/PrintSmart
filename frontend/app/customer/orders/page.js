@@ -10,7 +10,6 @@ import FeedbackLink from '../../components/FeedbackLink'
 import RewardCardModal from '../../components/customer/RewardCardModal'
 import CustomerHeader from '../../components/customer/CustomerHeader'
 import { validateUpiParams, generateUpiUrl } from '../../../lib/upi'
-import CustomerGuideTour from '../../components/customer/CustomerGuideTour'
 import { formatCurrency } from '../../../lib/currency'
 import { useSocket } from '../../../hooks/useSocket'
 import { useSocketContext } from '../../../contexts/SocketProvider'
@@ -89,58 +88,7 @@ function OrdersPageContent() {
   const [orderToDelete, setOrderToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [submittingRef, setSubmittingRef] = useState(false)
-  const [guideStep, setGuideStep] = useState(null)
 
-  useEffect(() => {
-    const savedStep = localStorage.getItem('customerGuideStep')
-    const skipped = sessionStorage.getItem('customerGuideSkipped')
-    if (savedStep === '6' && orders.length > 0 && !skipped) {
-      const activeReward = orders.find(o => o.rewardLog && !o.rewardLog.scratched) || orders.find(o => o.rewardLog)
-      if (!activeReward) {
-        const pendingPayment = orders.some(o => o.status === 'PENDING')
-        if (pendingPayment) {
-          setGuideStep(7)
-        } else {
-          setGuideStep(8)
-        }
-      } else {
-        setGuideStep(6)
-      }
-      localStorage.removeItem('customerGuideStep')
-    }
-  }, [orders])
-
-  const handleGuideNext = () => {
-    if (guideStep === 6) {
-      const pendingPayment = orders.some(o => o.status === 'PENDING')
-      if (pendingPayment) {
-        setGuideStep(7)
-      } else {
-        setGuideStep(8)
-      }
-      return
-    }
-    if (guideStep === 7) {
-      setGuideStep(8)
-      return
-    }
-    if (guideStep === 8) {
-      setGuideStep(null)
-      sessionStorage.setItem('customerGuideSkipped', 'true')
-    }
-  }
-
-  const guideTexts = {
-    6: t('Awesome! Scratch this lucky card to win instant rewards and discounts on your prints!'),
-    7: t('After making the payment cash or UPI, click here to confirm to the shopkeeper!'),
-    8: t('View details of your active print jobs, request an invoice, or cancel your order here.')
-  }
-
-  const guideSelectors = {
-    6: '#scratch-card-group',
-    7: '#payment-confirm-group',
-    8: '#bill-actions-group'
-  }
   const [deletingIds, setDeletingIds] = useState([])
   const [showCleanedModal, setShowCleanedModal] = useState(false)
 
@@ -830,19 +778,6 @@ function OrdersPageContent() {
             </button>
           </div>
         </div>
-      )}
-      {/* Guided tour overlays */}
-      {guideStep !== null && !showRewardModal && (
-        <CustomerGuideTour
-          activeStep={guideStep}
-          targetSelector={guideSelectors[guideStep]}
-          text={guideTexts[guideStep]}
-          onNext={handleGuideNext}
-          onClose={() => {
-            setGuideStep(null)
-            sessionStorage.setItem('customerGuideSkipped', 'true')
-          }}
-        />
       )}
     </div>
   )

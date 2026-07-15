@@ -92,6 +92,7 @@ export default function CustomerHeader({ stepText, shopDetails: propShopDetails 
       {/* Right: Language Dropdown & Step Indicator */}
       <div className="flex items-center gap-2 sm:gap-3">
         <select
+          id="language-select"
           value={language || 'en'}
           onChange={(e) => setLanguage(e.target.value)}
           className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 outline-none cursor-pointer focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"

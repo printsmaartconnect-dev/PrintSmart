@@ -11,7 +11,7 @@ import FeedbackLink from '../../components/FeedbackLink'
 import { setCurrentShop, getActiveShop } from '../../../lib/shop-context'
 import CustomerHeader from '../../components/customer/CustomerHeader'
 import FilePreviewSection from '../../components/customer/FilePreviewSection'
-import CustomerGuideTour from '../../components/customer/CustomerGuideTour'
+import CustomerVideoGuide from '../../components/customer/CustomerVideoGuide'
 
 const LANGUAGES = [
   { code: 'en', name: 'English', native: 'English', flag: '🇮🇳' },
@@ -290,52 +290,13 @@ function CustomerLanguagePageContent() {
   const [shopDetails, setShopDetails] = useState(null)
   const [customerComment, setCustomerComment] = useState('')
   const [printTypes, setPrintTypes] = useState({})
-  const [guideStep, setGuideStep] = useState(null)
-
-  useEffect(() => {
-    const skipped = sessionStorage.getItem('customerGuideSkipped')
-    if (!skipped) {
-      setGuideStep(1)
-    }
-  }, [])
+  const [showVideoGuide, setShowVideoGuide] = useState(true)
 
   const handlePrintTypeChange = (index, value) => {
     setPrintTypes(prev => ({
       ...prev,
       [index]: value
     }))
-    if (guideStep === 3) {
-      setGuideStep(4)
-    }
-  }
-
-  const handleGuideNext = () => {
-    if (guideStep === 2 && files.length === 0) {
-      alert(t('Please upload at least one document first to proceed.'))
-      return
-    }
-    if (guideStep === 5) {
-      setGuideStep(null)
-      localStorage.setItem('customerGuideStep', '6')
-      return
-    }
-    setGuideStep(prev => prev + 1)
-  }
-
-  const guideTexts = {
-    1: t('First, enter your full name here so the shopkeeper can identify your print job.'),
-    2: t('Next, drag & drop your files here or click to choose documents for printing.'),
-    3: t('Select whether you want each page printed in Black & White or Premium Color.'),
-    4: t('Add any optional comments or custom printing instructions for the shopkeeper here.'),
-    5: t('Double check your options and click here to submit your print order instantly!')
-  }
-
-  const guideSelectors = {
-    1: '#name-input-group',
-    2: '#upload-dropzone',
-    3: '#print-type-group-0',
-    4: '#comment-input-group',
-    5: '#submit-button-group'
   }
 
   const [formData, setFormData] = useState({
@@ -783,7 +744,7 @@ function CustomerLanguagePageContent() {
       localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFilesData))
       localStorage.setItem('uploadCart', JSON.stringify(uploadedFilesData))
       localStorage.setItem('currentOrder', JSON.stringify(orderResult.order || orderResult))
-      sessionStorage.removeItem('customerGuideSkipped')
+      // guide skipped state removed
 
       const resolvedShopId = shopId || localStorage.getItem('activeShopSlug') || localStorage.getItem('activeShopId')
       if (isShopkeeper) {
@@ -1110,18 +1071,9 @@ function CustomerLanguagePageContent() {
       {/* Floating Feedback Button */}
       <FeedbackButton />
 
-      {/* Guided tour overlays */}
-      {guideStep !== null && (
-        <CustomerGuideTour
-          activeStep={guideStep}
-          targetSelector={guideSelectors[guideStep]}
-          text={guideTexts[guideStep]}
-          onNext={handleGuideNext}
-          onClose={() => {
-            setGuideStep(null)
-            sessionStorage.setItem('customerGuideSkipped', 'true')
-          }}
-        />
+      {/* Video Guide Overlay */}
+      {showVideoGuide && (
+        <CustomerVideoGuide onClose={() => setShowVideoGuide(false)} />
       )}
     </div>
   )
