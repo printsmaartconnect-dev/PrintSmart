@@ -82,12 +82,13 @@ function OrdersPageContent() {
       })
     );
   });
-  const [submittingRef, setSubmittingRef] = useState(false)
   
   // Delete Confirmation Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [orderToDelete, setOrderToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [submittingRef, setSubmittingRef] = useState(false)
+
   const [deletingIds, setDeletingIds] = useState([])
   const [showCleanedModal, setShowCleanedModal] = useState(false)
 
@@ -378,7 +379,7 @@ function OrdersPageContent() {
 
         {/* Google Pay-style Premium Scratch & Win Section */}
         {activeRewardOrder && (
-          <div className="mb-8">
+          <div id="scratch-card-group" className="mb-8">
             <button
               type="button"
               onClick={() => {
@@ -425,7 +426,7 @@ function OrdersPageContent() {
         {orders.length > 0 && orders.some(o => o.status === 'PENDING') && (
             (() => {
             return (
-              <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 border border-indigo-150 rounded-2xl space-y-4 shadow-sm animate-fade-in flex flex-col items-center text-center">
+              <div id="payment-confirm-group" className="mb-8 p-6 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 border border-indigo-150 rounded-2xl space-y-4 shadow-sm animate-fade-in flex flex-col items-center text-center">
                 <div className="space-y-1">
                   <h3 className="font-bold text-slate-800 text-base">{t('Complete Your Payment')}</h3>
                   <p className="text-xs text-gray-500 font-semibold max-w-md">
@@ -599,7 +600,7 @@ function OrdersPageContent() {
                     </span>
                   </div>
                   
-                  <div className="flex flex-wrap gap-2">
+                  <div id="bill-actions-group" className="flex flex-wrap gap-2">
                     {/* Scratch Card / Claim Reward (Available for any order with a reward log) */}
                     {order.rewardLog && (
                       <button
@@ -735,6 +736,14 @@ function OrdersPageContent() {
           onClose={() => {
             setShowRewardModal(false)
             setSelectedOrderId(null)
+            if (guideStep === 6) {
+              const pendingPayment = orders.some(o => o.status === 'PENDING')
+              if (pendingPayment) {
+                setGuideStep(7)
+              } else {
+                setGuideStep(8)
+              }
+            }
           }}
           onRewardApplied={() => {
             fetchOrders()

@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config(); // reload server 55
 const path = require("path");
 const fs = require("fs");
 const { execSync } = require("child_process");
@@ -10,10 +10,8 @@ try {
   fs.rmSync(path.join(rootDir, "revert.js"), { force: true });
   fs.rmSync(path.join(rootDir, "revert_log.txt"), { force: true });
   
-  // Push prisma DB schema first to regenerate the Prisma Client
-  console.log("Running prisma db push programmatically at startup...");
-  execSync("npx prisma db push", { cwd: backendDir, stdio: "inherit" });
-  console.log("Prisma db push completed successfully.");
+  // Database schemas are synced manually via migrations/push. Skipping programmatic startup push to prevent process locks.
+  console.log("Skipping programmatic database sync on server boot.");
 
   // Create output directory for compiled JS if not exists
   const distDir = path.join(backendDir, "dist");

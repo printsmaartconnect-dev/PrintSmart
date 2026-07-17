@@ -278,10 +278,17 @@ export default function OrderCard({ order, sequenceNumber, onStatusChange, onPay
         <StatusPill status={order.status} />
       </div>
 
-      <div className="mt-4">
-        <div className="text-base font-extrabold text-slate-800 leading-snug">{order.customerName}</div>
-        {order.phone && (
-          <div className="text-xs font-semibold text-slate-400 mt-0.5">{order.phone}</div>
+      <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <div className="text-base font-extrabold text-slate-800 leading-snug">{order.customerName}</div>
+          {order.phone && (
+            <div className="text-xs font-semibold text-slate-400 mt-0.5">{order.phone}</div>
+          )}
+        </div>
+        {order.timestamp && (
+          <div className="text-xs font-bold text-slate-600 bg-slate-150 px-2.5 py-1 rounded-lg flex-shrink-0">
+            {order.timestamp}
+          </div>
         )}
       </div>
 
@@ -440,9 +447,7 @@ export default function OrderCard({ order, sequenceNumber, onStatusChange, onPay
         />
       </div>
 
-      <div className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-        {order.timestamp}
-      </div>
+      {/* timestamp moved to top */}
 
       {order.billStatus === 'REQUESTED' && (
         <div className="mt-3 p-2 bg-amber-50 border border-amber-250 rounded-xl text-center text-xs font-bold text-amber-700 animate-pulse">
