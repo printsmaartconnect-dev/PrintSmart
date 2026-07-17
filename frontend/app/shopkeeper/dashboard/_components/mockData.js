@@ -119,6 +119,7 @@ export const bottomDockItems = [
   { key: 'completed', label: 'Completed', badge: null },
   { key: 'downloaded', label: 'Downloaded', badge: null },
   { key: 'cancelled', label: 'Cancelled', badge: null },
+  { key: 'customBill', label: 'Custom Bill', badge: null },
   { key: 'addOrder', label: 'Add order', badge: null, href: '/customer/language?shopkeeperAddOrder=true' },
   { key: 'coupon', label: 'Business network', badge: null, href: '/shopkeeper/business-network' },
   { key: 'printsmartAi', label: '🤖 AI Copilot', badge: null, href: '/shopkeeper/ai' },
