@@ -92,7 +92,7 @@ function DockItem({ item, activeFilter, onFilterChange, onCustomClick }) {
   )
 
   const className =
-    `relative flex flex-col items-center justify-between h-[74px] w-[80px] rounded-[20px] p-2 transition-all duration-300 hover:scale-105 origin-bottom select-none cursor-pointer group ${
+    `relative flex flex-col items-center justify-between h-[74px] w-[80px] shrink-0 rounded-[20px] p-2 transition-all duration-300 hover:scale-105 origin-bottom select-none cursor-pointer group ${
       isActive
         ? 'bg-[#ECE9F8]/80 border border-violet-200/50 shadow-[0_4px_16px_rgba(124,58,237,0.08)]'
         : 'hover:bg-violet-50/50 border border-transparent'
@@ -136,7 +136,7 @@ export default function BottomDock({ items, activeFilter, onFilterChange, onCust
   return (
     <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-max max-w-[95vw] overflow-x-auto no-scrollbar">
       <div className="rounded-[32px] bg-white/95 backdrop-blur-xl border-2 border-indigo-500/30 shadow-[0_15px_35px_rgba(124,58,237,0.12)] px-4 py-2 hover:border-indigo-500/50 hover:shadow-[0_20px_45px_rgba(124,58,237,0.18)] transition-all duration-300">
-        <div className="flex items-end justify-center gap-2 flex-nowrap">
+        <div className="flex items-end justify-start md:justify-center gap-2 flex-nowrap">
           {items.map((i) => (
             <DockItem
               key={i.key}

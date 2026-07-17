@@ -129,11 +129,11 @@ function LogoutButton() {
     <button
       type="button"
       onClick={handleLogout}
-      className="relative inline-flex h-10 px-3 items-center justify-center gap-1.5 rounded-xl bg-white shadow-sm border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition text-slate-600 font-semibold text-xs"
+      className="relative inline-flex h-10 w-10 sm:w-auto sm:px-3 items-center justify-center gap-1.5 rounded-xl bg-white shadow-sm border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition text-slate-600 font-semibold text-xs"
       aria-label="Logout"
     >
-      <LogOut size={16} />
-      <span>Logout</span>
+      <LogOut size={16} className="flex-shrink-0" />
+      <span className="hidden sm:inline">Logout</span>
     </button>
   )
 }
@@ -150,19 +150,19 @@ function ProfileDropdown({ shopName }) {
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-3 rounded-xl bg-white shadow-sm border border-slate-200 px-3 py-2 hover:bg-slate-50"
+      className="inline-flex items-center gap-2 rounded-xl bg-white shadow-sm border border-slate-200 p-2 sm:px-3 sm:py-2 hover:bg-slate-50"
       aria-label="Profile menu"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-violet-700 font-bold text-sm">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-violet-700 font-bold text-sm flex-shrink-0">
         {initials}
       </span>
-      <span className="text-left leading-tight">
-        <span className="block text-sm font-semibold text-slate-800 truncate max-w-[180px]">
+      <span className="hidden sm:block text-left leading-tight">
+        <span className="block text-sm font-semibold text-slate-800 truncate max-w-[100px] md:max-w-[180px]">
           {shopName || 'Shop Name'}
         </span>
         <span className="block text-xs text-slate-500">Shopkeeper</span>
       </span>
-      <ChevronDown size={16} className="text-slate-500" />
+      <ChevronDown size={16} className="hidden sm:block text-slate-500 flex-shrink-0" />
     </button>
   )
 }

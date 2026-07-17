@@ -35,19 +35,19 @@ async function registerSession(shopkeeperId, token) {
       }
     });
 
-    // Enforce concurrent session limit of 2
+    // Enforce concurrent session limit of 10
     const activeSessions = await prisma.userSession.findMany({
       where: { shopkeeperId },
       orderBy: { createdAt: 'asc' }
     });
 
-    if (activeSessions.length > 2) {
-      const excessCount = activeSessions.length - 2;
+    if (activeSessions.length > 10) {
+      const excessCount = activeSessions.length - 10;
       const toDeleteIds = activeSessions.slice(0, excessCount).map(s => s.id);
       await prisma.userSession.deleteMany({
         where: { id: { in: toDeleteIds } }
       });
-      console.log(`[SessionManager] Concurrent session limit of 2 exceeded for shopkeeper ${shopkeeperId}. Invalidated oldest ${excessCount} session(s).`);
+      console.log(`[SessionManager] Concurrent session limit of 10 exceeded for shopkeeper ${shopkeeperId}. Invalidated oldest ${excessCount} session(s).`);
     }
   } catch (err) {
     console.error("[SessionManager] Failed to register session:", err);

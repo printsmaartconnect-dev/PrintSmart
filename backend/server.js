@@ -1,4 +1,4 @@
-require("dotenv").config(); // reload server 3
+require("dotenv").config(); // reload server 55
 const path = require("path");
 const fs = require("fs");
 const { execSync } = require("child_process");
