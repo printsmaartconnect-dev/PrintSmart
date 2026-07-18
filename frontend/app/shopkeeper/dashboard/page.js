@@ -417,6 +417,11 @@ function ShopkeeperDashboardContent() {
       else if (filterParam === "downloaded") setActiveFilter(t("Downloaded"));
       else if (filterParam === "cancelled") setActiveFilter(t("Cancelled"));
       else if (filterParam === "all") setActiveFilter(t("All"));
+    } else {
+      // Default: Redirect to pending orders filter by default
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.set("filter", "pending");
+      router.replace(window.location.pathname + "?" + newParams.toString());
     }
 
     if (searchParams.get("openCustomBill") === "true") {

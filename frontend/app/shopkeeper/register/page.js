@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Eye, EyeOff, Headphones, Home } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Headphones, Home, Youtube } from 'lucide-react'
 import {
   getLoggedInShopkeeper,
   isOnboardingComplete,
@@ -270,19 +270,33 @@ export default function ShopkeeperRegisterPage() {
         </div>
       </div>
 
-      {/* Help & Support Floating Button */}
-      <a
-        href="https://forms.gle/VBK48SwGSWm7prgUA"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed left-5 bottom-5 z-50 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/90 border border-gray-200 text-gray-800 font-semibold shadow-sm hover:bg-white transition"
-        aria-label="Help & Support"
-      >
-        <span className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100">
-          <Headphones size={18} className="text-blue-600" />
-        </span>
-        <span>Help &amp; Support</span>
-      </a>
+      {/* Help & Support Floating Button Group */}
+      <div className="fixed left-5 bottom-5 z-50 flex flex-col items-start gap-2.5">
+        {/* YouTube Button */}
+        <a
+          href="https://youtube.com/@printsmaartofficialpage?si=XD-Lrvk6d02SXV3X"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="h-10 w-10 flex items-center justify-center rounded-full bg-rose-600 text-white shadow-md hover:bg-rose-700 transition hover:scale-105 active:scale-95"
+          title="YouTube Video Guide"
+        >
+          <Youtube size={18} />
+        </a>
+
+        {/* Help & Support Floating Button */}
+        <a
+          href="https://forms.gle/VBK48SwGSWm7prgUA"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/90 border border-gray-200 text-gray-800 font-semibold shadow-sm hover:bg-white transition"
+          aria-label="Help & Support"
+        >
+          <span className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100">
+            <Headphones size={18} className="text-blue-600" />
+          </span>
+          <span>Help &amp; Support</span>
+        </a>
+      </div>
     </div>
   )
 }

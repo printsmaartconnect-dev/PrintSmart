@@ -93,6 +93,7 @@ export default function ShopkeeperLayout({ children }) {
     else if (filterParam === 'downloaded') activeFilter = t('Downloaded')
     else if (filterParam === 'cancelled') activeFilter = t('Cancelled')
     else if (filterParam === 'all') activeFilter = t('All')
+    else if (pathname === '/shopkeeper/dashboard') activeFilter = t('Pending')
   }
 
   const handleFilterChange = (filterLabel) => {

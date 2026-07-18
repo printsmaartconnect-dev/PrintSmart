@@ -1254,7 +1254,12 @@ export default function AdminDashboardPage() {
                   },
                   {
                     title: 'New Shops (This Month)',
-                    value: '52',
+                    value: shops.filter(shop => {
+                      if (!shop.createdAt) return false;
+                      const createdAtDate = new Date(shop.createdAt);
+                      const now = new Date();
+                      return createdAtDate.getFullYear() === now.getFullYear() && createdAtDate.getMonth() === now.getMonth();
+                    }).length.toString(),
                     trend: '↗ 18.6% vs last month',
                     color: 'text-blue-600 bg-blue-50'
                   },
