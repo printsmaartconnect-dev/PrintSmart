@@ -467,3 +467,11 @@ model RecommendationHistory {
   @@index([shopkeeperId])
   @@index([recommendationId])
 }
+
+model SystemNotification {
+  id          String   @id @default(uuid())
+  title       String
+  message     String   @db.Text
+  type        String   @default("INFO")
+  createdAt   DateTime @default(now())
+}

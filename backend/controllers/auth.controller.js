@@ -592,5 +592,18 @@ exports.searchShops = async (req, res) => {
   }
 };
 
+// Fetch active system announcements for the shopkeeper
+exports.getAnnouncements = async (req, res) => {
+  try {
+    const list = await prisma.systemNotification.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(list);
+  } catch (err) {
+    console.error("[AuthController] getAnnouncements error:", err);
+    res.status(500).json({ message: "Server Error retrieving announcements" });
+  }
+};
+
 
 

@@ -224,6 +224,36 @@ export default function AdminDashboardPage() {
     }
   }
 
+  const handleSendAnnouncement = async () => {
+    const title = window.prompt("Enter Announcement Title:");
+    if (!title || !title.trim()) return;
+    const message = window.prompt("Enter Announcement Message:");
+    if (!message || !message.trim()) return;
+
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/announcements`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          message: message.trim(),
+          type: 'INFO'
+        })
+      });
+      if (res.ok) {
+        logAdminAction(`Broadcasted announcement: "${title.trim()}"`);
+        addToast('Announcement broadcasted and sent successfully to all shopkeepers!', 'success');
+      } else {
+        addToast('Failed to broadcast announcement.', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to send announcement', err);
+      addToast('Error sending announcement', 'error');
+    }
+  }
+
   const fetchFeedback = async () => {
     setFeedbackLoading(true)
     try {
@@ -1228,7 +1258,7 @@ export default function AdminDashboardPage() {
                     <span>Export</span>
                   </button>
                   <button 
-                    onClick={() => addToast('Broadcast announcement prompt...', 'info')}
+                    onClick={handleSendAnnouncement}
                     className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5"
                   >
                     <Bell size={13} />

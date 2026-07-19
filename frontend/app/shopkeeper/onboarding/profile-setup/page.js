@@ -553,6 +553,14 @@ export default function ProfileSetupPage() {
                   placeholder="Enter GST number"
                 />
               </Field>
+
+              <Field label="UPI ID" required>
+                <TextInput
+                  value={form.upiId}
+                  onChange={onFormChange('upiId')}
+                  placeholder="e.g. shopname@bank"
+                />
+              </Field>
             </div>
           </Card>
         </div>
@@ -566,21 +574,24 @@ export default function ProfileSetupPage() {
           >
             <div className="space-y-4">
               <Field label="Phone Number" required>
-                <div className="flex gap-2">
-                  <SelectInput
-                    className="w-28"
-                    value={contact.countryCode}
-                    onChange={onContactChange('countryCode')}
-                    aria-label="Country code"
-                  >
-                    <option value="+91">+91</option>
-                  </SelectInput>
-                  <TextInput
-                    value={contact.phoneNumber}
-                    onChange={onContactChange('phoneNumber')}
-                    placeholder="98765 43210"
-                    inputMode="tel"
-                  />
+                <div className="flex gap-2 w-full">
+                  <div className="w-20 shrink-0">
+                    <SelectInput
+                      value={contact.countryCode}
+                      onChange={onContactChange('countryCode')}
+                      aria-label="Country code"
+                    >
+                      <option value="+91">+91</option>
+                    </SelectInput>
+                  </div>
+                  <div className="flex-1">
+                    <TextInput
+                      value={contact.phoneNumber}
+                      onChange={onContactChange('phoneNumber')}
+                      placeholder="98765 43210"
+                      inputMode="tel"
+                    />
+                  </div>
                 </div>
               </Field>
 

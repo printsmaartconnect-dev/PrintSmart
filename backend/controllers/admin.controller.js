@@ -845,3 +845,61 @@ exports.getPlatformGrowth = async (req, res) => {
   }
 };
 
+// Create a new system announcement / notification
+exports.createAnnouncement = async (req, res) => {
+  const { title, message, type } = req.body;
+  if (!title || !message) {
+    return res.status(400).json({ message: "Title and message are required" });
+  }
+
+  try {
+    const notif = await prisma.systemNotification.create({
+      data: {
+        title,
+        message,
+        type: type || "INFO"
+      }
+    });
+
+    // Broadcast global event to all active Socket.IO clients
+    try {
+      const socketService = require("../services/socket.service");
+      socketService.emitGlobal("notification-created", notif);
+    } catch (socketErr) {
+      console.warn("[AdminController] Socket broadcast warning:", socketErr.message);
+    }
+
+    res.status(201).json(notif);
+  } catch (err) {
+    console.error("[AdminController] Create announcement error:", err);
+    res.status(500).json({ message: "Server Error creating announcement" });
+  }
+};
+
+// Retrieve all system announcements / notifications
+exports.getAnnouncements = async (req, res) => {
+  try {
+    const list = await prisma.systemNotification.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(list);
+  } catch (err) {
+    console.error("[AdminController] Get announcements error:", err);
+    res.status(500).json({ message: "Server Error retrieving announcements" });
+  }
+};
+
+// Delete a system announcement / notification by ID
+exports.deleteAnnouncement = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.systemNotification.delete({
+      where: { id }
+    });
+    res.json({ message: "Announcement deleted successfully" });
+  } catch (err) {
+    console.error("[AdminController] Delete announcement error:", err);
+    res.status(500).json({ message: "Server Error deleting announcement" });
+  }
+};
+

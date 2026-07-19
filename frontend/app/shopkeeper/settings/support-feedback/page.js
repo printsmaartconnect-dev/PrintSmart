@@ -31,6 +31,7 @@ import {
   Youtube,
   Palette,
 } from 'lucide-react'
+import { launchWhatsAppOrCall } from '../../../../utils/contact'
 
 const sidebarItems = [
   {
@@ -311,23 +312,24 @@ function UrgentContactCard() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-base font-bold text-slate-900">{t('Urgent Contact')}</div>
-          <div className="mt-1 text-sm text-slate-500">{t('Call Support')}</div>
+          <div className="mt-0.5 text-xs font-bold text-slate-700">Jayant Ghate</div>
+          <div className="mt-1 text-xs text-slate-500">{t('Call or Message Support')}</div>
 
           <div className="mt-4 space-y-2">
             <a
-              href="tel:8767877602"
+              href="tel:+918767877602"
               className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
             >
-              <span>87678 77602</span>
+              <span>+91 87678 77602</span>
               <span className="text-xs font-bold text-violet-600">{t('Call')}</span>
             </a>
-            <a
-              href="tel:7249825244"
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+            <button
+              onClick={() => launchWhatsAppOrCall('+918767877602')}
+              className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
             >
-              <span>7249825244</span>
-              <span className="text-xs font-bold text-violet-600">{t('Call')}</span>
-            </a>
+              <span>WhatsApp Chat</span>
+              <span className="text-xs font-bold text-emerald-600">{t('Message')}</span>
+            </button>
           </div>
         </div>
       </div>

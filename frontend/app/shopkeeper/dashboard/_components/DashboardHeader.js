@@ -25,14 +25,62 @@ const mockNotifications = [
 import { useSocket } from '../../../../hooks/useSocket'
 import { useSocketContext } from '../../../../contexts/SocketProvider'
 
+function formatTime(dateStr) {
+  if (!dateStr) return "Just now";
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    if (isNaN(diffMs)) return dateStr; // fallback for mock text like "2 hours ago"
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 function NotificationButton() {
   const [isOpen, setIsOpen] = useState(false)
-  const [notifications, setNotifications] = useState(mockNotifications)
-  const [unreadCount, setUnreadCount] = useState(1)
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const dropdownRef = useRef(null)
   const { joinRoom, leaveRoom } = useSocketContext()
 
   useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const token = localStorage.getItem("authToken")
+        if (!token) return;
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
+        const response = await fetch(`${apiUrl}/api/shopkeeper/announcements`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setNotifications(data);
+          
+          const lastOpened = localStorage.getItem("notificationsLastOpened");
+          if (lastOpened) {
+            const openedDate = new Date(lastOpened);
+            const newNotifs = data.filter(n => new Date(n.createdAt) > openedDate);
+            setUnreadCount(newNotifs.length);
+          } else {
+            setUnreadCount(data.length > 0 ? 1 : 0);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch announcements from database:", err);
+      }
+    };
+
+    fetchAnnouncements();
+
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false)
@@ -62,11 +110,7 @@ function NotificationButton() {
   useSocket("notification-created", (notif) => {
     console.log("[Socket] Notification received in header:", notif)
     setNotifications((prev) => [
-      {
-        title: notif.title,
-        message: notif.message,
-        time: "Just now"
-      },
+      notif,
       ...prev
     ])
     setUnreadCount((prev) => prev + 1)
@@ -76,6 +120,7 @@ function NotificationButton() {
     setIsOpen(!isOpen)
     if (!isOpen) {
       setUnreadCount(0)
+      localStorage.setItem("notificationsLastOpened", new Date().toISOString());
     }
   }
 
@@ -102,13 +147,19 @@ function NotificationButton() {
             )}
           </div>
           <div className="mt-2 max-h-60 overflow-y-auto divide-y divide-slate-50 no-scrollbar">
-            {notifications.map((notif, index) => (
-              <div key={index} className="p-3.5 hover:bg-violet-500/5 transition cursor-pointer text-left">
-                <div className="text-xs font-bold text-slate-800">{notif.title}</div>
-                <div className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed">{notif.message}</div>
-                <div className="text-[9px] text-slate-400 mt-1.5 font-bold">{notif.time}</div>
+            {notifications.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400 font-semibold">
+                No notifications
               </div>
-            ))}
+            ) : (
+              notifications.map((notif, index) => (
+                <div key={index} className="p-3.5 hover:bg-violet-500/5 transition cursor-pointer text-left">
+                  <div className="text-xs font-bold text-slate-800">{notif.title}</div>
+                  <div className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed">{notif.message}</div>
+                  <div className="text-[9px] text-slate-400 mt-1.5 font-bold">{formatTime(notif.createdAt || notif.time)}</div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

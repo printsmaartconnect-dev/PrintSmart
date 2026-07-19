@@ -615,9 +615,7 @@ function CustomerLanguagePageContent() {
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
 
-      const uploadedFilesData = []
-      for (let i = 0; i < files.length; i++) {
-        const item = files[i]
+      const uploadPromises = files.map(async (item, i) => {
         const originalName = item.file.name
         const fileExt = getFileExtension(originalName)
 
@@ -642,7 +640,7 @@ function CustomerLanguagePageContent() {
 
         const result = await uploadRes.json()
 
-        uploadedFilesData.push({
+        return {
           originalFileName: originalName,
           customFileName: customName,
           fileExtension: fileExt,
@@ -650,8 +648,10 @@ function CustomerLanguagePageContent() {
           fileSize: item.file.size,
           thumbnailUrl: item.thumbnailUrl || item.previewUrl || result.fileUrl || null,
           uploadTimestamp: new Date().toISOString()
-        })
-      }
+        }
+      })
+
+      const uploadedFilesData = await Promise.all(uploadPromises)
 
       if (uploadTimer) {
         clearTimeout(uploadTimer)

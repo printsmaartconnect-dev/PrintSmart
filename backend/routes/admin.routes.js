@@ -44,4 +44,9 @@ router.get("/analytics", adminController.getAnalytics);
 // @route   GET api/admin/growth
 router.get("/growth", adminController.getPlatformGrowth);
 
+// @route   Announcements
+router.post("/announcements", adminController.createAnnouncement);
+router.get("/announcements", adminController.getAnnouncements);
+router.delete("/announcements/:id", adminController.deleteAnnouncement);
+
 module.exports = router;

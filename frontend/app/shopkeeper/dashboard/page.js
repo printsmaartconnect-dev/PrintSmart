@@ -22,6 +22,7 @@ import { bottomDockItems, dashboardStats, recentOrders } from "./_components/moc
 import { useSocket } from "../../../hooks/useSocket";
 import { useSocketContext } from "../../../contexts/SocketProvider";
 import { MessageCircle, Youtube, Volume2 } from "lucide-react";
+import { launchWhatsAppOrCall } from "../../../utils/contact";
 
 function ShopkeeperDashboardContent() {
   const router = useRouter();
@@ -458,7 +459,6 @@ function ShopkeeperDashboardContent() {
           localStorage.setItem("shopkeeper", JSON.stringify(shopkeeper));
           syncLocalStorageFromDb(shopkeeper);
 
-
           // Onboarded - proceed
           setShopName(shopkeeper.shopName || "");
           setShopkeeperIdCode(shopkeeper.shopSlug || "");
@@ -485,9 +485,6 @@ function ShopkeeperDashboardContent() {
 
         const profile = getProfile();
         const contact = getContact();
-        const pricing = getPricing();
-
-
 
         setShopName(profile.shopName || "");
         setShopkeeperIdCode(profile.shopSlug || "");
@@ -890,17 +887,15 @@ function ShopkeeperDashboardContent() {
         </a>
 
         {/* WhatsApp Button */}
-        <a
-          href="https://wa.me/qr/QMMZLQXVZZP3N1"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => launchWhatsAppOrCall()}
           className="h-10 w-10 flex items-center justify-center rounded-full bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition hover:scale-105 active:scale-95"
           title="WhatsApp Support"
         >
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
             <path d="M12.012 2c-5.506 0-9.988 4.482-9.988 9.988 0 1.761.46 3.473 1.336 4.985l-1.42 5.19 5.31-1.393c1.455.792 3.09 1.21 4.757 1.213h.005c5.502 0 9.985-4.482 9.985-9.988C22.002 6.482 17.519 2 12.012 2zm5.835 14.23c-.248.696-1.432 1.264-1.996 1.344-.542.077-1.253.14-3.645-.85-3.056-1.266-5.02-4.38-5.172-4.584-.15-.205-1.222-1.626-1.222-3.1 0-1.474.773-2.197 1.05-2.483.225-.23.6-.338.9-.338.1 0 .193.003.275.008.243.013.365.027.525.41.2.478.685 1.673.744 1.792.06.12.1.26.02.42-.08.16-.12.26-.24.4-.12.14-.253.315-.36.423-.118.118-.242.247-.104.484.138.238.614 1.01 1.317 1.636.907.807 1.67 1.054 1.908 1.173.238.12.378.1.517-.06.14-.16.6-.7 1.015-1.378H15c.16 0 .313-.05.518.026.204.076 1.3.613 1.525.727.226.115.377.172.433.27.057.098.057.567-.19 1.265z" />
           </svg>
-        </a>
+        </button>
 
         {/* Audio Button (Disabled) */}
         <button
