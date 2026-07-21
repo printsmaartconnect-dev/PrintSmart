@@ -40,7 +40,22 @@ export default function ShopkeeperLayout({ children }) {
       }
     } catch (e) {}
 
-    const fetchCounts = async () => {
+    const syncCounts = async () => {
+      try {
+        const cached = localStorage.getItem("cachedOrdersList")
+        if (cached) {
+          const list = JSON.parse(cached)
+          if (Array.isArray(list)) {
+            const pending = list.filter((o) => o.status !== "Completed" && o.status !== "Downloaded" && o.status !== "Cancelled").length
+            const completed = list.filter((o) => o.status === "Completed" || o.status === "Downloaded").length
+            const downloaded = list.filter((o) => o.status === "Downloaded").length
+            const cancelled = list.filter((o) => o.status === "Cancelled").length
+            setCounts({ pending, completed, downloaded, cancelled })
+            return
+          }
+        }
+      } catch (e) {}
+
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://printsmart-3nxm.onrender.com'
         const response = await fetch(`${apiUrl}/api/orders/shopkeeper/all`, {
@@ -61,10 +76,15 @@ export default function ShopkeeperLayout({ children }) {
       }
     }
 
-    fetchCounts()
-    // Poll counts every 10 seconds to keep badges updated everywhere
-    const interval = setInterval(fetchCounts, 10000)
-    return () => clearInterval(interval)
+    syncCounts()
+    window.addEventListener("orders-updated", syncCounts)
+    window.addEventListener("storage", syncCounts)
+    const interval = setInterval(syncCounts, 5000)
+    return () => {
+      window.removeEventListener("orders-updated", syncCounts)
+      window.removeEventListener("storage", syncCounts)
+      clearInterval(interval)
+    }
   }, [pathname, isAuthOrOnboarding])
 
   if (!mounted) {
@@ -73,10 +93,10 @@ export default function ShopkeeperLayout({ children }) {
 
   // Map the dock items with dynamic badge counts and correct addOrder href
   const mappedDockItems = bottomDockItems.map(item => {
-    if (item.key === 'pending') return { ...item, badge: counts.pending ? String(counts.pending) : null }
-    if (item.key === 'completed') return { ...item, badge: counts.completed ? String(counts.completed) : null }
-    if (item.key === 'downloaded') return { ...item, badge: counts.downloaded ? String(counts.downloaded) : null }
-    if (item.key === 'cancelled') return { ...item, badge: counts.cancelled ? String(counts.cancelled) : null }
+    if (item.key === 'pending') return { ...item, badge: counts.pending !== undefined ? String(counts.pending) : "0" }
+    if (item.key === 'completed') return { ...item, badge: counts.completed !== undefined ? String(counts.completed) : "0" }
+    if (item.key === 'downloaded') return { ...item, badge: counts.downloaded !== undefined ? String(counts.downloaded) : "0" }
+    if (item.key === 'cancelled') return { ...item, badge: counts.cancelled !== undefined ? String(counts.cancelled) : "0" }
     if (item.key === 'addOrder' && shopkeeperIdCode) {
       return { ...item, href: `/customer/language?shopkeeperAddOrder=true&shopId=${shopkeeperIdCode}` }
     }

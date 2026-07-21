@@ -150,9 +150,6 @@ const getPrintableUrl = async (fileUrl) => {
 
 export default function OrderCard({ order, sequenceNumber, onStatusChange, onPaymentVerify, onPrint, onDownload, onEditBill }) {
   const [showCleanedModal, setShowCleanedModal] = useState(false);
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [previewFileType, setPreviewFileType] = useState('');
 
   const handlePreview = async () => {
     const filesList = order.files && order.files.length > 0 ? order.files : [order];
@@ -160,10 +157,7 @@ export default function OrderCard({ order, sequenceNumber, onStatusChange, onPay
     if (file && file.fileUrl) {
       try {
         const url = await getPrintableUrl(file.fileUrl);
-        setPreviewUrl(url);
-        const ext = (file.fileName || '').split('.').pop().toLowerCase();
-        setPreviewFileType(ext);
-        setShowPreviewModal(true);
+        window.open(url, '_blank');
       } catch (err) {
         if (err.code === "S3FileNotFound" || err.message === "S3FileNotFound") {
           setShowCleanedModal(true);
@@ -178,6 +172,9 @@ export default function OrderCard({ order, sequenceNumber, onStatusChange, onPay
 
   const handlePrint = async () => {
     try {
+      if (onStatusChange) {
+        onStatusChange(order, 'Completed');
+      }
       if (onPrint) {
         await onPrint(order);
       } else {
@@ -190,8 +187,8 @@ export default function OrderCard({ order, sequenceNumber, onStatusChange, onPay
             successCount++;
           }
         }
-        if (successCount > 0 && onStatusChange && order.dbId) {
-          await onStatusChange(order.dbId, 'Completed')
+        if (successCount > 0 && onStatusChange) {
+          await onStatusChange(order, 'Completed')
         } else if (successCount === 0) {
           alert('No file URL associated with this order.')
         }
@@ -219,8 +216,8 @@ export default function OrderCard({ order, sequenceNumber, onStatusChange, onPay
             successCount++;
           }
         }
-        if (successCount > 0 && onStatusChange && order.dbId) {
-          await onStatusChange(order.dbId, 'Downloaded')
+        if (successCount > 0 && onStatusChange) {
+          await onStatusChange(order, 'Downloaded')
         } else if (successCount === 0) {
           alert('No file URL associated with this order.')
         }
@@ -236,8 +233,8 @@ export default function OrderCard({ order, sequenceNumber, onStatusChange, onPay
 
   const handleCancel = async () => {
     if (confirm('Are you sure you want to cancel this order?')) {
-      if (onStatusChange && order.dbId) {
-        await onStatusChange(order.dbId, 'Cancelled')
+      if (onStatusChange) {
+        await onStatusChange(order, 'Cancelled')
       }
     }
   }
@@ -510,63 +507,7 @@ export default function OrderCard({ order, sequenceNumber, onStatusChange, onPay
         </div>
       )}
 
-      {showPreviewModal && previewUrl && (
-        <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md animate-fadeIn" onClick={(e) => { e.stopPropagation(); setShowPreviewModal(false); setPreviewUrl(''); }}>
-          <div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl relative overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
-            {/* Modal Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50">
-              <div>
-                <h3 className="font-extrabold text-slate-800 text-sm">
-                  Document Preview
-                </h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate max-w-md">
-                  {order.files?.[0]?.fileName || order.fileName || "Document"}
-                </p>
-              </div>
-              <button
-                onClick={() => { setShowPreviewModal(false); setPreviewUrl(''); }}
-                className="p-1.5 text-slate-400 hover:text-slate-655 hover:bg-slate-100 rounded-full transition"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            {/* Modal Body */}
-            <div className="flex-1 bg-slate-100 p-4 flex items-center justify-center overflow-auto">
-              {['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(previewFileType) ? (
-                <img 
-                  src={previewUrl} 
-                  alt="Preview" 
-                  className="max-w-full max-h-full object-contain rounded-lg shadow"
-                />
-              ) : previewFileType === 'pdf' ? (
-                <iframe 
-                  src={`${previewUrl}#toolbar=0`} 
-                  className="w-full h-full rounded-lg border border-slate-200 bg-white" 
-                  title="PDF Preview"
-                />
-              ) : (
-                <div className="text-center space-y-3 p-8">
-                  <div className="w-16 h-16 bg-indigo-50 text-indigo-650 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-                    <FileText size={32} />
-                  </div>
-                  <h4 className="font-extrabold text-slate-800">Preview not supported in-browser</h4>
-                  <p className="text-xs text-slate-500 max-w-xs font-semibold">
-                    This file format ({previewFileType.toUpperCase()}) cannot be rendered directly inside the browser. Please download it to view.
-                  </p>
-                  <a 
-                    href={previewUrl} 
-                    download 
-                    className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition"
-                  >
-                    <Download size={14} /> Download to View
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {showCleanedModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">

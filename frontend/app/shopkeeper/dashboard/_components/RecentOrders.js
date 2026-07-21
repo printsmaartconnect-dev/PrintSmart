@@ -109,6 +109,9 @@ export default function RecentOrders({
 
   const handlePrint = async (order) => {
     try {
+      if (onStatusChange) {
+        onStatusChange(order, 'Completed');
+      }
       if (onPrint) {
         await onPrint(order);
       } else {
@@ -121,8 +124,8 @@ export default function RecentOrders({
             successCount++;
           }
         }
-        if (successCount > 0 && onStatusChange && order.dbId) {
-          await onStatusChange(order.dbId, 'Completed')
+        if (successCount > 0 && onStatusChange) {
+          await onStatusChange(order, 'Completed')
         } else if (successCount === 0) {
           alert(t('No file URL associated with this order.'))
         }
@@ -150,8 +153,8 @@ export default function RecentOrders({
             successCount++;
           }
         }
-        if (successCount > 0 && onStatusChange && order.dbId) {
-          await onStatusChange(order.dbId, 'Downloaded')
+        if (successCount > 0 && onStatusChange) {
+          await onStatusChange(order, 'Downloaded')
         } else if (successCount === 0) {
           alert(t('No file URL associated with this order.'))
         }
@@ -167,8 +170,8 @@ export default function RecentOrders({
 
   const handleCancel = async (order) => {
     if (confirm(t('Are you sure you want to cancel this order?'))) {
-      if (onStatusChange && order.dbId) {
-        await onStatusChange(order.dbId, 'Cancelled')
+      if (onStatusChange) {
+        await onStatusChange(order, 'Cancelled')
       }
     }
   }
@@ -289,8 +292,8 @@ export default function RecentOrders({
                                       } else if (file.fileUrl) {
                                         const url = await getPrintableUrl(file.fileUrl);
                                         window.open(url, '_blank');
-                                        if (onStatusChange && order.dbId) {
-                                          await onStatusChange(order.dbId, 'Completed');
+                                        if (onStatusChange) {
+                                          await onStatusChange(order, 'Completed');
                                         }
                                       } else {
                                         alert(t('No file URL associated with this document.'));
@@ -309,8 +312,8 @@ export default function RecentOrders({
                                       } else if (file.fileUrl) {
                                         const url = await getPrintableUrl(file.fileUrl);
                                         window.open(url, '_blank');
-                                        if (onStatusChange && order.dbId) {
-                                          await onStatusChange(order.dbId, 'Downloaded');
+                                        if (onStatusChange) {
+                                          await onStatusChange(order, 'Downloaded');
                                         }
                                       } else {
                                         alert(t('No file URL associated with this document.'));

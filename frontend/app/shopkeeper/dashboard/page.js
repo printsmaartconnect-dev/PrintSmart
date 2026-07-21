@@ -188,19 +188,37 @@ function ShopkeeperDashboardContent() {
   const splitAndMapRawOrders = (rawOrders) => {
     const result = [];
     if (!rawOrders) return result;
+
+    let itemStatuses = {};
+    if (typeof window !== "undefined") {
+      try {
+        itemStatuses = JSON.parse(localStorage.getItem("itemStatuses") || "{}");
+      } catch (e) {}
+    }
     
     for (const o of rawOrders) {
       const formatted = mapRawOrderToFrontend(o);
       
       if (!formatted.files || formatted.files.length <= 1) {
-        result.push(formatted);
+        const itemKey = formatted.files && formatted.files[0] && formatted.files[0].id ? formatted.files[0].id : formatted.dbId;
+        const savedStatus = itemStatuses[itemKey] || itemStatuses[formatted.dbId];
+        result.push({
+          ...formatted,
+          itemKey: itemKey,
+          status: savedStatus || formatted.status,
+        });
       } else {
         formatted.files.forEach((file, index) => {
           const filePrice = file.price || formatted.price;
+          const itemKey = file.id || `${formatted.dbId}_${file.orderId || index}`;
+          const savedStatus = itemStatuses[itemKey] || itemStatuses[file.orderId];
+
           result.push({
             ...formatted,
             id: file.orderId || `${formatted.id}-${index}`,
             dbId: formatted.dbId,
+            itemKey: itemKey,
+            status: savedStatus || formatted.status,
             fileName: file.fileName,
             fileUrl: file.fileUrl,
             copies: file.copies || formatted.copies,
@@ -353,35 +371,74 @@ function ShopkeeperDashboardContent() {
     }
   };
 
-  const handleStatusChange = async (dbId, nextStatus) => {
-    const token = localStorage.getItem("authToken");
-    if (!token) {
-      setOrdersList((prev) =>
-        prev.map((o) => (o.dbId === dbId || o.id === dbId ? { ...o, status: nextStatus } : o))
-      );
-      return;
+  const handleStatusChange = async (target, nextStatus) => {
+    let dbId = target;
+    let itemKey = null;
+
+    if (typeof target === 'object' && target !== null) {
+      dbId = target.dbId || target.id;
+      itemKey = target.itemKey || target.id;
+    } else if (typeof target === 'string') {
+      dbId = target;
+      itemKey = target;
     }
 
-    try {
-      const response = await fetch(`${apiUrl}/api/orders/${dbId}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-
-      if (response.ok) {
-        await fetchOrders();
-      } else {
-        alert("Failed to update order status");
+    // Save individual item status in localStorage
+    let itemStatuses = {};
+    if (typeof window !== "undefined") {
+      try {
+        itemStatuses = JSON.parse(localStorage.getItem("itemStatuses") || "{}");
+      } catch (e) {}
+      if (itemKey) {
+        itemStatuses[itemKey] = nextStatus;
+        localStorage.setItem("itemStatuses", JSON.stringify(itemStatuses));
       }
-    } catch (err) {
-      console.warn("Failed to update status on backend, updating locally:", err);
-      setOrdersList((prev) =>
-        prev.map((o) => (o.dbId === dbId || o.id === dbId ? { ...o, status: nextStatus } : o))
-      );
+    }
+
+    // Update local orders list state
+    setOrdersList((prev) => {
+      const updated = prev.map((o) => {
+        const matchesKey = itemKey && (o.itemKey === itemKey || o.id === itemKey);
+        const matchesDb = !itemKey && (o.dbId === dbId || o.id === dbId);
+        if (matchesKey || matchesDb) {
+          return { ...o, status: nextStatus };
+        }
+        return o;
+      });
+      if (typeof window !== "undefined") {
+        localStorage.setItem("cachedOrdersList", JSON.stringify(updated));
+        window.dispatchEvent(new Event("orders-updated"));
+      }
+      return updated;
+    });
+
+    // Check if ALL items belonging to the parent order (dbId) are now completed or non-pending
+    let currentList = [];
+    if (typeof window !== "undefined") {
+      try {
+        currentList = JSON.parse(localStorage.getItem("cachedOrdersList") || "[]");
+      } catch (e) {}
+    }
+
+    const parentItems = currentList.filter((o) => o.dbId === dbId || o.id === dbId);
+    const allFinished = parentItems.length > 0 && parentItems.every((o) => 
+      o.status === 'Completed' || o.status === 'Cancelled' || o.status === 'Downloaded'
+    );
+
+    const token = localStorage.getItem("authToken");
+    if (token && dbId && (allFinished || parentItems.length <= 1)) {
+      try {
+        await fetch(`${apiUrl}/api/orders/${dbId}/status`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: nextStatus }),
+        });
+      } catch (err) {
+        console.warn("Failed to update status on backend:", err);
+      }
     }
   };
 
@@ -618,64 +675,30 @@ function ShopkeeperDashboardContent() {
         console.warn("Failed to retrieve presigned URL for printing:", err);
       }
 
-      try {
-        if (['pdf'].includes(extension)) {
-          // Fetch as Blob to bypass iframe CORS
-          const fileRes = await fetch(fileUrl);
-          if (!fileRes.ok) {
-            throw new Error("Failed to download PDF for printing.");
-          }
-          const blob = await fileRes.blob();
-          const bUrl = URL.createObjectURL(blob);
-
-          let iframe = document.getElementById('print-iframe');
-          if (!iframe) {
-            iframe = document.createElement('iframe');
-            iframe.id = 'print-iframe';
-            iframe.style.position = 'fixed';
-            iframe.style.right = '0';
-            iframe.style.bottom = '0';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = '0';
-            document.body.appendChild(iframe);
-          }
-
-          iframe.src = bUrl;
-          iframe.onload = () => {
-            try {
-              iframe.contentWindow.focus();
-              iframe.contentWindow.print();
-              setTimeout(() => {
-                URL.revokeObjectURL(bUrl);
-              }, 60000);
-            } catch (err) {
-              console.error("Iframe print fail:", err);
-              window.open(bUrl, '_blank');
-            }
-          };
-          successCount++;
-        } else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) {
-          let iframe = document.getElementById('print-iframe');
-          if (!iframe) {
-            iframe = document.createElement('iframe');
-            iframe.id = 'print-iframe';
-            iframe.style.position = 'fixed';
-            iframe.style.right = '0';
-            iframe.style.bottom = '0';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = '0';
-            document.body.appendChild(iframe);
-          }
+      if (fileUrl) {
+        if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) {
+          let iframe = document.getElementById('native-print-iframe');
+          if (iframe) iframe.remove();
+          
+          iframe = document.createElement('iframe');
+          iframe.id = 'native-print-iframe';
+          iframe.style.position = 'fixed';
+          iframe.style.right = '0';
+          iframe.style.bottom = '0';
+          iframe.style.width = '0';
+          iframe.style.height = '0';
+          iframe.style.border = '0';
+          document.body.appendChild(iframe);
 
           const doc = iframe.contentWindow.document;
           doc.open();
           doc.write(`
+            <!DOCTYPE html>
             <html>
               <head>
+                <title>${fileName || 'PrintSmart Document'}</title>
                 <style>
-                  @page { size: auto; margin: 0mm; }
+                  @page { size: auto; margin: 0; }
                   body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
                   img { max-width: 100%; max-height: 100vh; object-fit: contain; }
                 </style>
@@ -688,16 +711,44 @@ function ShopkeeperDashboardContent() {
           doc.close();
           successCount++;
         } else {
-          // Office format download
-          window.open(fileUrl, '_blank');
-          alert(t("Office documents cannot be printed directly from the browser. The file has been downloaded. Please print it locally."));
-          successCount++;
+          const printWin = window.open('', '_blank', 'width=900,height=950');
+          if (printWin) {
+            printWin.document.write(`
+              <!DOCTYPE html>
+              <html>
+                <head>
+                  <title>${fileName || 'PrintSmart Document'}</title>
+                  <style>
+                    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+                    iframe { width: 100%; height: 100%; border: none; }
+                  </style>
+                </head>
+                <body>
+                  <iframe id="pdf-frame" src="${fileUrl}#toolbar=0"></iframe>
+                  <script>
+                    const frame = document.getElementById('pdf-frame');
+                    frame.onload = function() {
+                      setTimeout(function() {
+                        try {
+                          frame.contentWindow.focus();
+                          frame.contentWindow.print();
+                        } catch (e) {
+                          window.focus();
+                          window.print();
+                        }
+                      }, 250);
+                    };
+                  </script>
+                </body>
+              </html>
+            `);
+            printWin.document.close();
+            successCount++;
+          } else {
+            window.open(fileUrl, '_blank');
+            successCount++;
+          }
         }
-      } catch (err) {
-        console.error("Direct print failed:", err);
-        alert(t("Direct printing failed for file: ") + fileName + t(". Opening file in a new tab."));
-        window.open(fileUrl, '_blank');
-        successCount++;
       }
     }
 
@@ -858,10 +909,10 @@ function ShopkeeperDashboardContent() {
                 onStatusChange={handleStatusChange} 
                 onPaymentVerify={handlePaymentVerify}
                 onPrint={async (order) => {
-                  await handleDirectPrint(order);
-                  if (handleStatusChange && (order.dbId || order.id)) {
-                    await handleStatusChange(order.dbId || order.id, 'Completed');
+                  if (handleStatusChange && (order.itemKey || order.dbId || order.id)) {
+                    handleStatusChange(order, 'Completed');
                   }
+                  await handleDirectPrint(order);
                 }}
                 onDownload={handleDirectDownload}
                 onEditBill={handleEditBill}
